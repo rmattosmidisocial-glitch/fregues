@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --color-carvao: #17110e;
+  --color-forno: #1f1713;
+  --color-grafite: #2a201a;
+  --color-linha: #3d2f27;
+  --color-fumo: #8f7b6c;
+  --color-areia: #c9b8a6;
+  --color-papel: #fff6e9;
+  --color-brasa: #ff5b1f;
+  --color-brasa-escura: #c2410c;
+  --color-mostarda: #ffc03a;
+  --color-manjericao: #49c27e;
+  --color-tomate: #f0524a;
+  --color-azulejo: #2f7d77;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background: var(--color-carvao);
+  color: var(--color-papel);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01";
+}
+
+.font-display {
+  font-variation-settings: "opsz" 96;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-mostarda);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.comanda-edge {
+  --r: 7px;
+  mask:
+    radial-gradient(var(--r) at 50% 0, #0000 98%, #000) 50% calc(-1 * var(--r)) / calc(2 * var(--r) + 2px) 100% repeat-x;
+}
+
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--color-linha);
+  border-radius: 99px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes acender {
+  0% { opacity: 0; }
+  60% { opacity: 1; filter: brightness(1.5); }
+  100% { opacity: 1; filter: brightness(1); }
+}
+.acender { animation: acender 900ms ease-out both; }
+
+@keyframes comanda-sai {
+  0% { transform: translateY(-24px); clip-path: inset(0 0 100% 0); }
+  100% { transform: translateY(0); clip-path: inset(0 0 0 0); }
+}
+.comanda-sai { animation: comanda-sai 1100ms cubic-bezier(.2,.7,.2,1) 1.9s both; }
+
+@keyframes pulso {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.06); opacity: .85; }
+}
+.pulso { animation: pulso 2.6s ease-in-out infinite; transform-origin: center; }
