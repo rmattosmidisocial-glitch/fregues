@@ -60,19 +60,23 @@ function LoginAdmin({ a }: { a: ReturnType<typeof useAdmin> }) {
         <p className="mt-6 flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-brasa">
           <ShieldCheck className="h-4 w-4" /> Administração
         </p>
-        <h1 className="mt-1 font-display text-[28px] font-extrabold">{criar ? "Criar seu acesso" : "Entrar"}</h1>
-        <label className="mt-5 block text-[13px] text-areia">
+        <h1 className="mt-1 font-display text-[32px] font-extrabold">{criar ? "Criar seu acesso" : "Entrar"}</h1>
+        <p className="mt-1 text-[15px] text-areia">{criar ? "Use o e-mail que vai administrar o Freguês." : "Área só para a equipe do Freguês."}</p>
+        <label className="mt-5 block text-[15px] font-semibold text-papel">
           E-mail
-          <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel" />
+          <input type="email" required autoComplete="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-carvao outline-none placeholder:text-[#8f7b6c] focus:border-brasa" />
         </label>
-        <label className="mt-3 block text-[13px] text-areia">
-          Senha
-          <input type="password" required minLength={8} autoComplete={criar ? "new-password" : "current-password"} value={senha} onChange={(e) => setSenha(e.target.value)} className="mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel" />
+        <label className="mt-4 block text-[15px] font-semibold text-papel">
+          Senha {criar && <span className="font-normal text-areia">(mínimo 8 caracteres)</span>}
+          <input type="password" required minLength={8} autoComplete={criar ? "new-password" : "current-password"} placeholder="••••••••" value={senha} onChange={(e) => setSenha(e.target.value)} className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-carvao outline-none placeholder:text-[#8f7b6c] focus:border-brasa" />
         </label>
-        {msg && <p className="mt-3 rounded-xl bg-grafite p-3 text-[14px]">{msg}</p>}
-        <button className="mt-5 w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda">{criar ? "Criar acesso" : "Entrar"}</button>
-        <button type="button" onClick={() => setCriar(!criar)} className="mt-3 w-full text-[14px] text-areia hover:text-papel">
-          {criar ? "Já tenho acesso" : "Primeiro acesso? Criar conta"}
+        {msg && <p className="mt-4 rounded-xl bg-[#2e1a10] p-3 text-[15px] text-[#ffd9c4]">{msg}</p>}
+        <button className="mt-6 w-full rounded-xl bg-brasa py-3.5 text-[17px] font-bold text-carvao hover:bg-mostarda">{criar ? "Criar meu acesso" : "Entrar"}</button>
+        <div className="my-5 flex items-center gap-3 text-[13px] text-areia">
+          <span className="h-px flex-1 bg-linha" /> {criar ? "já tem acesso?" : "ainda não tem acesso?"} <span className="h-px flex-1 bg-linha" />
+        </div>
+        <button type="button" onClick={() => { setCriar(!criar); setMsg(null); }} className="w-full rounded-xl border-2 border-papel py-3 text-[16px] font-semibold text-papel hover:bg-papel hover:text-carvao">
+          {criar ? "Voltar para Entrar" : "Primeiro acesso: criar conta"}
         </button>
       </form>
     </div>

@@ -33,7 +33,7 @@ export function Login() {
         <h1 className="mt-8 font-display text-[34px] font-extrabold leading-tight tracking-[-0.02em]">Entrar no painel</h1>
         <p className="mt-2 text-[15px] text-areia">Acompanhe pedidos, entregas e fregueses da sua casa.</p>
         <form onSubmit={entrar} className="mt-6 space-y-3" noValidate>
-          <label className="block text-[14px] text-areia">
+          <label className="block text-[15px] font-semibold text-papel">
             E-mail
             <input
               type="email"
@@ -43,10 +43,10 @@ export function Login() {
                 setEmail(e.target.value);
                 setErro("");
               }}
-              className="mt-1 w-full rounded-xl border border-linha bg-forno px-4 py-3 text-[16px] text-papel"
+              className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-carvao outline-none focus:border-brasa"
             />
           </label>
-          <label className="block text-[14px] text-areia">
+          <label className="block text-[15px] font-semibold text-papel">
             Senha
             <input
               type="password"
@@ -56,7 +56,7 @@ export function Login() {
                 setSenha(e.target.value);
                 setErro("");
               }}
-              className="mt-1 w-full rounded-xl border border-linha bg-forno px-4 py-3 text-[16px] text-papel"
+              className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-carvao outline-none focus:border-brasa"
             />
           </label>
           {erro && (
