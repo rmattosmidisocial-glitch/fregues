@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Activity, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, LogOut, Map as MapIcon, MessagesSquare, Sparkles, Users, Workflow, X } from "lucide-react";
 import { useCrescer } from "../../data/crescer";
 import { Atendimento } from "./Atendimento";
@@ -7,7 +7,7 @@ import { Formularios } from "./Formularios";
 import { Links } from "./Links";
 import { Logo } from "../../components/Logo";
 import type { Rota } from "../../router";
-import { useDados } from "../../data/dados";
+import { supabase, useDados } from "../../data/dados";
 import { Login } from "./Login";
 import { Pulso } from "./Pulso";
 import { Pedidos } from "./Pedidos";
@@ -32,6 +32,11 @@ const ITENS: Item[] = [
 export function PainelLayout({ rota }: { rota: Rota }) {
   const [copiloto, setCopiloto] = useState(false);
   const d = useDados();
+  const [assin, setAssin] = useState<{ status: string; plano_nome: string; teste_ate: string | null; proximo_vencimento: string | null; valor: number } | null>(null);
+  useEffect(() => {
+    if (!supabase || !d.sessao) return;
+    supabase.rpc("minha_assinatura").then(({ data }) => setAssin((data as typeof assin) ?? null));
+  }, [d.sessao]);
   const naoLidas = useCrescer((s) => s.conversas.filter((c) => c.naoLida).length);
   const contador = (r: Rota) => (r === "pedidos" ? d.pedidos.filter((p) => p.status === "novo").length : r === "atendimento" ? naoLidas : 0);
   const aberta = d.loja.aberto;
@@ -105,6 +110,17 @@ export function PainelLayout({ rota }: { rota: Rota }) {
           </button>
         </header>
         <main className="mx-auto max-w-[1280px] px-4 py-6 md:px-8 md:py-8">
+          {assin && assin.status !== "ativa" && (
+            <p className={`mb-4 rounded-2xl p-4 text-[15px] ${assin.status === "teste" ? "bg-[#13302d] text-[#bfeee7]" : "bg-[#46320f] text-[#ffe2b0]"}`}>
+              {assin.status === "teste" && `Você está no período de teste do plano ${assin.plano_nome} até ${assin.teste_ate ? new Date(assin.teste_ate + "T12:00:00").toLocaleDateString("pt-BR") : "breve"}.`}
+              {assin.status === "atrasada" && `Sua mensalidade do Freguês está em atraso. Regularize para a loja não sair do ar.`}
+              {assin.status === "suspensa" && `Sua loja está fora do ar por falta de pagamento. Fale com a equipe do Freguês para reativar.`}
+              {assin.status === "cancelada" && `Sua assinatura do Freguês foi cancelada.`}{" "}
+              <a href="https://wa.me/5521967640607" target="_blank" rel="noreferrer" className="font-semibold underline">
+                Falar com o Freguês
+              </a>
+            </p>
+          )}
           {d.erro && <p className="mb-4 rounded-2xl bg-[#4a1c10] p-4 text-[#ffd9c4]">{d.erro}</p>}
           {rota === "painel" && <Pulso abrirCopiloto={() => setCopiloto(true)} />}
           {rota === "pedidos" && <Pedidos />}

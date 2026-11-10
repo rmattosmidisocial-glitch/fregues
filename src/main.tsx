@@ -8,6 +8,7 @@ import { Loja } from "./pages/loja/Loja";
 import { DadosProvider } from "./data/dados";
 import { Bio } from "./pages/publico/Bio";
 import { Pesquisa } from "./pages/publico/Pesquisa";
+import { Admin } from "./pages/admin/Admin";
 
 function App() {
   const rota = useRota();
@@ -15,6 +16,7 @@ function App() {
   if (rota === "loja") return <Loja />;
   if (rota === "bio") return <Bio />;
   if (rota === "pesquisa") return <Pesquisa />;
+  if (rota === "admin") return <Admin />;
   return <PainelLayout rota={rota} />;
 }
 

@@ -6,7 +6,15 @@ import { nomeBairro } from "../components/GeoMap";
 
 const URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-export const SLUG = "brasa-burger";
+// Cada restaurante tem um endereço: ?r=slug. Sem isso, abre a loja de demonstração.
+const lerSlug = () => {
+  try {
+    return new URLSearchParams(window.location.search).get("r") || localStorage.getItem("fregues-loja") || "brasa-burger";
+  } catch {
+    return "brasa-burger";
+  }
+};
+export const SLUG = lerSlug();
 export const supabase: SupabaseClient | null = URL && KEY ? createClient(URL, KEY) : null;
 export const MODO: "real" | "demo" = supabase ? "real" : "demo";
 
@@ -237,6 +245,26 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, [carregarPublico]);
 
+  // Ao entrar: aceita convites do e-mail e abre a loja da qual a pessoa é dona ou equipe.
+  useEffect(() => {
+    if (!supabase || !sessao) return;
+    (async () => {
+      await supabase.rpc("aceitar_convites");
+      const { data: ms } = await supabase.from("memberships").select("org_id").eq("user_id", sessao.user.id);
+      if (!ms?.length) return;
+      const { data: st } = await supabase.from("stores").select("slug").in("org_id", ms.map((m) => m.org_id)).order("created_at").limit(1);
+      const slug = st?.[0]?.slug;
+      if (slug && slug !== SLUG) {
+        try {
+          localStorage.setItem("fregues-loja", slug);
+        } catch {
+          /* sem armazenamento: segue pelo endereço */
+        }
+        window.location.search = `?r=${slug}`;
+      }
+    })();
+  }, [sessao]);
+
   useEffect(() => {
     if (!supabase || !sessao || !loja.id) return;
     carregarPainel(loja.id);
@@ -261,6 +289,11 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       },
       async sair() {
         await supabase?.auth.signOut();
+        try {
+          localStorage.removeItem("fregues-loja");
+        } catch {
+          /* nada */
+        }
       },
       async moverBairro(id, destino) {
         setZonas((zs) => zs.map((z) => ({ ...z, bairros: z.id === destino ? [...z.bairros.filter((b) => b !== id), id] : z.bairros.filter((b) => b !== id) })));

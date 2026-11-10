@@ -22,7 +22,7 @@ Sem as variáveis de ambiente, o app abre em **modo demonstração**: tudo funci
 ## Ligando no Supabase
 
 1. Crie o projeto (região São Paulo, `sa-east-1`).
-2. Rode as migrações de `001` a `006`, em ordem.
+2. Rode as migrações de `001` a `007`, em ordem.
 3. No SQL Editor:
    ```sql
    create extension if not exists http with schema extensions;
@@ -56,3 +56,14 @@ npm run dev
 - **WhatsApp**: precisa de um número na API oficial da Meta (WhatsApp Cloud API).
 - **Pix de verdade**: precisa de uma conta em um gateway (Mercado Pago, Asaas ou Efí). Hoje o Pix da loja de demonstração tem um botão "simular pagamento".
 - **Municípios sem bairros oficiais** (61 dos 92, como Magé, Maricá e Petrópolis): o dono atende o município inteiro ou desenha as próprias zonas.
+
+## Administração (dono do Freguês)
+
+Endereço: `/#admin`. Crie seu acesso por lá ("Primeiro acesso"), confirme o e-mail e rode no SQL Editor:
+
+```sql
+select public.tornar_admin('seu-email@exemplo.com');
+```
+
+Cada restaurante abre pelo endereço `?r=endereco-da-loja`: `/?r=forno-velho#loja` para os clientes dele e `/?r=forno-velho#painel` para o dono.
+O dono entra com o e-mail cadastrado no "Novo cliente" e o painel abre direto na loja dele.
