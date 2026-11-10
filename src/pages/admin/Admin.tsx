@@ -374,7 +374,18 @@ export function Admin() {
       </div>
     );
 
-  const v = a.visao!;
+  if (!a.visao)
+    return (
+      <div className="grid min-h-screen place-items-center bg-carvao p-6 text-center text-areia">
+        <div>
+          <p>{a.erro ? `Não foi possível carregar: ${a.erro}` : "Carregando os números…"}</p>
+          <button onClick={() => a.acoes.recarregar()} className="mt-4 rounded-full border-2 border-papel px-5 py-2 font-semibold text-papel">
+            Tentar de novo
+          </button>
+        </div>
+      </div>
+    );
+  const v = a.visao;
   const c = a.clientes.find((x) => x.org_id === sel);
   const testesVencendo = a.clientes.filter((x) => x.status === "teste" && (diasAte(x.teste_ate) ?? 99) <= 5);
   const atrasados = a.clientes.filter((x) => x.status === "atrasada");

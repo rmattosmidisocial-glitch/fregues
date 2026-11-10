@@ -171,6 +171,7 @@ export function useAdmin() {
       setCarregando(false);
       return;
     }
+    setCarregando(true);
     const { data: ok } = await supabase.rpc("is_platform_admin");
     setAdmin(!!ok);
     if (!ok) {
