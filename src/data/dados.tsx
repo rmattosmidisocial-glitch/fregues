@@ -73,6 +73,8 @@ type Dados = {
     confirmarPixDemo: (id: string) => Promise<void>;
     saldoCashback: (tel: string) => Promise<number>;
     recarregar: () => Promise<void>;
+    /** Demonstração: coloca um pedido no quadro da cozinha (o modo real recebe pelo banco). */
+    pedidoLocal: (p: Pedido) => void;
   };
 };
 
@@ -211,15 +213,15 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       (ords ?? []).map((o) => ({
         id: o.id,
         num: o.numero,
-        cliente: o.modo === "mesa" ? `Mesa ${o.mesa ?? ""}` : (o.customers as unknown as { nome: string } | null)?.nome ?? "Cliente",
-        bairro: o.modo === "retirada" ? "Retirada" : o.modo === "mesa" ? "Salão" : ((o.endereco as { bairro?: string } | null)?.bairro ?? ""),
+        cliente: o.modo === "mesa" ? `Mesa ${o.mesa ?? ""}` : (o.customers as unknown as { nome: string } | null)?.nome ?? (o.modo === "balcao" ? o.observacao || "Balcão" : "Cliente"),
+        bairro: o.modo === "retirada" ? "Retirada" : o.modo === "balcao" ? "Balcão" : o.modo === "mesa" ? "Salão" : ((o.endereco as { bairro?: string } | null)?.bairro ?? ""),
         itens: ((o.order_items as unknown as { nome: string; qtd: number; escolhas: string[] }[]) ?? []).flatMap((i) => [
           `${i.qtd}x ${i.nome}`,
           ...(i.escolhas?.length ? [`+ ${i.escolhas.join(", ")}`] : []),
         ]),
         total: Number(o.total),
         pag: o.pagamento === "pix" && !o.pago ? ("Pix pendente" as Pedido["pag"]) : PAG[o.pagamento],
-        modo: o.modo === "entrega" ? "Entrega" : o.modo === "retirada" ? "Retirada" : (`Mesa ${o.mesa ?? ""}` as Pedido["modo"]),
+        modo: o.modo === "entrega" ? "Entrega" : o.modo === "retirada" ? "Retirada" : o.modo === "balcao" ? "Balcão" : (`Mesa ${o.mesa ?? ""}` as Pedido["modo"]),
         min: Math.max(0, Math.round((Date.now() - new Date(o.created_at).getTime()) / 60000)),
         status: o.status === "cancelado" ? "entregue" : o.status,
         motoboy: o.motoboy ?? undefined,
@@ -350,6 +352,9 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         return z
           ? { atende: true, bairro, zona: z.nome, taxa: z.taxa, tempo_min: z.tempo[0], tempo_max: z.tempo[1], pedido_minimo: z.minimo, gratis_acima: z.gratisAcima ?? null }
           : { atende: false, bairro };
+      },
+      pedidoLocal(p) {
+        if (!supabase) setPedidos((ps) => [p, ...ps]);
       },
       async fazerPedido(p) {
         if (supabase) {

@@ -256,7 +256,7 @@ export type Pedido = {
   itens: string[];
   total: number;
   pag: "Pix pago" | "Pix pendente" | "Cartão online" | "Dinheiro (troco p/ 100)" | "Maquininha";
-  modo: "Entrega" | "Retirada" | `Mesa ${string}`;
+  modo: "Entrega" | "Retirada" | "Balcão" | `Mesa ${string}`;
   min: number;
   status: StatusPedido;
   motoboy?: string;

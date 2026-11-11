@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { CARDAPIO } from "./mock";
 import { SLUG, supabase, useDados } from "./dados";
+import { registrarVendaDemo } from "./caixa";
 
 export type Mesa = { id: string; numero: number; area: string; lugares: number; forma: "quadrada" | "redonda" | "retangular"; ativa: boolean; reservada_para: string | null };
 export type StatusComanda = "aberta" | "conta" | "fechada" | "cancelada";
@@ -191,6 +192,7 @@ export function useSalao() {
       if (t.sub <= 0) return "Comanda sem itens. Para liberar a mesa, cancele a comanda.";
       const pago = pagamentos.reduce((s, p) => s + p.valor, 0);
       if (pago + 0.009 < t.total) return `Falta receber ${(t.total - pago).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`;
+      registrarVendaDemo("Salão", t.total, pagamentos, `Mesa ${demo.mesas.find((m) => m.id === c.table_id)?.numero ?? ""}`);
       setDemo((s) => ({ ...s, comandas: s.comandas.filter((x) => x.id !== id), itens: s.itens.filter((i) => i.tab_id !== id), chamados: s.chamados.filter((x) => x.table_id !== c.table_id), fechadasHoje: [...s.fechadasHoje, { total: t.total, pessoas: c.pessoas }] }));
       return null;
     },

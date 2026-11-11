@@ -75,7 +75,7 @@ export function Pedidos() {
                       </span>
                     </div>
                     <p className="mt-2 flex items-center gap-1.5 text-[13px] text-areia">
-                      {p.modo === "Entrega" ? <Bike className="h-4 w-4" /> : p.modo === "Retirada" ? <Store className="h-4 w-4" /> : <UtensilsCrossed className="h-4 w-4" />}
+                      {p.modo === "Entrega" ? <Bike className="h-4 w-4" /> : p.modo === "Retirada" || p.modo === "Balcão" ? <Store className="h-4 w-4" /> : <UtensilsCrossed className="h-4 w-4" />}
                       {p.modo === "Entrega" ? p.bairro : p.modo}
                       {p.motoboy && ` · ${p.motoboy}`}
                     </p>
