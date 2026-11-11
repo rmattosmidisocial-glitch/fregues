@@ -443,7 +443,7 @@ export function Admin() {
           <button onClick={() => setNovo(true)} className="flex w-full items-center gap-2 rounded-xl bg-brasa px-3 py-3 text-[15px] font-semibold text-carvao hover:bg-mostarda">
             <Plus className="h-5 w-5" /> Novo cliente
           </button>
-          <a href="#inicio" className="flex items-center gap-2 rounded-xl px-3 py-2 text-[14px] text-areia hover:text-papel">
+          <a href="https://fregues-site.vercel.app" target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl px-3 py-2 text-[14px] text-areia hover:text-papel">
             <ExternalLink className="h-4 w-4" /> Site de vendas
           </a>
           <BotaoTema rotulo className="!px-3 !py-2" />

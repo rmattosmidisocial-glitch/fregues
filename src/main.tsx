@@ -3,7 +3,6 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 import "./tema";
 import { useRota } from "./router";
-import { Landing } from "./pages/Landing";
 import { PainelLayout } from "./pages/painel/Layout";
 import { Loja } from "./pages/loja/Loja";
 import { DadosProvider } from "./data/dados";
@@ -35,7 +34,7 @@ class Protecao extends React.Component<{ children: React.ReactNode }, { erro: st
 
 function App() {
   const rota = useRota();
-  if (rota === "inicio") return <Landing />;
+  if (rota === "inicio") return <PainelLayout rota="painel" />;
   if (rota === "loja") return <Loja />;
   if (rota === "bio") return <Bio />;
   if (rota === "pesquisa") return <Pesquisa />;

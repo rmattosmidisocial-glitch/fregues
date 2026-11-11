@@ -51,7 +51,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
   return (
     <div className="tema-claro min-h-screen bg-carvao text-papel md:grid md:grid-cols-[248px_1fr]">
       <aside className="tema-escuro sticky top-0 hidden h-screen flex-col bg-forno px-4 py-5 md:flex">
-        <a href="#" aria-label="Voltar para o site do Freguês" className="px-2">
+        <a href="#painel" aria-label="Freguês, início do painel" className="px-2">
           <Logo />
         </a>
         <div className="mt-5 rounded-2xl bg-grafite p-3">
