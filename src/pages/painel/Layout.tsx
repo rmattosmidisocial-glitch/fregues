@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Activity, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, LogOut, Map as MapIcon, MessagesSquare, Sparkles, Users, Workflow, X } from "lucide-react";
+import { Activity, Armchair, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, LogOut, Map as MapIcon, MessagesSquare, Sparkles, Users, Workflow, X } from "lucide-react";
 import { useCrescer } from "../../data/crescer";
 import { Atendimento } from "./Atendimento";
 import { Automacoes } from "./Automacoes";
 import { Formularios } from "./Formularios";
 import { Links } from "./Links";
+import { Salao } from "./Salao";
 import { Logo } from "../../components/Logo";
 import type { Rota } from "../../router";
 import { supabase, useDados } from "../../data/dados";
@@ -20,6 +21,7 @@ type Item = { rota: Rota; rotulo: string; curto: string; icone: React.ReactNode;
 const ITENS: Item[] = [
   { rota: "painel", rotulo: "Pulso", curto: "Pulso", grupo: "Operação", icone: <Activity className="h-5 w-5" /> },
   { rota: "pedidos", rotulo: "Pedidos", curto: "Pedidos", grupo: "Operação", icone: <ChefHat className="h-5 w-5" /> },
+  { rota: "salao", rotulo: "Salão e mesas", curto: "Salão", grupo: "Operação", icone: <Armchair className="h-5 w-5" /> },
   { rota: "atendimento", rotulo: "Atendimento", curto: "Conversas", grupo: "Operação", icone: <MessagesSquare className="h-5 w-5" /> },
   { rota: "cardapio", rotulo: "Cardápio", curto: "Cardápio", grupo: "Operação", icone: <BookOpen className="h-5 w-5" /> },
   { rota: "mapa", rotulo: "Mapa de atuação", curto: "Mapa", grupo: "Operação", icone: <MapIcon className="h-5 w-5" /> },
@@ -127,6 +129,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
           {rota === "mapa" && <MapaAtuacao />}
           {rota === "fregueses" && <Fregueses />}
           {rota === "cardapio" && <Cardapio />}
+          {rota === "salao" && <Salao />}
           {rota === "atendimento" && <Atendimento />}
           {rota === "automacoes" && <Automacoes />}
           {rota === "formularios" && <Formularios />}

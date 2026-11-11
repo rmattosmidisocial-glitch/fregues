@@ -9,6 +9,7 @@ import { DadosProvider } from "./data/dados";
 import { Bio } from "./pages/publico/Bio";
 import { Pesquisa } from "./pages/publico/Pesquisa";
 import { Admin } from "./pages/admin/Admin";
+import { Mesa } from "./pages/publico/Mesa";
 
 class Protecao extends React.Component<{ children: React.ReactNode }, { erro: string | null }> {
   state = { erro: null as string | null };
@@ -38,6 +39,7 @@ function App() {
   if (rota === "bio") return <Bio />;
   if (rota === "pesquisa") return <Pesquisa />;
   if (rota === "admin") return <Admin />;
+  if (rota === "mesa") return <Mesa />;
   return <PainelLayout rota={rota} />;
 }
 
