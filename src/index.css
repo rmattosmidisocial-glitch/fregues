@@ -135,3 +135,38 @@ body {
 
 /* Movimento da marca: curto (180–250 ms) */
 .transition, [class*="transition-"] { transition-duration: 200ms; transition-timing-function: var(--ease-marca); }
+
+/* ---------- Modo noturno (painel, administração e site) ----------
+   A classe "noturno" fica no <html>. Ela troca os tokens do tema claro pelos tons de café da marca. */
+.noturno .tema-claro {
+  --color-carvao: #1d1613;
+  --color-forno: #2b211d;
+  --color-grafite: #372b25;
+  --color-linha: #4d3e35;
+  --color-fumo: #a8968a;
+  --color-areia: #cdbdb0;
+  --color-papel: #fff6eb;
+  --color-brasa: #f45b26;
+  --color-brasa-escura: #b73d14;
+  --color-mostarda: #f2a93b;
+  --color-manjericao: #4cb38a;
+  --color-tomate: #e5665f;
+  --color-azulejo: #3e9a93;
+}
+.noturno .tema-claro .tema-escuro { --color-forno: #161110; --color-carvao: #161110; }
+.noturno { color-scheme: dark; }
+.noturno body { background: #1d1613; }
+.noturno .tema-claro .bg-\[\#fbe4e0\], .noturno .tema-claro .hover\:bg-\[\#fbe4e0\]:hover { background-color: #3d1f1c; }
+.noturno .tema-claro .bg-\[\#fcefd9\], .noturno .tema-claro .hover\:bg-\[\#fcefd9\]:hover { background-color: #3b2b12; }
+.noturno .tema-claro .bg-\[\#e2f2ea\], .noturno .tema-claro .hover\:bg-\[\#e2f2ea\]:hover { background-color: #173326; }
+.noturno .tema-claro .bg-\[\#e4f3ea\], .noturno .tema-claro .hover\:bg-\[\#e4f3ea\]:hover { background-color: #173326; }
+.noturno .tema-claro .bg-\[\#fde9df\], .noturno .tema-claro .hover\:bg-\[\#fde9df\]:hover { background-color: #3a2016; }
+.noturno .tema-claro .bg-\[\#dff1ee\], .noturno .tema-claro .hover\:bg-\[\#dff1ee\]:hover { background-color: #12302d; }
+.noturno .tema-claro .bg-\[\#f8e1de\], .noturno .tema-claro .hover\:bg-\[\#f8e1de\]:hover { background-color: #3d1f1c; }
+.noturno .tema-claro .text-\[\#8e2f2a\] { color: #ffb8ad; }
+.noturno .tema-claro .text-\[\#9b3530\] { color: #ffb8ad; }
+.noturno .tema-claro .text-\[\#7a4600\] { color: #ffd08a; }
+.noturno .tema-claro .text-\[\#1b6149\] { color: #9be3b0; }
+.noturno .tema-claro .text-\[\#1e3a2c\] { color: #c9eed8; }
+.noturno .tema-claro .text-\[\#9a3412\] { color: #ffc7a6; }
+.noturno .tema-claro .text-\[\#1f5f59\] { color: #9fe0d7; }

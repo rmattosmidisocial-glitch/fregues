@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { ArrowUpRight, Bike, Map, MessageCircle, QrCode, Sparkles, Store, Check } from "lucide-react";
 import { Logo } from "../components/Logo";
+import { BotaoTema } from "../tema";
 import { Comanda } from "../components/Comanda";
 import { GeoMap, BAIRROS, nomeBairro, vizinhos, type Layer } from "../components/GeoMap";
 import { Foto, FOTOS } from "../components/Foto";
@@ -56,14 +57,17 @@ function Nav() {
         <a href="#fundador" className="hover:text-papel">Fundadores</a>
         <a href="#painel" className="hover:text-papel">Ver o painel</a>
       </nav>
+      <span className="flex items-center gap-2">
+        <BotaoTema />
       <a
-        href={WHATS}
-        target="_blank"
-        rel="noreferrer"
-        className="rounded-full bg-papel px-4 py-2 text-[14px] font-semibold text-carvao transition hover:bg-mostarda"
-      >
-        Falar com a gente
-      </a>
+          href={WHATS}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-full bg-papel px-4 py-2 text-[14px] font-semibold text-carvao transition hover:bg-mostarda"
+        >
+          Falar com a gente
+        </a>
+      </span>
     </header>
   );
 }

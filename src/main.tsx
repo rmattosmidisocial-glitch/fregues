@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
+import "./tema";
 import { useRota } from "./router";
 import { Landing } from "./pages/Landing";
 import { PainelLayout } from "./pages/painel/Layout";

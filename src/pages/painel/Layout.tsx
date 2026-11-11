@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Activity, Armchair, Calculator, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, LogOut, Map as MapIcon, MessagesSquare, Sparkles, Users, Workflow, X } from "lucide-react";
 import { useCrescer } from "../../data/crescer";
+import { BotaoTema } from "../../tema";
 import { Atendimento } from "./Atendimento";
 import { Automacoes } from "./Automacoes";
 import { Formularios } from "./Formularios";
@@ -98,6 +99,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
           <a href="#loja" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] text-areia hover:text-papel">
             <ExternalLink className="h-4 w-4" /> Ver a loja do cliente
           </a>
+          <BotaoTema rotulo />
           {d.sessao && (
             <button onClick={() => d.acoes.sair()} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] text-areia hover:text-papel">
               <LogOut className="h-4 w-4" /> Sair
@@ -109,9 +111,12 @@ export function PainelLayout({ rota }: { rota: Rota }) {
       <div className="min-w-0 pb-24 md:pb-0">
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-linha bg-carvao/90 px-4 py-3 backdrop-blur md:hidden">
           <Logo />
+          <span className="flex items-center gap-2">
+          <BotaoTema />
           <button onClick={() => setCopiloto(true)} className="flex items-center gap-2 rounded-full bg-brasa px-3 py-2 text-[14px] font-semibold text-carvao">
             <Sparkles className="h-4 w-4" /> Copiloto
           </button>
+          </span>
         </header>
         <main className="mx-auto max-w-[1280px] px-4 py-6 md:px-8 md:py-8">
           {assin && assin.status !== "ativa" && (

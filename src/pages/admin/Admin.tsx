@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ArrowUpRight, Building2, Check, ChevronRight, CircleDollarSign, Clock, Copy, CreditCard, ExternalLink, History, LayoutDashboard, Layers, LogOut, Pause, Play, Plus, Search, ShieldCheck, Store, TrendingUp, X } from "lucide-react";
 import { Logo } from "../../components/Logo";
 import { brl } from "../../data/mock";
+import { BotaoTema } from "../../tema";
 import { useAdmin, type Cliente, type NovoCliente, type StatusAssin } from "./adminDados";
 
 const STATUS: Record<StatusAssin, { rotulo: string; cls: string; cor: string }> = {
@@ -445,6 +446,7 @@ export function Admin() {
           <a href="#inicio" className="flex items-center gap-2 rounded-xl px-3 py-2 text-[14px] text-areia hover:text-papel">
             <ExternalLink className="h-4 w-4" /> Site de vendas
           </a>
+          <BotaoTema rotulo className="!px-3 !py-2" />
           {a.sessao && (
             <button onClick={() => a.acoes.sair()} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-[14px] text-areia hover:text-papel">
               <LogOut className="h-4 w-4" /> Sair ({a.sessao.user.email})
@@ -456,9 +458,12 @@ export function Admin() {
       <div className="min-w-0 pb-24 md:pb-0">
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-linha bg-carvao/90 px-4 py-3 backdrop-blur md:hidden">
           <Logo />
-          <button onClick={() => setNovo(true)} className="flex items-center gap-1.5 rounded-full bg-brasa px-3 py-2 text-[14px] font-semibold text-carvao">
-            <Plus className="h-4 w-4" /> Cliente
-          </button>
+          <span className="flex items-center gap-2">
+            <BotaoTema />
+            <button onClick={() => setNovo(true)} className="flex items-center gap-1.5 rounded-full bg-brasa px-3 py-2 text-[14px] font-semibold text-carvao">
+              <Plus className="h-4 w-4" /> Cliente
+            </button>
+          </span>
         </header>
         <main className="mx-auto max-w-[1280px] px-4 py-6 md:px-8 md:py-8">
           {a.erro && <p className="mb-4 rounded-2xl bg-[#fbe4e0] p-4 text-[#8e2f2a]">{a.erro}</p>}
