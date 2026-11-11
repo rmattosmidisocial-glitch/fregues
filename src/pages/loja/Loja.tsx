@@ -7,6 +7,7 @@ import { useDados, type Entrega } from "../../data/dados";
 import { Foto, FOTOS } from "../../components/Foto";
 import { BAIRROS, BAIRROS_RIO, GeoMap, centroide, vizinhos, type Feature, type Layer } from "../../components/GeoMap";
 import { Brasinha } from "../../components/Logo";
+import { buscarCep, localizar, type EnderecoCep } from "../../data/endereco";
 
 type Item = { uid: number; p: Produto; qtd: number; escolhas: Record<string, string[]>; obs: string; unit: number };
 type Etapa = "sacola" | "entrega" | "pagamento" | "pix" | "acompanhar";
@@ -159,6 +160,9 @@ export function Loja() {
   });
   const [entrega, setEntrega] = useState<Entrega | null>(null);
   const [rua, setRua] = useState("");
+  const [cep, setCep] = useState("");
+  const [endCep, setEndCep] = useState<EnderecoCep | null>(null);
+  const [busca, setBusca] = useState<"" | "cep" | "mapa" | "sem-cep" | "numero" | "rua" | "bairro" | "nao-achou">("");
   const [num, setNum] = useState("");
   const [ref, setRef] = useState("");
   const [erroEnd, setErroEnd] = useState("");
@@ -192,6 +196,46 @@ export function Loja() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ponto, bairro, ZONAS]);
+
+  // CEP: preenche a rua e o bairro sozinho
+  useEffect(() => {
+    const d = cep.replace(/\D/g, "");
+    if (d.length !== 8) {
+      setEndCep(null);
+      return;
+    }
+    let vivo = true;
+    setBusca("cep");
+    buscarCep(d).then((e) => {
+      if (!vivo) return;
+      setEndCep(e);
+      if (!e) return setBusca("sem-cep");
+      if (e.rua) setRua(e.rua);
+      setBusca("");
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [cep]);
+
+  // CEP + número: acha o ponto no mapa e confere a área de entrega
+  useEffect(() => {
+    if (!endCep) return;
+    let vivo = true;
+    const t = setTimeout(() => {
+      setBusca("mapa");
+      localizar(endCep, num).then((a) => {
+        if (!vivo) return;
+        if (!a) return setBusca("nao-achou");
+        setPonto(a.coord);
+        setBusca(a.precisao);
+      });
+    }, 700);
+    return () => {
+      vivo = false;
+      clearTimeout(t);
+    };
+  }, [endCep, num]);
 
   const telDigitos = tel.replace(/\D/g, "");
   useEffect(() => {
@@ -298,7 +342,7 @@ export function Loja() {
       cliente: { nome: nome.trim(), telefone: telDigitos, aceita_marketing: aceita },
       itens: itens.map((i) => ({ product_id: i.p.id, qtd: i.qtd, escolhas: idsDas(i), obs: i.obs })),
       ponto: modo === "entrega" ? { lon: ponto[0], lat: ponto[1] } : undefined,
-      endereco: modo === "entrega" ? { rua, numero: num, complemento: ref } : undefined,
+      endereco: modo === "entrega" ? { rua: endCep ? [rua, endCep.bairro, endCep.cidade].filter(Boolean).join(", ") : rua, numero: num, complemento: ref, ...(endCep ? { cep: endCep.cep } : {}) } : undefined,
       pagamento: pag === "dinheiro" ? "dinheiro" : pag,
       usar_cashback: cashback,
     });
@@ -508,7 +552,47 @@ export function Loja() {
 
               {etapa === "entrega" && (
                 <>
-                  <p className="text-[14px] text-[#5a4c41]">Toque no mapa para marcar o ponto exato. O bairro e a taxa são calculados pelo pino.</p>
+                  <div className="grid grid-cols-[1fr_96px] gap-3">
+                    <label className="text-[13px] font-semibold">
+                      CEP
+                      <input
+                        value={cep}
+                        onChange={(e) => {
+                          const d = e.target.value.replace(/\D/g, "").slice(0, 8);
+                          setCep(d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d);
+                        }}
+                        inputMode="numeric"
+                        autoComplete="postal-code"
+                        placeholder="00000-000"
+                        className="mt-1 w-full rounded-xl border border-[#eadccb] bg-white px-3 py-3 text-[15px] font-normal"
+                      />
+                    </label>
+                    <label className="text-[13px] font-semibold">
+                      Número
+                      <input
+                        value={num}
+                        onChange={(e) => {
+                          setNum(e.target.value);
+                          if (erroEnd) setErroEnd("");
+                        }}
+                        inputMode="numeric"
+                        className="mt-1 w-full rounded-xl border border-[#eadccb] bg-white px-3 py-3 text-[15px] font-normal"
+                      />
+                    </label>
+                  </div>
+                  <p className="mt-2 text-[13px] text-[#5a4c41]" aria-live="polite">
+                    {busca === "cep"
+                      ? "Buscando o CEP…"
+                      : busca === "mapa"
+                        ? "Procurando o endereço no mapa…"
+                        : busca === "sem-cep"
+                          ? "Não achamos esse CEP. Confira os números ou marque o ponto no mapa."
+                          : busca === "nao-achou"
+                            ? "Não achamos o endereço no mapa. Toque no mapa para marcar o ponto."
+                            : endCep && busca
+                              ? `${endCep.rua ? `${endCep.rua}, ` : ""}${endCep.bairro ? `${endCep.bairro}, ` : ""}${endCep.cidade}. ${busca === "numero" ? "Confira o pino no mapa." : busca === "rua" ? "Achamos a rua. Ajuste o pino na sua casa, se precisar." : "Achamos o bairro. Toque no mapa para marcar a sua casa."}`
+                              : "Digite o CEP e o número, ou toque no mapa para marcar o ponto."}
+                  </p>
                   <div className="mt-3 overflow-hidden rounded-2xl border border-[#eadccb] bg-[#f6ecdf]">
                     <GeoMap
                       width={440}
@@ -538,24 +622,10 @@ export function Loja() {
                       </>
                     )}
                   </div>
-                  <div className="mt-4 grid grid-cols-[1fr_96px] gap-3">
-                    <label className="text-[13px] font-semibold">
-                      Rua
-                      <input value={rua} onChange={(e) => setRua(e.target.value)} autoComplete="address-line1" className="mt-1 w-full rounded-xl border border-[#eadccb] bg-white px-3 py-3 text-[15px] font-normal" />
-                    </label>
-                    <label className="text-[13px] font-semibold">
-                      Número
-                      <input
-                        value={num}
-                        onChange={(e) => {
-                          setNum(e.target.value);
-                          if (erroEnd) setErroEnd("");
-                        }}
-                        inputMode="numeric"
-                        className="mt-1 w-full rounded-xl border border-[#eadccb] bg-white px-3 py-3 text-[15px] font-normal"
-                      />
-                    </label>
-                  </div>
+                  <label className="mt-4 block text-[13px] font-semibold">
+                    Rua
+                    <input value={rua} onChange={(e) => setRua(e.target.value)} autoComplete="address-line1" className="mt-1 w-full rounded-xl border border-[#eadccb] bg-white px-3 py-3 text-[15px] font-normal" />
+                  </label>
                   <label className="mt-3 block text-[13px] font-semibold">
                     Complemento e ponto de referência
                     <input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Ex.: casa 2, portão azul, perto da padaria" className="mt-1 w-full rounded-xl border border-[#eadccb] bg-white px-3 py-3 text-[15px] font-normal" />
