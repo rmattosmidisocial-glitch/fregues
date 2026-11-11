@@ -39,7 +39,7 @@ export function Links() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.02em]">Links da bio</h1>
+          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Links da bio</h1>
           <p className="max-w-[620px] text-[15px] text-areia">A página que vai na bio do Instagram. Cada toque é contado, e você vê quantos pedidos vieram de lá.</p>
         </div>
         <div className="flex gap-2">
@@ -65,8 +65,8 @@ export function Links() {
           ["Pedidos vindos da bio", String(p.pedidos)],
           ["Vendas vindas da bio", brl(p.receita)],
         ].map(([k, v], i) => (
-          <div key={k} className={`rounded-2xl p-4 ${i === 3 ? "bg-[#2e1a10]" : "border border-linha bg-forno"}`}>
-            <p className={`text-[12px] ${i === 3 ? "text-[#ffc7a6]" : "text-areia"}`}>{k}</p>
+          <div key={k} className={`rounded-2xl p-4 ${i === 3 ? "bg-[#fde9df]" : "border border-linha bg-forno"}`}>
+            <p className={`text-[12px] ${i === 3 ? "text-[#9a3412]" : "text-areia"}`}>{k}</p>
             <p className={`tabular mt-1 font-display text-[24px] font-bold ${i === 3 ? "text-brasa" : ""}`}>{v}</p>
           </div>
         ))}

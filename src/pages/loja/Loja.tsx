@@ -337,7 +337,7 @@ export function Loja() {
           <div className="absolute inset-0 bg-gradient-to-t from-carvao via-carvao/70 to-carvao/10" />
           <div className="relative">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-brasa px-2.5 py-1 text-[12px] font-bold text-carvao">{LOJA.aberto ? "Aberto agora" : "Fechado"}</span>
-            <h1 className="mt-2 font-display text-[42px] font-extrabold leading-none tracking-[-0.03em]" style={{ fontVariationSettings: '"wdth" 80' }}>
+            <h1 className="mt-2 font-display text-[42px] font-extrabold leading-none tracking-[-0.015em]" style={{ fontVariationSettings: '"wdth" 80' }}>
               {LOJA.nome}
             </h1>
             <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px]">

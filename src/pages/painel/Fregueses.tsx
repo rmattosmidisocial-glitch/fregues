@@ -8,7 +8,7 @@ import { AnelPulso, StatusPill, useToast } from "../../components/ui";
 const FILTROS: { id: Status | "todos"; rotulo: string }[] = [
   { id: "todos", rotulo: "Todos" },
   { id: "sumindo", rotulo: "Sumindo" },
-  { id: "atrasado", rotulo: "Atrasados" },
+  { id: "atrasado", rotulo: "Fora do ritmo" },
   { id: "ritmo", rotulo: "No ritmo" },
 ];
 
@@ -68,7 +68,7 @@ function Perfil({ f, fechar }: { f: Freguês; fechar: () => void }) {
           </p>
         )}
         <h3 className="mt-6 font-display text-[18px] font-bold">Mensagem sugerida</h3>
-        <div className="mt-2 rounded-2xl rounded-tl-sm bg-[#1f3b2c] p-4 text-[15px] leading-relaxed text-[#e9f7ee]">{msg}</div>
+        <div className="mt-2 rounded-2xl rounded-tl-sm bg-[#e4f3ea] p-4 text-[15px] leading-relaxed text-[#1e3a2c]">{msg}</div>
         <p className="mt-2 text-[13px] text-areia">Envio sugerido: {f.horario}, o horário em que {primeiro} costuma pedir.</p>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <button onClick={() => show(`Agendado para ${f.horario}`)} className="rounded-xl border border-linha py-3 text-[14px] font-semibold hover:border-areia">
@@ -185,7 +185,7 @@ export function Fregueses() {
 
   return (
     <div>
-      <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.02em]">Fregueses</h1>
+      <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Fregueses</h1>
       <p className="text-[15px] text-areia">O número no anel é quantos dias o cliente está sem pedir. A cor mostra se isso é normal para ele.</p>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">

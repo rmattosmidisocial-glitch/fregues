@@ -17,7 +17,7 @@ export function Cardapio() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.02em]">Cardápio</h1>
+          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Cardápio</h1>
           <p className="text-[15px] text-areia">{itens.length} produtos em {CATEGORIAS.length} categorias. Valem para delivery, retirada e mesa.</p>
         </div>
         <div className="flex gap-2">
@@ -70,7 +70,7 @@ export function Cardapio() {
                           }}
                         />
                         <span className={`relative h-5 w-9 rounded-full transition ${p.esgotado ? "bg-linha" : "bg-manjericao"} peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-mostarda`}>
-                          <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-papel transition-all ${p.esgotado ? "left-0.5" : "left-[18px]"}`} />
+                          <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${p.esgotado ? "left-0.5" : "left-[18px]"}`} />
                         </span>
                       </label>
                     </div>

@@ -16,9 +16,9 @@ const TIPO: Record<TipoNo, { rotulo: string; cor: string; icone: React.ReactNode
 };
 
 const ESTADO: Record<Automacao["estado"], string> = {
-  ativa: "bg-[#17351f] text-[#9be3b0]",
+  ativa: "bg-[#e2f2ea] text-[#1b6149]",
   pausada: "bg-grafite text-areia",
-  rascunho: "bg-[#46320f] text-[#ffd08a]",
+  rascunho: "bg-[#fcefd9] text-[#7a4600]",
 };
 
 function Interruptor({ ligado, onChange, rotulo }: { ligado: boolean; onChange: (v: boolean) => void; rotulo: string }) {
@@ -33,7 +33,7 @@ function Interruptor({ ligado, onChange, rotulo }: { ligado: boolean; onChange: 
       }}
       className={`relative h-6 w-11 shrink-0 rounded-full transition ${ligado ? "bg-manjericao" : "bg-linha"}`}
     >
-      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-papel transition-all ${ligado ? "left-[22px]" : "left-0.5"}`} />
+      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${ligado ? "left-[22px]" : "left-0.5"}`} />
     </button>
   );
 }
@@ -71,7 +71,7 @@ function CartaoNo({ n, i, ativo, rodando, editar }: { n: No; i: number; ativo: b
           </div>
         </div>
         {n.tipo === "filtro" && <p className="mt-2 flex gap-3 text-[12px] font-semibold"><span className="text-manjericao">Sim → continua</span><span className="text-fumo">Não → termina</span></p>}
-        {n.texto && <p className="mt-3 rounded-xl rounded-tl-sm bg-[#1f3b2c] p-3 text-[14px] leading-relaxed text-[#e9f7ee]">{preencher(n.texto)}</p>}
+        {n.texto && <p className="mt-3 rounded-xl rounded-tl-sm bg-[#e4f3ea] p-3 text-[14px] leading-relaxed text-[#1e3a2c]">{preencher(n.texto)}</p>}
       </button>
     </div>
   );
@@ -109,7 +109,7 @@ function Editor({ a, voltar }: { a: Automacao; voltar: () => void }) {
             value={a.nome}
             onChange={(e) => crescer.setAuto(a.id, (x) => ({ ...x, nome: e.target.value }))}
             aria-label="Nome da automação"
-            className="w-full bg-transparent font-display text-[clamp(1.6rem,3vw,2.3rem)] font-extrabold tracking-[-0.02em] outline-none focus:underline"
+            className="w-full bg-transparent font-display text-[clamp(1.6rem,3vw,2.3rem)] font-extrabold tracking-[-0.015em] outline-none focus:underline"
           />
           <p className="max-w-[640px] text-[15px] text-areia">{a.descricao}</p>
         </div>
@@ -144,7 +144,7 @@ function Editor({ a, voltar }: { a: Automacao; voltar: () => void }) {
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_360px]">
-        <div className="rounded-3xl border border-linha bg-[radial-gradient(#3d2f27_1px,transparent_1px)] p-5 [background-size:18px_18px] md:p-8">
+        <div className="rounded-3xl border border-linha bg-[radial-gradient(var(--color-linha)_1px,transparent_1px)] p-5 [background-size:18px_18px] md:p-8">
           {a.nos.map((n, i) => (
             <CartaoNo key={n.id} n={n} i={i} ativo={sel === n.id || passo === i} rodando={passo >= i && passo >= 0} editar={() => setSel(n.id)} />
           ))}
@@ -235,7 +235,7 @@ export function Automacoes() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.02em]">Automações</h1>
+          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Automações</h1>
           <p className="max-w-[620px] text-[15px] text-areia">O Freguês trabalha sozinho: quando algo acontece, ele manda a mensagem certa, na hora certa, para o cliente certo.</p>
         </div>
         <button onClick={() => setModelos(true)} className="flex items-center gap-2 rounded-full bg-brasa px-5 py-3 text-[15px] font-semibold text-carvao hover:bg-mostarda">
@@ -244,8 +244,8 @@ export function Automacoes() {
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-3xl bg-[#2e1a10] p-5">
-          <p className="text-[14px] text-[#ffc7a6]">Vendas que as automações trouxeram em 30 dias</p>
+        <div className="rounded-3xl bg-[#fde9df] p-5">
+          <p className="text-[14px] text-[#9a3412]">Vendas que as automações trouxeram em 30 dias</p>
           <p className="tabular mt-1 font-display text-[34px] font-extrabold text-brasa">{brl(receita)}</p>
         </div>
         <div className="rounded-3xl border border-linha bg-forno p-5">

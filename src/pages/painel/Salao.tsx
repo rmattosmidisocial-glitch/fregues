@@ -15,9 +15,9 @@ const tempo = (iso: string) => {
 };
 const digitos = (s?: string | null) => (s ?? "").replace(/\D/g, "");
 const ITEM: Record<StatusItem, { rotulo: string; cls: string }> = {
-  novo: { rotulo: "Novo", cls: "bg-[#4a1c10] text-[#ffb4a0]" },
-  preparo: { rotulo: "Na cozinha", cls: "bg-[#46320f] text-[#ffd08a]" },
-  pronto: { rotulo: "Pronto", cls: "bg-[#17351f] text-[#9be3b0]" },
+  novo: { rotulo: "Novo", cls: "bg-[#fbe4e0] text-[#9b3530]" },
+  preparo: { rotulo: "Na cozinha", cls: "bg-[#fcefd9] text-[#7a4600]" },
+  pronto: { rotulo: "Pronto", cls: "bg-[#e2f2ea] text-[#1b6149]" },
   entregue: { rotulo: "Na mesa", cls: "bg-grafite text-areia" },
   cancelado: { rotulo: "Cancelado", cls: "bg-grafite text-fumo line-through" },
 };
@@ -154,7 +154,7 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
   if (!comanda)
     return (
       <div className="space-y-4">
-        {mesa.reservada_para && <p className="rounded-2xl bg-[#13302d] p-3 text-[14px] text-[#bfeee7]">Reservada: {mesa.reservada_para}</p>}
+        {mesa.reservada_para && <p className="rounded-2xl bg-[#dff1ee] p-3 text-[14px] text-[#1f5f59]">Reservada: {mesa.reservada_para}</p>}
         <div>
           <p className="text-[13px] text-areia">Quantas pessoas?</p>
           <div className="mt-1 flex flex-wrap gap-1.5">
@@ -240,14 +240,14 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
           <input value={nome} onChange={(e) => setNome(e.target.value)} onBlur={() => s.acoes.setComanda(comanda.id, { cliente_nome: nome || null })} placeholder="Nome" aria-label="Nome do cliente" className="w-[38%] rounded-xl border border-linha bg-carvao px-3 py-2 text-[14px]" />
         </div>
         {f ? (
-          <div className="mt-2 rounded-xl bg-[#2e1a10] p-3 text-[14px]">
+          <div className="mt-2 rounded-xl bg-[#fde9df] p-3 text-[14px]">
             <p className="flex items-center gap-1.5 font-semibold text-brasa">
               <Star className="h-4 w-4 fill-brasa" /> {f.nome} já é freguês · {f.nivel}
             </p>
-            <p className="mt-1 text-[#ffd9c4]">
+            <p className="mt-1 text-[#8e2f2a]">
               {f.pedidos} pedidos · costuma pedir <b>{f.favorito}</b> · ticket {brl(f.ticket)}
             </p>
-            {f.tags.length > 0 && <p className="mt-1 text-[13px] text-[#ffc7a6]">{f.tags.join(" · ")}</p>}
+            {f.tags.length > 0 && <p className="mt-1 text-[13px] text-[#9a3412]">{f.tags.join(" · ")}</p>}
             {f.aniversario && (
               <p className="mt-1 flex items-center gap-1.5 text-[13px] text-mostarda">
                 <Cake className="h-3.5 w-3.5" /> Aniversário {f.aniversario}
@@ -349,8 +349,8 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
           <button onClick={() => setPags([...pags, { forma: "maquininha", valor: falta }])} className="flex items-center gap-1.5 text-[14px] font-semibold text-areia hover:text-papel">
             <Plus className="h-4 w-4" /> Outra forma de pagamento
           </button>
-          <p className={`rounded-xl p-3 text-[15px] font-semibold ${falta > 0 ? "bg-[#46320f] text-[#ffe2b0]" : "bg-[#17351f] text-[#9be3b0]"}`}>{falta > 0 ? `Falta receber ${brl(falta)}` : pago > t.total + 0.009 ? `Troco: ${brl(pago - t.total)}` : "Tudo certo para fechar"}</p>
-          {erro && <p className="rounded-xl bg-[#4a1c10] p-3 text-[14px] text-[#ffd9c4]">{erro}</p>}
+          <p className={`rounded-xl p-3 text-[15px] font-semibold ${falta > 0 ? "bg-[#fcefd9] text-[#7a4600]" : "bg-[#e2f2ea] text-[#1b6149]"}`}>{falta > 0 ? `Falta receber ${brl(falta)}` : pago > t.total + 0.009 ? `Troco: ${brl(pago - t.total)}` : "Tudo certo para fechar"}</p>
+          {erro && <p className="rounded-xl bg-[#fbe4e0] p-3 text-[14px] text-[#8e2f2a]">{erro}</p>}
           <button
             disabled={falta > 0}
             onClick={async () => {
@@ -425,7 +425,7 @@ function ItemLinha({ i, s }: { i: ItemComanda; s: ReturnType<typeof useSalao> })
         <span className={`block text-[15px] ${i.status === "cancelado" ? "line-through" : ""}`}>{i.nome}</span>
         <span className="text-[12px] text-areia">
           {brl(i.unit * i.qtd)} · {tempo(i.criado_em)}
-          {i.origem === "cliente" && <span className="ml-1 rounded bg-[#13302d] px-1.5 text-[#8fd8cf]">pelo QR</span>}
+          {i.origem === "cliente" && <span className="ml-1 rounded bg-[#dff1ee] px-1.5 text-[#1f5f59]">pelo QR</span>}
         </span>
         {i.obs && <span className="block text-[13px] text-mostarda">{i.obs}</span>}
       </span>
@@ -465,7 +465,7 @@ function Cozinha({ s }: { s: ReturnType<typeof useSalao> }) {
                 const m = mesaDe(i.tab_id);
                 const atraso = minutos(i.criado_em) > 20 && c.st !== "pronto";
                 return (
-                  <li key={i.id} className={`rounded-2xl p-3 ${atraso ? "bg-[#4a1c10]" : "bg-grafite"}`}>
+                  <li key={i.id} className={`rounded-2xl p-3 ${atraso ? "bg-[#fbe4e0]" : "bg-grafite"}`}>
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="font-display text-[20px] font-extrabold leading-tight">Mesa {m?.numero}</p>
@@ -474,7 +474,7 @@ function Cozinha({ s }: { s: ReturnType<typeof useSalao> }) {
                         </p>
                         {i.obs && <p className="text-[14px] font-semibold text-mostarda">⚠ {i.obs}</p>}
                       </div>
-                      <span className={`tabular text-[13px] ${atraso ? "font-bold text-[#ffb4a0]" : "text-areia"}`}>{tempo(i.criado_em)}</span>
+                      <span className={`tabular text-[13px] ${atraso ? "font-bold text-[#9b3530]" : "text-areia"}`}>{tempo(i.criado_em)}</span>
                     </div>
                     <button onClick={() => s.acoes.statusItem(i.id, c.prox)} className="mt-2 w-full rounded-xl bg-papel py-2 text-[14px] font-semibold text-carvao">
                       {c.acao}
@@ -618,7 +618,7 @@ export function Salao() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.02em]">Salão</h1>
+          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Salão</h1>
           <p className="text-[15px] text-areia">Mesas, comandas e cozinha. Cada conta fechada entra no CRM junto com o delivery.</p>
         </div>
         <div className="flex rounded-full border border-linha p-1 text-[14px] font-semibold" role="tablist">
@@ -642,7 +642,7 @@ export function Salao() {
           {s.chamados.map((c) => {
             const m = s.mesas.find((x) => x.id === c.table_id);
             return (
-              <div key={c.id} className="pulso-borda flex items-center gap-3 rounded-2xl bg-[#46320f] p-3 text-[#ffe2b0]">
+              <div key={c.id} className="pulso-borda flex items-center gap-3 rounded-2xl bg-[#fcefd9] p-3 text-[#7a4600]">
                 <BellRing className="h-5 w-5 shrink-0" />
                 <p className="flex-1 font-semibold">
                   Mesa {m?.numero} {c.tipo === "conta" ? "pediu a conta" : "está chamando o garçom"} · {tempo(c.criado_em)}
@@ -690,7 +690,7 @@ export function Salao() {
                     const t = c ? totais(c, s.itens) : null;
                     const chamando = s.chamados.some((x) => x.table_id === m.id);
                     const pend = c ? s.itens.filter((i) => i.tab_id === c.id && (i.status === "novo" || i.status === "pronto")).length : 0;
-                    const estilo = !c ? (m.reservada_para ? "border-azulejo bg-[#13302d]" : "border-dashed border-linha bg-forno") : c.status === "conta" ? "border-mostarda bg-[#46320f]" : "border-brasa bg-[#2e1a10]";
+                    const estilo = !c ? (m.reservada_para ? "border-azulejo bg-[#dff1ee]" : "border-dashed border-linha bg-forno") : c.status === "conta" ? "border-mostarda bg-[#fcefd9]" : "border-brasa bg-[#fde9df]";
                     return (
                       <button key={m.id} onClick={() => setSel(m.id)} className={`relative flex min-h-[128px] flex-col rounded-3xl border-2 p-4 text-left transition hover:scale-[1.02] ${estilo} ${m.forma === "redonda" ? "rounded-[40px]" : ""}`}>
                         {chamando && (
@@ -709,11 +709,11 @@ export function Salao() {
                               <span className="flex items-center gap-1 text-[12px] text-areia">
                                 <Clock className="h-3 w-3" /> {tempo(c.aberta_em)}
                                 {c.status === "conta" && <b className="ml-1 text-mostarda">conta pedida</b>}
-                                {pend > 0 && c.status !== "conta" && <b className="ml-1 text-[#ffb4a0]">{pend} p/ atenção</b>}
+                                {pend > 0 && c.status !== "conta" && <b className="ml-1 text-[#9b3530]">{pend} p/ atenção</b>}
                               </span>
                             </>
                           ) : m.reservada_para ? (
-                            <span className="text-[12px] font-semibold text-[#8fd8cf]">Reservada · {m.reservada_para}</span>
+                            <span className="text-[12px] font-semibold text-[#1f5f59]">Reservada · {m.reservada_para}</span>
                           ) : (
                             <span className="text-[13px] font-semibold text-manjericao">Livre</span>
                           )}

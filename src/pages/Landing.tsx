@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { ArrowUpRight, Bike, Map, MessageCircle, QrCode, Sparkles, Store, Check } from "lucide-react";
 import { Logo } from "../components/Logo";
 import { Comanda } from "../components/Comanda";
-import { GeoMap, BAIRROS, vizinhos, type Layer } from "../components/GeoMap";
+import { GeoMap, BAIRROS, nomeBairro, vizinhos, type Layer } from "../components/GeoMap";
 import { Foto, FOTOS } from "../components/Foto";
 import { LOJA, ZONAS, CARDAPIO, brl, chamarHoje } from "../data/mock";
 
@@ -178,7 +178,7 @@ function Pilar({
           <span className="font-display text-[15px] font-bold">Passo {n} de 3</span>
         </div>
         <h3
-          className="mt-4 font-display text-[clamp(2rem,4vw,3.3rem)] font-extrabold leading-[0.98] tracking-[-0.03em]"
+          className="mt-4 font-display text-[clamp(2rem,4vw,3.3rem)] font-extrabold leading-[0.98] tracking-[-0.015em]"
           style={{ fontVariationSettings: '"wdth" 82' }}
         >
           {titulo}
@@ -213,7 +213,7 @@ function MiniMapaRegras() {
             <span className="h-9 w-9 shrink-0 rounded-lg" style={{ background: z.cor }} />
             <div className="min-w-0 flex-1">
               <p className="font-semibold">{z.nome}</p>
-              <p className="truncate text-[13px] text-areia">{z.bairros.slice(0, 4).join(", ")}…</p>
+              <p className="truncate text-[13px] text-areia">{z.bairros.slice(0, 4).map(nomeBairro).join(", ")}…</p>
             </div>
             <div className="text-right text-[13px]">
               <p className="tabular font-semibold">{brl(z.taxa)}</p>
@@ -233,12 +233,12 @@ function MiniCRM() {
   return (
     <div className="rounded-3xl border border-linha bg-forno p-5">
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-[#2e1a10] p-4">
-          <p className="text-[13px] text-[#ffc7a6]">Em risco esta semana</p>
+        <div className="rounded-2xl bg-[#fde9df] p-4">
+          <p className="text-[13px] text-[#9a3412]">Em risco esta semana</p>
           <p className="tabular font-display text-[30px] font-extrabold text-brasa">R$ 4.380</p>
         </div>
-        <div className="rounded-2xl bg-[#16261b] p-4">
-          <p className="text-[13px] text-[#b5e8c4]">Voltou no mês</p>
+        <div className="rounded-2xl bg-[#e4f3ea] p-4">
+          <p className="text-[13px] text-[#1b6149]">Voltou no mês</p>
           <p className="tabular font-display text-[30px] font-extrabold text-manjericao">R$ 2.910</p>
         </div>
       </div>
@@ -250,8 +250,8 @@ function MiniCRM() {
               <p className="font-semibold">{f.nome}</p>
               <p className="text-[13px] text-areia">{f.favorito}</p>
             </div>
-            <span className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${f.status === "sumindo" ? "bg-[#4a1c10] text-[#ffb4a0]" : "bg-[#46320f] text-[#ffd08a]"}`}>
-              {f.status === "sumindo" ? "Sumindo" : "Atrasado"} · {f.diasDesde} dias
+            <span className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${f.status === "sumindo" ? "bg-[#fbe4e0] text-[#9b3530]" : "bg-[#fcefd9] text-[#7a4600]"}`}>
+              {f.status === "sumindo" ? "Sumindo" : "Fora do ritmo"} · {f.diasDesde} dias
             </span>
           </div>
         ))}
@@ -262,13 +262,13 @@ function MiniCRM() {
 
 export function Landing() {
   return (
-    <div className="min-h-screen bg-carvao">
+    <div className="tema-claro min-h-screen bg-carvao text-papel">
       <Nav />
       <Hero />
 
       <section id="como" className="mx-auto max-w-[1240px] px-5 md:px-8">
         <div className="max-w-[46rem] pt-24">
-          <h2 className="font-display text-[clamp(2.2rem,5vw,4rem)] font-extrabold leading-[0.95] tracking-[-0.03em]" style={{ fontVariationSettings: '"wdth" 80' }}>
+          <h2 className="font-display text-[clamp(2.2rem,5vw,4rem)] font-extrabold leading-[0.95] tracking-[-0.015em]" style={{ fontVariationSettings: '"wdth" 80' }}>
             O cliente não reclama. Ele só para de pedir.
           </h2>
           <p className="mt-5 text-[19px] leading-relaxed text-areia">
@@ -329,7 +329,7 @@ export function Landing() {
       </section>
 
       <section className="mx-auto max-w-[1240px] px-5 py-24 md:px-8">
-        <h2 className="font-display text-[clamp(2rem,4.4vw,3.4rem)] font-extrabold leading-[0.98] tracking-[-0.03em]" style={{ fontVariationSettings: '"wdth" 82' }}>
+        <h2 className="font-display text-[clamp(2rem,4.4vw,3.4rem)] font-extrabold leading-[0.98] tracking-[-0.015em]" style={{ fontVariationSettings: '"wdth" 82' }}>
           Do boteco à pizzaria, já chega configurado.
         </h2>
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -375,7 +375,7 @@ export function Landing() {
       <section id="fundador" className="mx-auto max-w-[1240px] px-5 py-24 md:px-8">
         <div className="grid gap-10 md:grid-cols-[1.2fr_1fr]">
           <div>
-            <h2 className="font-display text-[clamp(2.2rem,5vw,4.2rem)] font-extrabold leading-[0.95] tracking-[-0.03em]" style={{ fontVariationSettings: '"wdth" 80' }}>
+            <h2 className="font-display text-[clamp(2.2rem,5vw,4.2rem)] font-extrabold leading-[0.95] tracking-[-0.015em]" style={{ fontVariationSettings: '"wdth" 80' }}>
               Seja um restaurante fundador.
             </h2>
             <p className="mt-5 max-w-[34rem] text-[19px] leading-relaxed text-areia">
@@ -389,21 +389,21 @@ export function Landing() {
               ))}
             </ul>
           </div>
-          <div className="rounded-3xl bg-papel p-8 text-carvao">
+          <div className="tema-escuro rounded-3xl bg-carvao p-8 text-papel">
             <p className="font-display text-[26px] font-extrabold leading-tight">Converse com a gente</p>
-            <p className="mt-2 text-[16px] text-[#5a4c41]">Mostramos o Freguês com o cardápio e os bairros da sua casa em 20 minutos.</p>
+            <p className="mt-2 text-[16px] text-areia">Mostramos o Freguês com o cardápio e os bairros da sua casa em 20 minutos.</p>
             <a
               href={WHATS}
               target="_blank"
               rel="noreferrer"
-              className="mt-6 flex items-center justify-center gap-2 rounded-full bg-carvao py-4 text-[17px] font-semibold text-papel transition hover:bg-brasa hover:text-carvao"
+              className="mt-6 flex items-center justify-center gap-2 rounded-full bg-brasa py-4 text-[17px] font-bold text-carvao transition hover:bg-mostarda"
             >
               Chamar no WhatsApp <ArrowUpRight className="h-5 w-5" />
             </a>
             <div className="mt-6 space-y-1 text-[16px]">
               <p className="tabular font-semibold">(21) 96764-0607</p>
               <p className="tabular font-semibold">(21) 99496-9943</p>
-              <a href="https://instagram.com/m.mattos_mkt" target="_blank" rel="noreferrer" className="block text-brasa-escura underline-offset-4 hover:underline">
+              <a href="https://instagram.com/m.mattos_mkt" target="_blank" rel="noreferrer" className="block text-brasa underline-offset-4 hover:underline">
                 @m.mattos_mkt
               </a>
             </div>

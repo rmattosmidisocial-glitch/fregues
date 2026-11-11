@@ -5,10 +5,10 @@ import { brl } from "../../data/mock";
 import { useAdmin, type Cliente, type NovoCliente, type StatusAssin } from "./adminDados";
 
 const STATUS: Record<StatusAssin, { rotulo: string; cls: string; cor: string }> = {
-  ativa: { rotulo: "Ativa", cls: "bg-[#17351f] text-[#9be3b0]", cor: "#49c27e" },
-  teste: { rotulo: "Em teste", cls: "bg-[#13302d] text-[#8fd8cf]", cor: "#2f7d77" },
-  atrasada: { rotulo: "Atrasada", cls: "bg-[#46320f] text-[#ffd08a]", cor: "#ffc03a" },
-  suspensa: { rotulo: "Suspensa", cls: "bg-[#4a1c10] text-[#ffb4a0]", cor: "#f0524a" },
+  ativa: { rotulo: "Ativa", cls: "bg-[#e2f2ea] text-[#1b6149]", cor: "#49c27e" },
+  teste: { rotulo: "Em teste", cls: "bg-[#dff1ee] text-[#1f5f59]", cor: "#2f7d77" },
+  atrasada: { rotulo: "Atrasada", cls: "bg-[#fcefd9] text-[#7a4600]", cor: "#ffc03a" },
+  suspensa: { rotulo: "Suspensa", cls: "bg-[#fbe4e0] text-[#9b3530]", cor: "#f0524a" },
   cancelada: { rotulo: "Cancelada", cls: "bg-grafite text-fumo", cor: "#8f7b6c" },
 };
 const dataBR = (s?: string | null) => (s ? new Date(s.length === 10 ? s + "T12:00:00" : s).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "—");
@@ -33,8 +33,8 @@ function Pill({ s }: { s: StatusAssin }) {
 
 function Kpi({ rotulo, valor, sub, destaque }: { rotulo: string; valor: string; sub?: string; destaque?: boolean }) {
   return (
-    <div className={`rounded-3xl p-5 ${destaque ? "bg-[#2e1a10]" : "border border-linha bg-forno"}`}>
-      <p className={`text-[13px] ${destaque ? "text-[#ffc7a6]" : "text-areia"}`}>{rotulo}</p>
+    <div className={`rounded-3xl p-5 ${destaque ? "bg-[#fde9df]" : "border border-linha bg-forno"}`}>
+      <p className={`text-[13px] ${destaque ? "text-[#9a3412]" : "text-areia"}`}>{rotulo}</p>
       <p className={`tabular mt-1 font-display text-[30px] font-extrabold leading-tight ${destaque ? "text-brasa" : ""}`}>{valor}</p>
       {sub && <p className="mt-1 text-[13px] text-areia">{sub}</p>}
     </div>
@@ -47,7 +47,7 @@ function LoginAdmin({ a }: { a: ReturnType<typeof useAdmin> }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [criar, setCriar] = useState(false);
   return (
-    <div className="grid min-h-screen place-items-center bg-carvao p-4">
+    <div className="tema-claro grid min-h-screen place-items-center bg-carvao p-4">
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -70,7 +70,7 @@ function LoginAdmin({ a }: { a: ReturnType<typeof useAdmin> }) {
           Senha {criar && <span className="font-normal text-areia">(mínimo 8 caracteres)</span>}
           <input type="password" required minLength={8} autoComplete={criar ? "new-password" : "current-password"} placeholder="••••••••" value={senha} onChange={(e) => setSenha(e.target.value)} className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-carvao outline-none placeholder:text-[#8f7b6c] focus:border-brasa" />
         </label>
-        {msg && <p className="mt-4 rounded-xl bg-[#2e1a10] p-3 text-[15px] text-[#ffd9c4]">{msg}</p>}
+        {msg && <p className="mt-4 rounded-xl bg-[#fde9df] p-3 text-[15px] text-[#8e2f2a]">{msg}</p>}
         <button className="mt-6 w-full rounded-xl bg-brasa py-3.5 text-[17px] font-bold text-carvao hover:bg-mostarda">{criar ? "Criar meu acesso" : "Entrar"}</button>
         <div className="my-5 flex items-center gap-3 text-[13px] text-areia">
           <span className="h-px flex-1 bg-linha" /> {criar ? "já tem acesso?" : "ainda não tem acesso?"} <span className="h-px flex-1 bg-linha" />
@@ -165,7 +165,7 @@ function NovoClienteModal({ a, fechar }: { a: ReturnType<typeof useAdmin>; fecha
             <p className="mt-5 text-[13px] text-areia">Plano</p>
             <div className="mt-1 grid gap-2 sm:grid-cols-3">
               {a.planos.map((p) => (
-                <button type="button" key={p.id} onClick={() => set({ plano: p.id })} aria-pressed={n.plano === p.id} className={`rounded-2xl border p-3 text-left ${n.plano === p.id ? "border-brasa bg-[#2e1a10]" : "border-linha"}`}>
+                <button type="button" key={p.id} onClick={() => set({ plano: p.id })} aria-pressed={n.plano === p.id} className={`rounded-2xl border p-3 text-left ${n.plano === p.id ? "border-brasa bg-[#fde9df]" : "border-linha"}`}>
                   <p className="font-semibold">{p.nome}</p>
                   <p className="tabular text-[14px] text-areia">{brl(p.preco)}/mês</p>
                 </button>
@@ -175,7 +175,7 @@ function NovoClienteModal({ a, fechar }: { a: ReturnType<typeof useAdmin>; fecha
               Dias de teste grátis
               <input type="number" min={0} max={60} value={n.dias_teste} onChange={(e) => set({ dias_teste: Number(e.target.value) })} className="tabular w-20 rounded-lg border border-linha bg-carvao px-2 py-1.5 text-right" />
             </label>
-            {erro && <p className="mt-3 rounded-xl bg-[#4a1c10] p-3 text-[14px] text-[#ffd9c4]">{erro}</p>}
+            {erro && <p className="mt-3 rounded-xl bg-[#fbe4e0] p-3 text-[14px] text-[#8e2f2a]">{erro}</p>}
             <button className="mt-5 w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda">Cadastrar cliente</button>
           </form>
         )}
@@ -246,7 +246,7 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
                 <Play className="h-4 w-4" /> Reativar
               </button>
             ) : (
-              <button onClick={() => acao(a.acoes.mudarStatus(c.org_id, "suspensa", motivo), "Cliente suspenso. A loja saiu do ar.")} className="flex items-center gap-1.5 rounded-xl border border-tomate px-4 py-2 text-[14px] font-semibold text-tomate hover:bg-[#4a1c10]">
+              <button onClick={() => acao(a.acoes.mudarStatus(c.org_id, "suspensa", motivo), "Cliente suspenso. A loja saiu do ar.")} className="flex items-center gap-1.5 rounded-xl border border-tomate px-4 py-2 text-[14px] font-semibold text-tomate hover:bg-[#fbe4e0]">
                 <Pause className="h-4 w-4" /> Suspender
               </button>
             )}
@@ -283,9 +283,9 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
                 <span className="flex items-center gap-2">
                   <span className="tabular font-semibold">{brl(f.valor)}</span>
                   {f.status === "paga" ? (
-                    <span className="rounded-full bg-[#17351f] px-2 py-0.5 text-[12px] font-semibold text-[#9be3b0]">Paga</span>
+                    <span className="rounded-full bg-[#e2f2ea] px-2 py-0.5 text-[12px] font-semibold text-[#1b6149]">Paga</span>
                   ) : (
-                    <button onClick={() => acao(a.acoes.registrarPagamento(f.id), "Pagamento registrado")} className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${f.status === "atrasada" ? "bg-[#46320f] text-[#ffd08a]" : "bg-grafite text-areia"} hover:bg-papel hover:text-carvao`}>
+                    <button onClick={() => acao(a.acoes.registrarPagamento(f.id), "Pagamento registrado")} className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${f.status === "atrasada" ? "bg-[#fcefd9] text-[#7a4600]" : "bg-grafite text-areia"} hover:bg-papel hover:text-carvao`}>
                       {f.status === "atrasada" ? "Atrasada · marcar paga" : "Marcar paga"}
                     </button>
                   )}
@@ -305,7 +305,7 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
           {c.observacao && <p className="mt-2 rounded-xl bg-grafite p-2.5">{c.observacao}</p>}
           <div className="mt-3 flex flex-wrap gap-2">
             {c.telefone && (
-              <a href={`https://wa.me/55${c.telefone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full bg-[#1f3b2c] px-3 py-1.5 text-[13px] font-semibold text-[#9be3b0]">
+              <a href={`https://wa.me/55${c.telefone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full bg-[#e4f3ea] px-3 py-1.5 text-[13px] font-semibold text-[#1b6149]">
                 WhatsApp <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
             )}
@@ -358,11 +358,11 @@ export function Admin() {
     return l.sort((x, y) => (ordem === "vendas" ? y.vendas_30d - x.vendas_30d : ordem === "recentes" ? y.criado_em.localeCompare(x.criado_em) : (x.proximo_vencimento ?? "9").localeCompare(y.proximo_vencimento ?? "9")));
   }, [a.clientes, busca, fStatus, fPlano, ordem]);
 
-  if (a.carregando) return <div className="grid min-h-screen place-items-center bg-carvao text-areia">Abrindo a administração…</div>;
+  if (a.carregando) return <div className="tema-claro grid min-h-screen place-items-center bg-carvao text-areia">Abrindo a administração…</div>;
   if (a.modo === "real" && !a.sessao) return <LoginAdmin a={a} />;
   if (a.modo === "real" && a.admin === false)
     return (
-      <div className="grid min-h-screen place-items-center bg-carvao p-6 text-center">
+      <div className="tema-claro grid min-h-screen place-items-center bg-carvao p-6 text-center">
         <div className="max-w-[420px]">
           <ShieldCheck className="mx-auto h-10 w-10 text-brasa" />
           <h1 className="mt-3 font-display text-[26px] font-extrabold">Esta conta não é administradora</h1>
@@ -376,7 +376,7 @@ export function Admin() {
 
   if (!a.visao)
     return (
-      <div className="grid min-h-screen place-items-center bg-carvao p-6 text-center text-areia">
+      <div className="tema-claro grid min-h-screen place-items-center bg-carvao p-6 text-center text-areia">
         <div>
           <p>{a.erro ? `Não foi possível carregar: ${a.erro}` : "Carregando os números…"}</p>
           <button onClick={() => a.acoes.recarregar()} className="mt-4 rounded-full border-2 border-papel px-5 py-2 font-semibold text-papel">
@@ -424,8 +424,8 @@ export function Admin() {
   );
 
   return (
-    <div className="min-h-screen bg-carvao md:grid md:grid-cols-[240px_1fr]">
-      <aside className="sticky top-0 hidden h-screen flex-col border-r border-linha bg-forno px-4 py-5 md:flex">
+    <div className="tema-claro min-h-screen bg-carvao text-papel md:grid md:grid-cols-[240px_1fr]">
+      <aside className="tema-escuro sticky top-0 hidden h-screen flex-col bg-forno px-4 py-5 md:flex">
         <Logo />
         <p className="mt-2 flex items-center gap-1.5 px-1 text-[12px] font-semibold uppercase tracking-[0.12em] text-brasa">
           <ShieldCheck className="h-3.5 w-3.5" /> Administração
@@ -461,14 +461,14 @@ export function Admin() {
           </button>
         </header>
         <main className="mx-auto max-w-[1280px] px-4 py-6 md:px-8 md:py-8">
-          {a.erro && <p className="mb-4 rounded-2xl bg-[#4a1c10] p-4 text-[#ffd9c4]">{a.erro}</p>}
+          {a.erro && <p className="mb-4 rounded-2xl bg-[#fbe4e0] p-4 text-[#8e2f2a]">{a.erro}</p>}
           {a.modo === "demo" && <p className="mb-4 rounded-2xl border border-dashed border-linha p-3 text-[13px] text-areia">Demonstração: carteira fictícia de restaurantes. No endereço publicado, aqui aparecem os seus clientes reais.</p>}
 
           {aba === "visao" && (
             <div className="space-y-5">
               <div>
                 <p className="text-[15px] capitalize text-areia">{new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p>
-                <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.02em]">Sua carteira de restaurantes</h1>
+                <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Sua carteira de restaurantes</h1>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <Kpi destaque rotulo="Receita recorrente por mês" valor={brl(v.mrr)} sub={`${brl(v.mrr * 12)} por ano`} />
@@ -513,7 +513,7 @@ export function Admin() {
             <div>
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
-                  <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.02em]">Clientes</h1>
+                  <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Clientes</h1>
                   <p className="text-[15px] text-areia">{a.clientes.length} restaurantes na carteira. Toque em um para ver uso, plano e faturas.</p>
                 </div>
                 <button onClick={() => setNovo(true)} className="flex items-center gap-2 rounded-full bg-brasa px-5 py-3 text-[15px] font-semibold text-carvao hover:bg-mostarda">
@@ -596,7 +596,7 @@ export function Admin() {
 
           {aba === "financeiro" && (
             <div className="space-y-5">
-              <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.02em]">Financeiro</h1>
+              <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Financeiro</h1>
               <div className="grid gap-3 sm:grid-cols-3">
                 <Kpi destaque rotulo="Recebido este mês" valor={brl(v.recebido_mes)} />
                 <Kpi rotulo="Em aberto" valor={brl(a.faturas.filter((f) => f.status === "aberta").reduce((s, f) => s + f.valor, 0))} sub={`${a.faturas.filter((f) => f.status === "aberta").length} faturas`} />
@@ -638,7 +638,7 @@ export function Admin() {
                                   Paga {dataBR(f.pago_em)} · {f.forma}
                                 </span>
                               ) : (
-                                <button onClick={() => a.acoes.registrarPagamento(f.id)} className={`rounded-full px-3 py-1 text-[12px] font-semibold ${f.status === "atrasada" ? "bg-[#46320f] text-[#ffd08a]" : "bg-grafite text-areia"} hover:bg-papel hover:text-carvao`}>
+                                <button onClick={() => a.acoes.registrarPagamento(f.id)} className={`rounded-full px-3 py-1 text-[12px] font-semibold ${f.status === "atrasada" ? "bg-[#fcefd9] text-[#7a4600]" : "bg-grafite text-areia"} hover:bg-papel hover:text-carvao`}>
                                   <CreditCard className="mr-1 inline h-3.5 w-3.5" />
                                   {f.status === "atrasada" ? "Atrasada · marcar paga" : "Marcar paga"}
                                 </button>
@@ -656,7 +656,7 @@ export function Admin() {
 
           {aba === "planos" && (
             <div className="space-y-5">
-              <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.02em]">Planos</h1>
+              <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Planos</h1>
               <div className="grid gap-4 md:grid-cols-3">
                 {porPlano.map(({ p, n, mrr }) => (
                   <section key={p.id} className="flex flex-col rounded-3xl border border-linha bg-forno p-6">
@@ -695,7 +695,7 @@ export function Admin() {
 
           {aba === "atividade" && (
             <div>
-              <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.02em]">Atividade</h1>
+              <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Atividade</h1>
               <p className="text-[15px] text-areia">Tudo o que a administração fez, com data. Fica registrado no banco.</p>
               <ul className="mt-5 divide-y divide-linha rounded-3xl border border-linha bg-forno">
                 {a.auditoria.map((h) => (

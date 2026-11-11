@@ -1,22 +1,60 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  /* Brandbook Freguês v1.0 · uma família só: Nunito 400 / 600 / 800 */
+  --font-display: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
 
-  --color-carvao: #17110e;
-  --color-forno: #1f1713;
-  --color-grafite: #2a201a;
-  --color-linha: #574437;
-  --color-fumo: #a8927f;
-  --color-areia: #c9b8a6;
-  --color-papel: #fff6e9;
-  --color-brasa: #ff5b1f;
-  --color-brasa-escura: #c2410c;
-  --color-mostarda: #ffc03a;
-  --color-manjericao: #49c27e;
-  --color-tomate: #f0524a;
-  --color-azulejo: #2f7d77;
+  /* Tema escuro de marca (café). Usado no menu lateral e em áreas de destaque. */
+  --color-carvao: #2b211d;
+  --color-forno: #34291f;
+  --color-grafite: #40332b;
+  --color-linha: #5c4a3f;
+  --color-fumo: #b3a093;
+  --color-areia: #dccdc0;
+  --color-papel: #fff6eb;
+  --color-brasa: #f45b26;
+  --color-brasa-escura: #b73d14;
+  --color-mostarda: #f2a93b;
+  --color-manjericao: #4cb38a;
+  --color-tomate: #e5665f;
+  --color-azulejo: #3e9a93;
+
+  --ease-marca: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Tema claro (60% creme e branco · 25% café · 10% laranja). Os nomes dos tokens continuam os mesmos:
+   carvao = fundo da página, forno = cartões, papel = texto, brasa = ação. */
+.tema-claro {
+  --color-carvao: #fff6eb;
+  --color-forno: #ffffff;
+  --color-grafite: #f7ecdf;
+  --color-linha: #e8d8c6;
+  --color-fumo: #8a7666;
+  --color-areia: #6a594d;
+  --color-papel: #2b211d;
+  --color-brasa: #b73d14; /* botões com texto claro usam o laranja escuro */
+  --color-brasa-escura: #8f2e0e;
+  --color-mostarda: #a15c00;
+  --color-manjericao: #22785c;
+  --color-tomate: #b53e38;
+  --color-azulejo: #1f6f69;
+  color: var(--color-papel);
+}
+/* Menu lateral café dentro do tema claro */
+.tema-escuro {
+  --color-carvao: #2b211d;
+  --color-forno: #2b211d;
+  --color-grafite: #3a2e27;
+  --color-linha: #4d3e35;
+  --color-fumo: #b3a093;
+  --color-areia: #dccdc0;
+  --color-papel: #fff6eb;
+  --color-brasa: #f45b26;
+  --color-mostarda: #f2a93b;
+  --color-manjericao: #4cb38a;
+  --color-tomate: #e5665f;
+  color: var(--color-papel);
 }
 
 html,
@@ -30,19 +68,16 @@ body {
   color: var(--color-papel);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: "ss01";
+  font-size: 16px;
 }
 
-.font-display {
-  font-variation-settings: "opsz" 96;
-}
 
 .tabular {
   font-variant-numeric: tabular-nums;
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-mostarda);
+  outline: 3px solid #f45b26;
   outline-offset: 2px;
   border-radius: 6px;
 }
@@ -97,3 +132,6 @@ body {
   [data-print] { position: absolute; inset: 0 auto auto 0; width: 100%; }
   [data-print] > div { break-inside: avoid; border: 1px solid #ccc; }
 }
+
+/* Movimento da marca: curto (180–250 ms) */
+.transition, [class*="transition-"] { transition-duration: 200ms; transition-timing-function: var(--ease-marca); }

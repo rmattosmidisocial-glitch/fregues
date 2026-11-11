@@ -26,7 +26,7 @@ const ITENS: Item[] = [
   { rota: "salao", rotulo: "Salão e mesas", curto: "Salão", grupo: "Operação", icone: <Armchair className="h-5 w-5" /> },
   { rota: "atendimento", rotulo: "Atendimento", curto: "Conversas", grupo: "Operação", icone: <MessagesSquare className="h-5 w-5" /> },
   { rota: "cardapio", rotulo: "Cardápio", curto: "Cardápio", grupo: "Operação", icone: <BookOpen className="h-5 w-5" /> },
-  { rota: "mapa", rotulo: "Mapa de atuação", curto: "Mapa", grupo: "Operação", icone: <MapIcon className="h-5 w-5" /> },
+  { rota: "mapa", rotulo: "Território", curto: "Território", grupo: "Operação", icone: <MapIcon className="h-5 w-5" /> },
   { rota: "fregueses", rotulo: "Fregueses", curto: "Fregueses", grupo: "Crescer", icone: <Users className="h-5 w-5" /> },
   { rota: "automacoes", rotulo: "Automações", curto: "Automações", grupo: "Crescer", icone: <Workflow className="h-5 w-5" /> },
   { rota: "formularios", rotulo: "Formulários", curto: "Formulários", grupo: "Crescer", icone: <ClipboardList className="h-5 w-5" /> },
@@ -45,11 +45,11 @@ export function PainelLayout({ rota }: { rota: Rota }) {
   const contador = (r: Rota) => (r === "pedidos" ? d.pedidos.filter((p) => p.status === "novo").length : r === "atendimento" ? naoLidas : 0);
   const aberta = d.loja.aberto;
   const setAberta = (v: boolean) => d.acoes.setAberta(v);
-  if (d.modo === "real" && d.carregando) return <div className="grid min-h-screen place-items-center text-areia">Abrindo o painel…</div>;
+  if (d.modo === "real" && d.carregando) return <div className="tema-claro grid min-h-screen place-items-center bg-carvao text-areia">Abrindo o painel…</div>;
   if (d.modo === "real" && !d.sessao) return <Login />;
   return (
-    <div className="min-h-screen bg-carvao md:grid md:grid-cols-[248px_1fr]">
-      <aside className="sticky top-0 hidden h-screen flex-col border-r border-linha bg-forno px-4 py-5 md:flex">
+    <div className="tema-claro min-h-screen bg-carvao text-papel md:grid md:grid-cols-[248px_1fr]">
+      <aside className="tema-escuro sticky top-0 hidden h-screen flex-col bg-forno px-4 py-5 md:flex">
         <a href="#" aria-label="Voltar para o site do Freguês" className="px-2">
           <Logo />
         </a>
@@ -58,11 +58,11 @@ export function PainelLayout({ rota }: { rota: Rota }) {
           <p className="text-[13px] text-areia">{d.loja.bairro}</p>
           <button
             onClick={() => setAberta(!aberta)}
-            className={`mt-3 flex w-full items-center justify-between rounded-xl px-3 py-2 text-[14px] font-semibold ${aberta ? "bg-[#17351f] text-[#9be3b0]" : "bg-[#4a1c10] text-[#ffb4a0]"}`}
+            className={`mt-3 flex w-full items-center justify-between rounded-xl px-3 py-2 text-[14px] font-semibold ${aberta ? "bg-[#e2f2ea] text-[#1b6149]" : "bg-[#fbe4e0] text-[#9b3530]"}`}
           >
             {aberta ? "Loja aberta" : "Loja pausada"}
             <span className={`relative h-5 w-9 rounded-full ${aberta ? "bg-manjericao" : "bg-tomate"}`}>
-              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-papel transition-all ${aberta ? "left-[18px]" : "left-0.5"}`} />
+              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${aberta ? "left-[18px]" : "left-0.5"}`} />
             </span>
           </button>
         </div>
@@ -115,7 +115,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
         </header>
         <main className="mx-auto max-w-[1280px] px-4 py-6 md:px-8 md:py-8">
           {assin && assin.status !== "ativa" && (
-            <p className={`mb-4 rounded-2xl p-4 text-[15px] ${assin.status === "teste" ? "bg-[#13302d] text-[#bfeee7]" : "bg-[#46320f] text-[#ffe2b0]"}`}>
+            <p className={`mb-4 rounded-2xl p-4 text-[15px] ${assin.status === "teste" ? "bg-[#dff1ee] text-[#1f5f59]" : "bg-[#fcefd9] text-[#7a4600]"}`}>
               {assin.status === "teste" && `Você está no período de teste do plano ${assin.plano_nome} até ${assin.teste_ate ? new Date(assin.teste_ate + "T12:00:00").toLocaleDateString("pt-BR") : "breve"}.`}
               {assin.status === "atrasada" && `Sua mensalidade do Freguês está em atraso. Regularize para a loja não sair do ar.`}
               {assin.status === "suspensa" && `Sua loja está fora do ar por falta de pagamento. Fale com a equipe do Freguês para reativar.`}
@@ -125,7 +125,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
               </a>
             </p>
           )}
-          {d.erro && <p className="mb-4 rounded-2xl bg-[#4a1c10] p-4 text-[#ffd9c4]">{d.erro}</p>}
+          {d.erro && <p className="mb-4 rounded-2xl bg-[#fbe4e0] p-4 text-[#8e2f2a]">{d.erro}</p>}
           {rota === "painel" && <Pulso abrirCopiloto={() => setCopiloto(true)} />}
           {rota === "pedidos" && <Pedidos />}
           {rota === "mapa" && <MapaAtuacao />}

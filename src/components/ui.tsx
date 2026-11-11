@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import type { Status } from "../data/mock";
 
 export const STATUS_INFO: Record<Status, { rotulo: string; cor: string; bg: string; txt: string }> = {
-  ritmo: { rotulo: "No ritmo", cor: "#49c27e", bg: "bg-[#17351f]", txt: "text-[#9be3b0]" },
-  atrasado: { rotulo: "Atrasado", cor: "#ffc03a", bg: "bg-[#46320f]", txt: "text-[#ffd08a]" },
-  sumindo: { rotulo: "Sumindo", cor: "#f0524a", bg: "bg-[#4a1c10]", txt: "text-[#ffb4a0]" },
+  ritmo: { rotulo: "No ritmo", cor: "#22785C", bg: "bg-[#e2f2ea]", txt: "text-[#1b6149]" },
+  atrasado: { rotulo: "Fora do ritmo", cor: "#A15C00", bg: "bg-[#fcefd9]", txt: "text-[#7a4600]" },
+  sumindo: { rotulo: "Sumindo", cor: "#B53E38", bg: "bg-[#fbe4e0]", txt: "text-[#9b3530]" },
 };
 
 export function AnelPulso({ dias, intervalo, status, size = 40 }: { dias: number; intervalo: number; status: Status; size?: number }) {
@@ -14,7 +14,7 @@ export function AnelPulso({ dias, intervalo, status, size = 40 }: { dias: number
   const cor = STATUS_INFO[status].cor;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-label={`${STATUS_INFO[status].rotulo}: ${dias} dias sem pedir, costuma pedir a cada ${intervalo} dias`}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#3d2f27" strokeWidth="4" />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-linha)" strokeWidth="4" />
       <circle
         cx={size / 2}
         cy={size / 2}
@@ -26,7 +26,7 @@ export function AnelPulso({ dias, intervalo, status, size = 40 }: { dias: number
         strokeDasharray={`${c * frac} ${c}`}
         transform={`rotate(-90 ${size / 2} ${size / 2})`}
       />
-      <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle" fill="#fff6e9" fontSize={size * 0.3} fontWeight={700} fontFamily="Instrument Sans">
+      <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle" fill="var(--color-papel)" fontSize={size * 0.3} fontWeight={700} fontFamily="Nunito">
         {dias}
       </text>
     </svg>

@@ -169,7 +169,7 @@ export function MapaAtuacao() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.02em]">Mapa de atuação</h1>
+          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Território</h1>
           <p className="text-[15px] text-areia">
             {ativos} bairros{munInteiros ? ` e ${munInteiros} municípios inteiros` : ""} em {zonas.length} zonas. Clique no município para abrir os bairros.
           </p>
@@ -291,7 +291,7 @@ export function MapaAtuacao() {
                 ))}
               </div>
               {(ativosPorMun[mun] ?? 0) > 0 && (
-                <button onClick={() => atenderTodos(null)} className="mt-3 text-[14px] font-semibold text-[#ffb4a0] hover:underline">
+                <button onClick={() => atenderTodos(null)} className="mt-3 text-[14px] font-semibold text-[#9b3530] hover:underline">
                   Parar de entregar em {mun}
                 </button>
               )}
@@ -326,7 +326,7 @@ export function MapaAtuacao() {
                     d.acoes.atenderMunicipio(COD_MUN[mun], null);
                     show(`${mun} desligado`);
                   }}
-                  className="mt-4 text-[14px] font-semibold text-[#ffb4a0] hover:underline"
+                  className="mt-4 text-[14px] font-semibold text-[#9b3530] hover:underline"
                 >
                   Parar de atender {mun}
                 </button>
@@ -358,7 +358,7 @@ export function MapaAtuacao() {
                         </button>
                       ))}
                   </div>
-                  <button onClick={() => moverBairro(sel, null)} className="mt-4 text-[14px] font-semibold text-[#ffb4a0] hover:underline">
+                  <button onClick={() => moverBairro(sel, null)} className="mt-4 text-[14px] font-semibold text-[#9b3530] hover:underline">
                     Parar de entregar aqui
                   </button>
                 </>
@@ -447,7 +447,7 @@ export function MapaAtuacao() {
                 </select>
               </label>
             )}
-            <div className={`mt-3 rounded-xl p-3 text-[14px] ${simZona ? "bg-[#17351f] text-[#cdeed7]" : "bg-[#4a1c10] text-[#ffd9c4]"}`}>
+            <div className={`mt-3 rounded-xl p-3 text-[14px] ${simZona ? "bg-[#e2f2ea] text-[#1e3a2c]" : "bg-[#fbe4e0] text-[#8e2f2a]"}`}>
               <p className="flex items-center gap-1.5 font-semibold">
                 <MapPin className="h-4 w-4" /> {simZona ? `Entregamos em ${simNome}` : `Não entregamos em ${simNome}`}
               </p>

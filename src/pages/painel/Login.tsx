@@ -25,12 +25,12 @@ export function Login() {
   }
 
   return (
-    <div className="grid min-h-screen place-items-center bg-carvao px-4">
+    <div className="tema-claro grid min-h-screen place-items-center bg-carvao px-4">
       <div className="w-full max-w-[400px]">
         <a href="#" aria-label="Voltar para o site">
           <Logo />
         </a>
-        <h1 className="mt-8 font-display text-[34px] font-extrabold leading-tight tracking-[-0.02em]">Entrar no painel</h1>
+        <h1 className="mt-8 font-display text-[34px] font-extrabold leading-tight tracking-[-0.015em]">Entrar no painel</h1>
         <p className="mt-2 text-[15px] text-areia">Acompanhe pedidos, entregas e fregueses da sua casa.</p>
         <form onSubmit={entrar} className="mt-6 space-y-3" noValidate>
           <label className="block text-[15px] font-semibold text-papel">
@@ -60,7 +60,7 @@ export function Login() {
             />
           </label>
           {erro && (
-            <p role="alert" className="text-[14px] font-semibold text-[#ffb4a0]">
+            <p role="alert" className="text-[14px] font-semibold text-[#9b3530]">
               {erro}
             </p>
           )}

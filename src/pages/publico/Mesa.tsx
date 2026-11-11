@@ -72,7 +72,7 @@ export function Mesa() {
           <div className="absolute inset-0 bg-gradient-to-t from-carvao via-carvao/75 to-carvao/20" />
           <div className="relative">
             <p className="text-[13px] font-semibold uppercase tracking-[0.12em] text-brasa">{d.loja.nome}</p>
-            <h1 className="font-display text-[44px] font-extrabold leading-none tracking-[-0.03em]">Mesa {numero}</h1>
+            <h1 className="font-display text-[44px] font-extrabold leading-none tracking-[-0.015em]">Mesa {numero}</h1>
             <p className="mt-1 text-[14px] text-areia">Peça por aqui que vai direto para a cozinha.</p>
           </div>
         </header>

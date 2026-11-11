@@ -17,9 +17,9 @@ export const ICONE_BOTAO: Record<TipoBotao, React.ReactNode> = {
 };
 
 export const TEMAS: Record<PaginaLinks["tema"], { fundo: string; texto: string; botao: string; destaque: string; sub: string }> = {
-  brasa: { fundo: "#17110e", texto: "#fff6e9", botao: "bg-[#2a201a] text-[#fff6e9]", destaque: "bg-[#ff5b1f] text-[#17110e]", sub: "#c9b8a6" },
+  brasa: { fundo: "#2B211D", texto: "#FFF6EB", botao: "bg-[#3A2E27] text-[#FFF6EB]", destaque: "bg-[#F45B26] text-[#2B211D]", sub: "#c9b8a6" },
   noite: { fundo: "#0f1a1a", texto: "#eafaf6", botao: "bg-[#1b2c2b] text-[#eafaf6]", destaque: "bg-[#49c27e] text-[#0f1a1a]", sub: "#9fbcb5" },
-  papel: { fundo: "#fff6e9", texto: "#17110e", botao: "bg-white text-[#17110e] border border-[#e3d3bf]", destaque: "bg-[#17110e] text-[#fff6e9]", sub: "#8f7b6c" },
+  papel: { fundo: "#FFF6EB", texto: "#2B211D", botao: "bg-white text-[#2B211D] border border-[#e3d3bf]", destaque: "bg-[#2B211D] text-[#FFF6EB]", sub: "#8f7b6c" },
 };
 
 /** Clique em um botão: conta e leva ao destino. Destinos internos abrem a loja ou o formulário certo. */
@@ -40,10 +40,10 @@ export function PaginaBio({ p, preview = false }: { p: PaginaLinks; preview?: bo
           <div className="absolute inset-0" style={{ background: `linear-gradient(to top, ${t.fundo}, transparent)` }} />
         </div>
         <div className="-mt-10 text-center">
-          <span className="relative mx-auto grid h-20 w-20 place-items-center rounded-full border-4 bg-[#ff5b1f]" style={{ borderColor: t.fundo }}>
-            <Brasinha className="h-10 w-10" />
+          <span className="relative mx-auto grid h-20 w-20 place-items-center rounded-full border-4 bg-[#F45B26]" style={{ borderColor: t.fundo }}>
+            <span className="font-display text-[26px] font-extrabold text-[#FFF6EB]">{p.titulo.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
           </span>
-          <h1 className="mt-3 font-display text-[28px] font-extrabold tracking-[-0.02em]">{p.titulo}</h1>
+          <h1 className="mt-3 font-display text-[28px] font-extrabold tracking-[-0.015em]">{p.titulo}</h1>
           <p className="mx-auto mt-1 max-w-[320px] text-[14px] leading-relaxed" style={{ color: t.sub }}>
             {p.bio}
           </p>

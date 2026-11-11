@@ -87,10 +87,10 @@ export function Copiloto() {
                 <p className="tabular mt-1 font-display text-[24px] font-extrabold">{res.publico}</p>
                 <p className="text-areia">fregueses encontrados</p>
               </div>
-              <div className="rounded-2xl bg-[#16261b] p-3">
-                <span className="text-[13px] text-[#b5e8c4]">Previsão de retorno</span>
+              <div className="rounded-2xl bg-[#e4f3ea] p-3">
+                <span className="text-[13px] text-[#1b6149]">Previsão de retorno</span>
                 <p className="tabular mt-1 font-display text-[24px] font-extrabold text-manjericao">{brl(res.previsao)}</p>
-                <p className="text-[#cdeed7]">em até 7 dias</p>
+                <p className="text-[#1e3a2c]">em até 7 dias</p>
               </div>
             </div>
             <p className="text-[14px] text-areia">Escolha a mensagem</p>
@@ -100,7 +100,7 @@ export function Copiloto() {
                   key={i}
                   onClick={() => setEscolhida(i)}
                   aria-pressed={escolhida === i}
-                  className={`w-full rounded-2xl p-3 text-left text-[14px] leading-relaxed ${escolhida === i ? "bg-[#1f3b2c] text-[#e9f7ee] ring-2 ring-manjericao" : "bg-grafite text-areia"}`}
+                  className={`w-full rounded-2xl p-3 text-left text-[14px] leading-relaxed ${escolhida === i ? "bg-[#e4f3ea] text-[#1e3a2c] ring-2 ring-manjericao" : "bg-grafite text-areia"}`}
                 >
                   {v}
                 </button>
@@ -110,7 +110,7 @@ export function Copiloto() {
               <CalendarClock className="h-4 w-4" /> {res.quando}
             </p>
             {enviado ? (
-              <p className="rounded-2xl bg-[#17351f] p-3 text-[14px] font-semibold text-[#9be3b0]">Campanha agendada para {res.publico} fregueses. O resultado aparece no Pulso.</p>
+              <p className="rounded-2xl bg-[#e2f2ea] p-3 text-[14px] font-semibold text-[#1b6149]">Campanha agendada para {res.publico} fregueses. O resultado aparece no Pulso.</p>
             ) : (
               <button onClick={() => setEnviado(true)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda">
                 <MessageCircle className="h-4 w-4" /> Agendar no WhatsApp
@@ -144,7 +144,7 @@ export function Copiloto() {
             <Send className="h-5 w-5" />
           </button>
         </div>
-        {erro && <p className="mt-2 text-[13px] text-[#ffb4a0]">{erro}</p>}
+        {erro && <p className="mt-2 text-[13px] text-[#9b3530]">{erro}</p>}
       </form>
     </div>
   );

@@ -79,7 +79,7 @@ function Ajustes() {
             <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brasa text-carvao">
               <Bot className="h-4 w-4" />
             </span>
-            <p className="max-w-[85%] rounded-2xl rounded-tl-sm bg-[#1f3b2c] px-4 py-2.5 text-[15px] leading-relaxed text-[#e9f7ee]">{r.texto}</p>
+            <p className="max-w-[85%] rounded-2xl rounded-tl-sm bg-[#e4f3ea] px-4 py-2.5 text-[15px] leading-relaxed text-[#1e3a2c]">{r.texto}</p>
           </div>
           <p className="pt-1 text-[13px] text-areia">
             Assunto: <b className="text-papel">{r.titulo}</b> · Humor: <b className={HUMOR[r.humor].cor}>{HUMOR[r.humor].rotulo}</b>
@@ -133,7 +133,7 @@ export function Atendimento() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.02em]">Atendimento</h1>
+          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Atendimento</h1>
           <p className="max-w-[640px] text-[15px] text-areia">Uma atendente com IA responde na loja, no WhatsApp e no Instagram. Quando precisa de gente, ela passa para você.</p>
         </div>
         <div className="flex rounded-full border border-linha p-1 text-[14px] font-semibold" role="tablist">
@@ -207,7 +207,7 @@ export function Atendimento() {
                           {c.cliente} · {ult.texto}
                         </span>
                         <span className="mt-1 flex items-center gap-2 text-[11px]">
-                          {c.status === "equipe" && <span className="rounded-full bg-[#46320f] px-2 py-0.5 font-semibold text-[#ffd08a]">Com a equipe</span>}
+                          {c.status === "equipe" && <span className="rounded-full bg-[#fcefd9] px-2 py-0.5 font-semibold text-[#7a4600]">Com a equipe</span>}
                           {c.status === "ia" && <span className="rounded-full bg-grafite px-2 py-0.5 font-semibold text-areia">IA respondendo</span>}
                           {c.humor === "negativo" && <span className="font-semibold text-tomate">Chateado</span>}
                           {c.pedidoGerado && <span className="font-semibold text-manjericao">Virou pedido</span>}
@@ -262,7 +262,7 @@ export function Atendimento() {
                       </div>
                     ) : (
                       <div key={m.id} className="ml-auto max-w-[80%]">
-                        <p className={`rounded-2xl rounded-tr-sm px-4 py-2.5 text-[15px] leading-relaxed ${m.de === "ia" ? "bg-[#1f3b2c] text-[#e9f7ee]" : "bg-brasa text-carvao"}`}>{m.texto}</p>
+                        <p className={`rounded-2xl rounded-tr-sm px-4 py-2.5 text-[15px] leading-relaxed ${m.de === "ia" ? "bg-[#e4f3ea] text-[#1e3a2c]" : "bg-brasa text-carvao"}`}>{m.texto}</p>
                         <p className="mt-1 flex items-center justify-end gap-1 text-[11px] text-fumo">
                           {m.de === "ia" ? (
                             <>
@@ -326,7 +326,7 @@ export function Atendimento() {
                   </p>
                 )}
                 {sel.pedidoGerado && (
-                  <p className="flex items-center gap-2 rounded-2xl bg-[#17351f] p-3 text-[#9be3b0]">
+                  <p className="flex items-center gap-2 rounded-2xl bg-[#e2f2ea] p-3 text-[#1b6149]">
                     <ShoppingBag className="h-4 w-4" /> Virou o pedido #{sel.pedidoGerado}
                   </p>
                 )}

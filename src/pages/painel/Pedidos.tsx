@@ -31,7 +31,7 @@ export function Pedidos() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.02em]">Pedidos</h1>
+          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Pedidos</h1>
           <p className="text-[15px] text-areia">Tempo médio de preparo hoje: {pico ? 32 : 22} min</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -70,7 +70,7 @@ export function Pedidos() {
                         <p className="font-display text-[22px] font-extrabold leading-none">#{p.num}</p>
                         <p className="mt-1 font-semibold">{p.cliente}</p>
                       </div>
-                      <span className={`tabular rounded-full px-2 py-0.5 text-[12px] font-semibold ${p.min > 20 && c.id !== "entregue" ? "bg-[#4a1c10] text-[#ffb4a0]" : "bg-grafite text-areia"}`}>
+                      <span className={`tabular rounded-full px-2 py-0.5 text-[12px] font-semibold ${p.min > 20 && c.id !== "entregue" ? "bg-[#fbe4e0] text-[#9b3530]" : "bg-grafite text-areia"}`}>
                         há {p.min} min
                       </span>
                     </div>

@@ -85,7 +85,7 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-[15px] capitalize text-areia">{hoje}</p>
-          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold leading-tight tracking-[-0.02em]">{saudacao}. Aqui está o pulso da casa.</h1>
+          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold leading-tight tracking-[-0.015em]">{saudacao}. Aqui está o pulso da casa.</h1>
         </div>
         <a href="#pedidos" className="flex items-center gap-2 rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia">
           <span className="pulso h-2 w-2 rounded-full bg-brasa" /> {novos} pedidos novos agora
@@ -95,13 +95,13 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
       <Atencao />
 
       <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
-        <section className="relative overflow-hidden rounded-3xl bg-[#2e1a10] p-6 md:p-8">
+        <section className="relative overflow-hidden rounded-3xl bg-[#fde9df] p-6 md:p-8">
           <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-brasa/20 blur-3xl" />
-          <p className="relative text-[15px] text-[#ffc7a6]">Em risco nos próximos 7 dias</p>
-          <p className="relative mt-1 font-display text-[clamp(3rem,7vw,5.2rem)] font-extrabold leading-none tracking-[-0.03em] text-brasa">
+          <p className="relative text-[15px] text-[#9a3412]">Em risco nos próximos 7 dias</p>
+          <p className="relative mt-1 font-display text-[clamp(3rem,7vw,5.2rem)] font-extrabold leading-none tracking-[-0.015em] text-brasa">
             <Numero valor={pulsoResumo.risco} prefixo="R$ " />
           </p>
-          <p className="relative mt-3 max-w-[30rem] text-[15px] text-[#ffd9c4]">
+          <p className="relative mt-3 max-w-[30rem] text-[15px] text-[#8e2f2a]">
             {pulsoResumo.atrasado + pulsoResumo.sumindo} fregueses saíram do ritmo de pedidos. Esse é o valor que eles costumam gastar por semana.
           </p>
           <div className="relative mt-6 flex flex-wrap gap-3">
@@ -112,23 +112,23 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
           </div>
         </section>
         <div className="grid gap-4">
-          <section className="rounded-3xl bg-[#16261b] p-6">
-            <p className="text-[15px] text-[#b5e8c4]">Voltou ao caixa este mês</p>
+          <section className="rounded-3xl bg-[#e4f3ea] p-6">
+            <p className="text-[15px] text-[#1b6149]">Voltou ao caixa este mês</p>
             <p className="mt-1 font-display text-[clamp(2.4rem,5vw,3.4rem)] font-extrabold leading-none text-manjericao">
               <Numero valor={pulsoResumo.recuperado} prefixo="R$ " />
             </p>
-            <p className="mt-2 text-[14px] text-[#cdeed7]">{pulsoResumo.voltaram} fregueses que tinham sumido voltaram a pedir este mês.</p>
+            <p className="mt-2 text-[14px] text-[#1e3a2c]">{pulsoResumo.voltaram} fregueses que tinham sumido voltaram a pedir este mês.</p>
           </section>
           <Painelzinho className="!p-5">
             <p className="text-[14px] text-areia">Ritmo da base ({total} fregueses)</p>
-            <div className="mt-3 flex h-3 overflow-hidden rounded-full" role="img" aria-label={`${pulsoResumo.ritmo} no ritmo, ${pulsoResumo.atrasado} atrasados, ${pulsoResumo.sumindo} sumindo`}>
+            <div className="mt-3 flex h-3 overflow-hidden rounded-full" role="img" aria-label={`${pulsoResumo.ritmo} no ritmo, ${pulsoResumo.atrasado} fora do ritmo, ${pulsoResumo.sumindo} sumindo`}>
               <div className="bg-manjericao" style={{ flex: pulsoResumo.ritmo }} />
               <div className="bg-mostarda" style={{ flex: pulsoResumo.atrasado }} />
               <div className="bg-tomate" style={{ flex: pulsoResumo.sumindo }} />
             </div>
             <div className="mt-3 grid grid-cols-3 text-[13px]">
               <span><b className="tabular text-[17px]">{pulsoResumo.ritmo}</b><br /><span className="text-areia">no ritmo</span></span>
-              <span><b className="tabular text-[17px]">{pulsoResumo.atrasado}</b><br /><span className="text-areia">atrasados</span></span>
+              <span><b className="tabular text-[17px]">{pulsoResumo.atrasado}</b><br /><span className="text-areia">fora do ritmo</span></span>
               <span><b className="tabular text-[17px]">{pulsoResumo.sumindo}</b><br /><span className="text-areia">sumindo</span></span>
             </div>
           </Painelzinho>
@@ -138,7 +138,7 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
       <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
         <Painelzinho>
           <div className="flex items-center justify-between">
-            <h2 className="font-display text-[22px] font-bold">Quem chamar hoje</h2>
+            <h2 className="font-display text-[22px] font-bold">Quem merece atenção hoje</h2>
             <a href="#fregueses" className="text-[14px] text-areia hover:text-papel">Ver todos</a>
           </div>
           <ul className="mt-3 divide-y divide-linha">

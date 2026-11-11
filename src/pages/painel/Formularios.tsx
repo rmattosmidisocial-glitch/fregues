@@ -15,9 +15,9 @@ const TIPOS: { id: TipoCampo; rotulo: string }[] = [
   { id: "numero", rotulo: "Número" },
 ];
 const ESTADO: Record<Formulario["estado"], string> = {
-  "no ar": "bg-[#17351f] text-[#9be3b0]",
+  "no ar": "bg-[#e2f2ea] text-[#1b6149]",
   pausado: "bg-grafite text-areia",
-  rascunho: "bg-[#46320f] text-[#ffd08a]",
+  rascunho: "bg-[#fcefd9] text-[#7a4600]",
 };
 
 function resumoNumerico(f: Formulario, c: Campo) {
@@ -57,7 +57,7 @@ function Abrir({ f, voltar }: { f: Formulario; voltar: () => void }) {
       </button>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <input value={f.nome} onChange={(e) => set({ nome: e.target.value })} aria-label="Nome do formulário" className="w-full bg-transparent font-display text-[clamp(1.6rem,3vw,2.3rem)] font-extrabold tracking-[-0.02em] outline-none focus:underline" />
+          <input value={f.nome} onChange={(e) => set({ nome: e.target.value })} aria-label="Nome do formulário" className="w-full bg-transparent font-display text-[clamp(1.6rem,3vw,2.3rem)] font-extrabold tracking-[-0.015em] outline-none focus:underline" />
           <input value={f.descricao} onChange={(e) => set({ descricao: e.target.value })} placeholder="Para que serve este formulário?" aria-label="Descrição" className="w-full bg-transparent text-[15px] text-areia outline-none" />
         </div>
         <div className="flex gap-2">
@@ -302,7 +302,7 @@ export function Formularios() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.02em]">Formulários</h1>
+          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Formulários</h1>
           <p className="max-w-[620px] text-[15px] text-areia">Pesquisa depois do pedido, reserva de mesa e cadastro no clube. Cada resposta entra direto na ficha do freguês. {total} respostas até agora.</p>
         </div>
         <button onClick={() => setAberto(crescer.novoForm())} className="flex items-center gap-2 rounded-full bg-brasa px-5 py-3 text-[15px] font-semibold text-carvao hover:bg-mostarda">

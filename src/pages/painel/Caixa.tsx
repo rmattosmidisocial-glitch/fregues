@@ -46,7 +46,7 @@ function Abrir({ c }: { c: ReturnType<typeof useCaixa> }) {
           </button>
         ))}
       </div>
-      {erro && <p className="mt-3 rounded-xl bg-[#4a1c10] p-3 text-[14px] text-[#ffd9c4]">{erro}</p>}
+      {erro && <p className="mt-3 rounded-xl bg-[#fbe4e0] p-3 text-[14px] text-[#8e2f2a]">{erro}</p>}
       <button
         onClick={async () => {
           const r = await c.acoes.abrir(Number(valor.replace(",", ".")) || 0, op);
@@ -207,7 +207,7 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
             <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome para chamar" aria-label="Nome do cliente" className="min-w-0 rounded-xl border border-linha bg-carvao px-3 py-2 text-[14px]" />
           </div>
           {f && (
-            <p className="mt-2 flex items-center gap-1.5 rounded-xl bg-[#2e1a10] px-3 py-2 text-[13px] text-[#ffd9c4]">
+            <p className="mt-2 flex items-center gap-1.5 rounded-xl bg-[#fde9df] px-3 py-2 text-[13px] text-[#8e2f2a]">
               <Star className="h-3.5 w-3.5 fill-brasa text-brasa" /> {f.nome.split(" ")[0]} · {f.nivel} · costuma pedir {f.favorito}
             </p>
           )}
@@ -296,8 +296,8 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
             </div>
           )}
 
-          {total > 0 && (falta > 0 || troco > 0) && <p className={`tabular mt-3 rounded-xl p-3 text-center text-[18px] font-bold ${falta > 0 ? "bg-[#46320f] text-[#ffe2b0]" : "bg-mostarda text-carvao"}`}>{falta > 0 ? `Falta ${brl(falta)}` : `Troco ${brl(troco)}`}</p>}
-          {erro && <p className="mt-3 rounded-xl bg-[#4a1c10] p-3 text-[14px] text-[#ffd9c4]">{erro}</p>}
+          {total > 0 && (falta > 0 || troco > 0) && <p className={`tabular mt-3 rounded-xl p-3 text-center text-[18px] font-bold ${falta > 0 ? "bg-[#fcefd9] text-[#7a4600]" : "bg-mostarda text-carvao"}`}>{falta > 0 ? `Falta ${brl(falta)}` : `Troco ${brl(troco)}`}</p>}
+          {erro && <p className="mt-3 rounded-xl bg-[#fbe4e0] p-3 text-[14px] text-[#8e2f2a]">{erro}</p>}
           <button
             disabled={linhas.length === 0 || falta > 0 || enviando}
             onClick={async () => {
@@ -420,8 +420,8 @@ function ResumoCaixa({ c, aoFechar }: { c: ReturnType<typeof useCaixa>; aoFechar
           ["Dinheiro na gaveta", brl(Number(r.dinheiro_esperado)), "deve ter agora"],
           ["Caixa aberto às", hora(s.aberto_em), `por ${s.operador}`],
         ].map(([k, v, x], i) => (
-          <div key={k} className={`rounded-2xl p-4 ${i === 0 ? "bg-[#2e1a10]" : "border border-linha bg-forno"}`}>
-            <p className={`text-[12px] ${i === 0 ? "text-[#ffc7a6]" : "text-areia"}`}>{k}</p>
+          <div key={k} className={`rounded-2xl p-4 ${i === 0 ? "bg-[#fde9df]" : "border border-linha bg-forno"}`}>
+            <p className={`text-[12px] ${i === 0 ? "text-[#9a3412]" : "text-areia"}`}>{k}</p>
             <p className={`tabular mt-1 font-display text-[24px] font-bold ${i === 0 ? "text-brasa" : ""}`}>{v}</p>
             <p className="text-[12px] text-areia">{x}</p>
           </div>
@@ -507,7 +507,7 @@ function ResumoCaixa({ c, aoFechar }: { c: ReturnType<typeof useCaixa>; aoFechar
         </section>
       )}
 
-      <button onClick={() => setFechando(true)} className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-tomate py-3.5 text-[16px] font-bold text-tomate hover:bg-[#4a1c10]">
+      <button onClick={() => setFechando(true)} className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-tomate py-3.5 text-[16px] font-bold text-tomate hover:bg-[#fbe4e0]">
         <Lock className="h-5 w-5" /> Fechar caixa
       </button>
 
@@ -523,9 +523,9 @@ function ResumoCaixa({ c, aoFechar }: { c: ReturnType<typeof useCaixa>; aoFechar
                 <input autoFocus inputMode="decimal" value={contado} onChange={(e) => setContado(e.target.value.replace(/[^\d,.]/g, ""))} className="tabular min-w-0 flex-1 bg-transparent px-2 py-3 text-[22px] font-bold outline-none" />
               </span>
             </label>
-            {contado && <p className={`tabular mt-3 rounded-xl p-3 text-center font-bold ${Math.abs(dif) < 0.01 ? "bg-[#17351f] text-[#9be3b0]" : dif > 0 ? "bg-[#46320f] text-[#ffe2b0]" : "bg-[#4a1c10] text-[#ffd9c4]"}`}>{Math.abs(dif) < 0.01 ? "Bateu certinho" : dif > 0 ? `Sobrando ${brl(dif)}` : `Faltando ${brl(-dif)}`}</p>}
+            {contado && <p className={`tabular mt-3 rounded-xl p-3 text-center font-bold ${Math.abs(dif) < 0.01 ? "bg-[#e2f2ea] text-[#1b6149]" : dif > 0 ? "bg-[#fcefd9] text-[#7a4600]" : "bg-[#fbe4e0] text-[#8e2f2a]"}`}>{Math.abs(dif) < 0.01 ? "Bateu certinho" : dif > 0 ? `Sobrando ${brl(dif)}` : `Faltando ${brl(-dif)}`}</p>}
             <input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Observação (opcional)" aria-label="Observação" className="mt-3 w-full rounded-xl border border-linha bg-carvao px-3 py-2 text-[14px]" />
-            {erro && <p className="mt-3 rounded-xl bg-[#4a1c10] p-3 text-[14px] text-[#ffd9c4]">{erro}</p>}
+            {erro && <p className="mt-3 rounded-xl bg-[#fbe4e0] p-3 text-[14px] text-[#8e2f2a]">{erro}</p>}
             <button
               disabled={!contado}
               onClick={async () => {
@@ -623,7 +623,7 @@ export function Caixa() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.02em]">Caixa e balcão</h1>
+          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Caixa e balcão</h1>
           <p className="flex items-center gap-2 text-[15px] text-areia">
             {c.sessao ? (
               <>

@@ -44,7 +44,7 @@ export function Pesquisa() {
             <p className="text-[13px] font-semibold uppercase tracking-[0.1em]" style={{ color: f.cor }}>
               Brasa Burger
             </p>
-            <h1 className="mt-1 font-display text-[34px] font-extrabold leading-tight tracking-[-0.02em]">{f.nome}</h1>
+            <h1 className="mt-1 font-display text-[34px] font-extrabold leading-tight tracking-[-0.015em]">{f.nome}</h1>
             {f.descricao && !enviado && <p className="mt-1 text-[14px] text-areia">Leva menos de 1 minuto.</p>}
           </div>
         </header>
