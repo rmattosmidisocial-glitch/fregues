@@ -2,7 +2,8 @@ import { CalendarDays, ChevronRight, Frown, MessageCircle, MessagesSquare, Spark
 import { crescer, quandoTxt, useCrescer } from "../../data/crescer";
 import { AnelPulso, Numero, Painelzinho, StatusPill, useToast } from "../../components/ui";
 import { brl, type Freguês } from "../../data/mock";
-import { useDados, type DiaSemana } from "../../data/dados";
+import { SLUG, useDados, type DiaSemana } from "../../data/dados";
+import { useState } from "react";
 
 function GraficoSemana({ VENDAS_SEMANA }: { VENDAS_SEMANA: DiaSemana[] }) {
   const temMkt = VENDAS_SEMANA.some((d) => d.marketplace > 0);
@@ -66,7 +67,41 @@ function Atencao() {
   );
 }
 
+// Chance de o freguês não voltar sozinho, por status (mesma regra do banco)
+const PERDA = { ritmo: 0, atrasado: 0.45, sumindo: 0.8 } as const;
+const PERIODOS = [7, 15, 30] as const;
+const CHAVE_PERIODO = `fregues-pulso-periodo:${SLUG}`;
+
+function lerPeriodo(): number {
+  try {
+    const v = Number(localStorage.getItem(CHAVE_PERIODO));
+    return (PERIODOS as readonly number[]).includes(v) ? v : 7;
+  } catch {
+    return 7;
+  }
+}
+
+// mensagem do "o de sempre" para o WhatsApp do freguês
+export function linkChamar(f: Freguês, loja: string) {
+  const tel = f.tel.replace(/\D/g, "");
+  if (tel.length < 10) return null;
+  const nome = f.nome.split(" ")[0];
+  const prato = f.favorito && f.favorito !== "—" ? `seu ${f.favorito}` : "o de sempre";
+  const linkLoja = `${location.origin}${location.pathname}?r=${SLUG}#loja`;
+  const texto = `Oi, ${nome}! Aqui é da ${loja}. Faz um tempinho que você não aparece e ${prato} está te esperando. Quer pedir hoje? É só tocar aqui: ${linkLoja}`;
+  return `https://wa.me/${tel.startsWith("55") ? tel : "55" + tel}?text=${encodeURIComponent(texto)}`;
+}
+
 export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
+  const [periodo, setPeriodoState] = useState(lerPeriodo);
+  const setPeriodo = (p: number) => {
+    setPeriodoState(p);
+    try {
+      localStorage.setItem(CHAVE_PERIODO, String(p));
+    } catch {
+      /* sem armazenamento: vale só nesta visita */
+    }
+  };
   const { show, Toast } = useToast();
   const d = useDados();
   const VENDAS_SEMANA = d.semana;
@@ -76,6 +111,10 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
   const propria = VENDAS_SEMANA.reduce((s, x) => s + x.propria, 0);
   const total = pulsoResumo.total;
   const novos = d.pedidos.filter((p) => p.status === "novo").length;
+  // quanto os fregueses fora do ritmo costumam gastar no período escolhido
+  const risco = d.fregueses.length
+    ? Math.round(d.fregueses.reduce((s, f) => s + f.ticket * (periodo / Math.max(1, f.intervalo)) * PERDA[f.status] * 1.6, 0))
+    : Math.round(pulsoResumo.risco * (periodo / 7));
   const hoje = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
   const h = new Date().getHours();
   const saudacao = h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
@@ -97,12 +136,21 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
       <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
         <section className="relative overflow-hidden rounded-3xl bg-[#fde9df] p-6 md:p-8">
           <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-brasa/20 blur-3xl" />
-          <p className="relative text-[15px] text-[#9a3412]">Em risco nos próximos 7 dias</p>
+          <div className="relative flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[15px] text-[#9a3412]">Em risco nos próximos {periodo} dias</p>
+            <div className="flex rounded-full bg-white/70 p-1 text-[13px] font-semibold" role="group" aria-label="Período">
+              {PERIODOS.map((p) => (
+                <button key={p} onClick={() => setPeriodo(p)} aria-pressed={periodo === p} className={`rounded-full px-3 py-1 transition ${periodo === p ? "bg-brasa text-white" : "text-[#8e2f2a] hover:bg-white"}`}>
+                  {p === 30 ? "1 mês" : `${p} dias`}
+                </button>
+              ))}
+            </div>
+          </div>
           <p className="relative mt-1 font-display text-[clamp(3rem,7vw,5.2rem)] font-extrabold leading-none tracking-[-0.015em] text-brasa">
-            <Numero valor={pulsoResumo.risco} prefixo="R$ " />
+            <Numero valor={risco} prefixo="R$ " />
           </p>
           <p className="relative mt-3 max-w-[30rem] text-[15px] text-[#8e2f2a]">
-            {pulsoResumo.atrasado + pulsoResumo.sumindo} fregueses saíram do ritmo de pedidos. Esse é o valor que eles costumam gastar por semana.
+            {pulsoResumo.atrasado + pulsoResumo.sumindo} fregueses saíram do ritmo de pedidos. {`Esse é o valor que eles costumam gastar em ${periodo === 30 ? "um mês" : `${periodo} dias`}. Cada freguês tem o próprio ritmo: quem pede uma vez por mês só sai do ritmo depois de uns 38 dias sem pedir.`}
           </p>
           <div className="relative mt-6 flex flex-wrap gap-3">
             <a href="#fregueses" className="rounded-full bg-brasa px-5 py-2.5 text-[15px] font-semibold text-carvao hover:bg-mostarda">Ver quem está sumindo</a>
@@ -154,12 +202,24 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
                 <span className="hidden sm:block">
                   <StatusPill status={f.status} />
                 </span>
-                <button
-                  onClick={() => show(`“O de sempre” enviado para ${f.nome.split(" ")[0]}`)}
-                  className="flex items-center gap-1.5 rounded-full bg-papel px-3 py-2 text-[13px] font-semibold text-carvao hover:bg-mostarda"
-                >
-                  <MessageCircle className="h-4 w-4" /> <span className="hidden sm:inline">Chamar</span>
-                </button>
+                {(() => {
+                  const link = linkChamar(f, d.loja.nome);
+                  return link ? (
+                    <a
+                      href={link}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => show(`Abrindo o WhatsApp de ${f.nome.split(" ")[0]} com o "o de sempre"`)}
+                      className="flex items-center gap-1.5 rounded-full bg-papel px-3 py-2 text-[13px] font-semibold text-carvao hover:bg-mostarda"
+                    >
+                      <MessageCircle className="h-4 w-4" /> <span className="hidden sm:inline">Chamar</span>
+                    </a>
+                  ) : (
+                    <span title="Sem telefone cadastrado" className="flex cursor-not-allowed items-center gap-1.5 rounded-full bg-grafite px-3 py-2 text-[13px] font-semibold text-fumo">
+                      <MessageCircle className="h-4 w-4" /> <span className="hidden sm:inline">Sem telefone</span>
+                    </span>
+                  );
+                })()}
               </li>
             ))}
           </ul>
