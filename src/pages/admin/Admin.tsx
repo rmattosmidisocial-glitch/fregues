@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, Building2, Check, ChevronRight, CircleDollarSign, Clock, Copy, CreditCard, ExternalLink, History, LayoutDashboard, Layers, LogOut, Pause, Play, Plus, Search, ShieldCheck, Store, TrendingUp, X } from "lucide-react";
 import { Logo } from "../../components/Logo";
 import { brl } from "../../data/mock";
 import { BotaoTema } from "../../tema";
-import { useAdmin, type Cliente, type NovoCliente, type StatusAssin } from "./adminDados";
+import { useAdmin, type Cliente, type Cobranca, type NovoCliente, type StatusAssin } from "./adminDados";
 
 const STATUS: Record<StatusAssin, { rotulo: string; cls: string; cor: string }> = {
   ativa: { rotulo: "Ativa", cls: "bg-[#e2f2ea] text-[#1b6149]", cor: "#49c27e" },
@@ -185,6 +185,96 @@ function NovoClienteModal({ a, fechar }: { a: ReturnType<typeof useAdmin>; fecha
   );
 }
 
+function CobrancaAuto({ c, a }: { c: Cliente; a: ReturnType<typeof useAdmin> }) {
+  const [info, setInfo] = useState<Cobranca | null>(null);
+  const [doc, setDoc] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [copiado, setCopiado] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    a.acoes.cobranca(c.org_id).then((x) => {
+      if (!vivo) return;
+      setInfo(x);
+      if (x?.documento) setDoc(x.documento);
+    });
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c.org_id, a.faturas]);
+  const ativar = async () => {
+    setOcupado(true);
+    setMsg(null);
+    const r = await a.acoes.servidor("ativar", { org_id: c.org_id, documento: doc });
+    setOcupado(false);
+    if (r.erro) return setMsg(r.erro);
+    setInfo((i) => ({ ...(i ?? { documento: doc, assinatura: null }), ativa: true, link: r.link ?? null }));
+    setMsg(`Cobrança ativada. Primeiro vencimento: ${dataBR(r.vencimento)}.${r.aviso ? ` ${r.aviso}` : ""}`);
+  };
+  const atualizar = async () => {
+    setOcupado(true);
+    const r = await a.acoes.servidor("atualizar", { org_id: c.org_id });
+    setOcupado(false);
+    setMsg(r.erro ?? `Cobranças conferidas na Asaas (${r.cobrancas?.length ?? 0}).`);
+  };
+  const tel = (c.telefone || "").replace(/\D/g, "");
+  const texto = info?.link ? `Olá, ${c.responsavel.split(" ")[0] || ""}! Aqui é do Freguês. Para manter a ${c.loja} no ar, cadastre a forma de pagamento da mensalidade (Pix, boleto ou cartão) neste link: ${info.link}` : "";
+  return (
+    <section className="mt-4 rounded-2xl border border-linha p-4">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-semibold">Cobrança automática</h3>
+        <span className={`rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${info?.ativa ? "bg-[#e2f2ea] text-[#1b6149]" : "bg-grafite text-areia"}`}>{info?.ativa ? "Ativa na Asaas" : "Desligada"}</span>
+      </div>
+      {!info?.ativa ? (
+        <>
+          <p className="mt-1 text-[14px] text-areia">A Asaas gera a cobrança todo mês, avisa o cliente antes do vencimento e dá baixa aqui quando ele paga. O cliente escolhe Pix, boleto ou cartão.</p>
+          <label className="mt-3 block text-[13px] text-areia">
+            CPF ou CNPJ do cliente
+            <input value={doc} onChange={(e) => setDoc(e.target.value)} inputMode="numeric" placeholder="00.000.000/0000-00" className="mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel" />
+          </label>
+          <button onClick={ativar} disabled={ocupado} className="mt-3 w-full rounded-xl bg-brasa px-4 py-2.5 text-[14px] font-semibold text-carvao disabled:opacity-60">
+            {ocupado ? "Falando com a Asaas…" : "Ativar cobrança automática"}
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="mt-1 text-[14px] text-areia">Mande o link para o cliente escolher como pagar. Depois disso, tudo acontece sozinho.</p>
+          {info.link && (
+            <div className="mt-3 rounded-xl bg-grafite p-3 text-[13px]">
+              <p className="break-all font-semibold">{info.link}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(info.link!);
+                    setCopiado(true);
+                    setTimeout(() => setCopiado(false), 1500);
+                  }}
+                  className="rounded-full border border-linha px-3 py-1 font-semibold hover:border-areia"
+                >
+                  {copiado ? "Copiado" : "Copiar link"}
+                </button>
+                {tel && (
+                  <a href={`https://wa.me/55${tel}?text=${encodeURIComponent(texto)}`} target="_blank" rel="noreferrer" className="rounded-full bg-manjericao px-3 py-1 font-semibold text-carvao">
+                    Mandar no WhatsApp
+                  </a>
+                )}
+                <a href={info.link} target="_blank" rel="noreferrer" className="rounded-full border border-linha px-3 py-1 font-semibold hover:border-areia">
+                  Abrir
+                </a>
+              </div>
+            </div>
+          )}
+          <button onClick={atualizar} disabled={ocupado} className="mt-3 rounded-full border border-linha px-3 py-1.5 text-[13px] font-semibold hover:border-areia disabled:opacity-60">
+            {ocupado ? "Conferindo…" : "Atualizar cobranças"}
+          </button>
+        </>
+      )}
+      {msg && <p className="mt-3 rounded-xl bg-grafite p-3 text-[14px]">{msg}</p>}
+    </section>
+  );
+}
+
 function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>; fechar: () => void }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [motivo, setMotivo] = useState("");
@@ -265,6 +355,8 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
           {msg && <p className="mt-3 rounded-xl bg-grafite p-3 text-[14px]">{msg}</p>}
         </section>
 
+        <CobrancaAuto c={c} a={a} />
+
         <section className="mt-4 rounded-2xl border border-linha p-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Faturas</h3>
@@ -283,6 +375,11 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
                 </span>
                 <span className="flex items-center gap-2">
                   <span className="tabular font-semibold">{brl(f.valor)}</span>
+                  {f.link && f.status !== "paga" && (
+                    <a href={f.link} target="_blank" rel="noreferrer" className="rounded-full border border-linha px-2.5 py-1 text-[12px] font-semibold hover:border-areia">
+                      Abrir cobrança
+                    </a>
+                  )}
                   {f.status === "paga" ? (
                     <span className="rounded-full bg-[#e2f2ea] px-2 py-0.5 text-[12px] font-semibold text-[#1b6149]">Paga</span>
                   ) : (

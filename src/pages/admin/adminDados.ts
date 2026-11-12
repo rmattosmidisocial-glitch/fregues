@@ -31,7 +31,8 @@ export type Cliente = {
   convites_pendentes: number;
   nicho?: string;
 };
-export type Fatura = { id: string; org_id: string; competencia: string; vencimento: string; valor: number; status: "aberta" | "paga" | "atrasada" | "cancelada"; pago_em: string | null; forma: string | null };
+export type Fatura = { id: string; org_id: string; competencia: string; vencimento: string; valor: number; status: "aberta" | "paga" | "atrasada" | "cancelada"; pago_em: string | null; forma: string | null; link?: string | null };
+export type Cobranca = { ativa: boolean; link: string | null; documento: string | null; assinatura: string | null };
 export type Auditoria = { id: number; org_id: string | null; acao: string; criado_em: string };
 export type Visao = { mrr: number; clientes_ativos: number; em_teste: number; atrasados: number; suspensos: number; cancelados_30d: number; a_receber: number; recebido_mes: number; pedidos_30d: number; vendas_30d: number; fregueses: number };
 export type NovoCliente = { empresa: string; loja: string; slug: string; bairro: string; plano: string; responsavel: string; telefone: string; email: string; dias_teste: number };
@@ -295,6 +296,28 @@ export function useAdmin() {
       setC(f.org_id, { status: "ativa", publicada: true, proximo_vencimento: prox.toISOString().slice(0, 10) });
       log(f.org_id, "registrou pagamento");
       return null;
+    },
+    async cobranca(id: string): Promise<Cobranca | null> {
+      if (!supabase) return null;
+      const { data } = await supabase.rpc("admin_cobranca", { p_org: id });
+      return (data as Cobranca) ?? null;
+    },
+    // chama o servidor (pasta /api), que fala com a Asaas
+    async servidor(rota: "ativar" | "atualizar", corpo: Record<string, unknown>): Promise<{ erro?: string; link?: string; vencimento?: string; aviso?: string; cobrancas?: unknown[] }> {
+      if (!supabase) return { erro: "A cobrança automática funciona na versão publicada, com a conta Asaas ligada." };
+      const { data } = await supabase.auth.getSession();
+      try {
+        const r = await fetch(`/api/cobranca/${rota}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+          body: JSON.stringify(corpo),
+        });
+        const j = await r.json().catch(() => ({ erro: `Servidor respondeu ${r.status}` }));
+        if (r.ok) await recarregar();
+        return j;
+      } catch {
+        return { erro: "Não consegui falar com o servidor." };
+      }
     },
     recarregar,
   };
