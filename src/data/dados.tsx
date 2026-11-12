@@ -66,6 +66,8 @@ type Dados = {
     editarZona: (id: string, campo: "taxa" | "minimo" | "t1", valor: number) => Promise<void>;
     toggleEsgotado: (id: string) => Promise<void>;
     avancarPedido: (num: number, status: StatusPedido, motoboy?: string) => Promise<void>;
+    pagarPedido: (num: number, forma: NonNullable<Pedido["forma"]>) => Promise<string | null>;
+    cancelarPedido: (num: number, motivo: string) => Promise<string | null>;
     setAberta: (v: boolean) => Promise<void>;
     resolverEntrega: (coord: [number, number], bairroLocalId: string | null) => Promise<Entrega>;
     fazerPedido: (p: NovoPedido) => Promise<PedidoCriado>;
@@ -167,7 +169,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       supabase.rpc("pulse_summary", { p_store: storeId }),
       supabase
         .from("orders")
-        .select("id,numero,status,modo,mesa,total,pagamento,pago,motoboy,observacao,created_at,endereco,customers(nome),order_items(nome,qtd,escolhas)")
+        .select("id,numero,status,modo,mesa,total,pagamento,pago,motoboy,observacao,created_at,endereco,customers(nome,telefone),order_items(nome,qtd,escolhas)")
         .eq("store_id", storeId)
         .gte("created_at", desde)
         .order("created_at", { ascending: false })
@@ -210,7 +212,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       );
     }
     setPedidos(
-      (ords ?? []).map((o) => ({
+      (ords ?? []).filter((o) => o.status !== "cancelado").map((o) => ({
         id: o.id,
         num: o.numero,
         cliente: o.modo === "mesa" ? `Mesa ${o.mesa ?? ""}` : (o.customers as unknown as { nome: string } | null)?.nome ?? (o.modo === "balcao" ? o.observacao || "Balcão" : "Cliente"),
@@ -223,9 +225,14 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         pag: o.pagamento === "pix" && !o.pago ? ("Pix pendente" as Pedido["pag"]) : PAG[o.pagamento],
         modo: o.modo === "entrega" ? "Entrega" : o.modo === "retirada" ? "Retirada" : o.modo === "balcao" ? "Balcão" : (`Mesa ${o.mesa ?? ""}` as Pedido["modo"]),
         min: Math.max(0, Math.round((Date.now() - new Date(o.created_at).getTime()) / 60000)),
-        status: o.status === "cancelado" ? "entregue" : o.status,
+        status: o.status,
         motoboy: o.motoboy ?? undefined,
         nota: o.observacao ?? undefined,
+        tel: (o.customers as unknown as { telefone?: string } | null)?.telefone ? fmtTel((o.customers as unknown as { telefone: string }).telefone) : undefined,
+        endereco: (o.endereco as Pedido["endereco"]) ?? undefined,
+        pago: o.pago,
+        forma: o.pagamento,
+        criadoEm: o.created_at,
       })),
     );
     setDemanda(Object.fromEntries(((dem as { bairro_id: string; tentativas: number }[]) ?? []).filter((d) => d.bairro_id).map((d) => [d.bairro_id, Number(d.tentativas)])));
@@ -335,6 +342,25 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         setPedidos((l) => l.map((p) => (p.num === num ? { ...p, status, motoboy: motoboy ?? p.motoboy } : p)));
         if (supabase && loja.id) await supabase.from("orders").update({ status, ...(motoboy ? { motoboy } : {}) }).eq("store_id", loja.id).eq("numero", num);
       },
+      async pagarPedido(num, forma) {
+        const p = pedidos.find((x) => x.num === num);
+        if (supabase && p?.id) {
+          const { error } = await supabase.rpc("pedido_pagar", { p_pedido: p.id, p_forma: forma });
+          if (error) return error.message.replace(/^.*?:\s*/, "");
+        }
+        const rot: Record<string, Pedido["pag"]> = { pix: "Pix pago", cartao: "Cartão online", dinheiro: "Dinheiro (troco p/ 100)", maquininha: "Maquininha" };
+        setPedidos((l) => l.map((x) => (x.num === num ? { ...x, pago: true, forma, pag: rot[forma] } : x)));
+        return null;
+      },
+      async cancelarPedido(num, motivo) {
+        const p = pedidos.find((x) => x.num === num);
+        if (supabase && p?.id) {
+          const { error } = await supabase.rpc("pedido_cancelar", { p_pedido: p.id, p_motivo: motivo });
+          if (error) return error.message.replace(/^.*?:\s*/, "");
+        }
+        setPedidos((l) => l.filter((x) => x.num !== num));
+        return null;
+      },
       async setAberta(v) {
         setLoja((l) => ({ ...l, aberto: v }));
         if (supabase && loja.id) await supabase.from("stores").update({ aberta: v }).eq("id", loja.id);
@@ -388,7 +414,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       },
       recarregar,
     }),
-    [loja.id, zonas, cardapio, recarregar],
+    [loja.id, zonas, cardapio, pedidos, recarregar],
   );
 
   const valor: Dados = { modo: MODO, carregando, erro, sessao, loja, zonas, cardapio, categorias, fregueses, pedidos, pulso, semana, demanda, acoes };

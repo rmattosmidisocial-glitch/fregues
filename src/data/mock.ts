@@ -262,6 +262,11 @@ export type Pedido = {
   motoboy?: string;
   primeira?: boolean;
   nota?: string;
+  tel?: string;
+  endereco?: { rua?: string; numero?: string; complemento?: string; bairro?: string; cep?: string };
+  pago?: boolean;
+  forma?: "pix" | "cartao" | "dinheiro" | "maquininha";
+  criadoEm?: string;
 };
 
 export const PEDIDOS: Pedido[] = [
@@ -275,6 +280,15 @@ export const PEDIDOS: Pedido[] = [
   { num: 1040, cliente: "Juliana Costa", bairro: "Vicente de Carvalho", itens: ["1x Smash Bacon", "1x Brownie com sorvete"], total: 54.7, pag: "Pix pago", modo: "Entrega", min: 29, status: "rota", motoboy: "Dudu" },
   { num: 1039, cliente: "Marcelo Souza", bairro: "Brás de Pina", itens: ["1x Combo Smash"], total: 43.8, pag: "Pix pago", modo: "Entrega", min: 41, status: "entregue", motoboy: "Marquinhos" },
 ];
+
+// dados de exemplo para detalhes, WhatsApp e impressão da comanda na demonstração
+PEDIDOS.forEach((p, i) => {
+  p.tel = `(21) 9${8100 + i * 37}-${String(4100 + i * 113).slice(0, 4)}`;
+  p.forma = p.pag.startsWith("Pix") ? "pix" : p.pag === "Cartão online" ? "cartao" : p.pag === "Maquininha" ? "maquininha" : "dinheiro";
+  p.pago = p.pag === "Pix pago" || p.pag === "Cartão online";
+  p.criadoEm = new Date(Date.now() - p.min * 60000).toISOString();
+  if (p.modo === "Entrega") p.endereco = { rua: ["Rua Uranos", "Av. Brás de Pina", "Rua Montevidéu", "Estrada do Itararé"][i % 4], numero: String(120 + i * 17), complemento: i % 2 ? "Casa 2" : "Ap 301", bairro: p.bairro };
+});
 
 export const VENDAS_SEMANA = [
   { dia: "Seg", propria: 1180, marketplace: 640 },
