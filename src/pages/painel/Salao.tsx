@@ -18,6 +18,7 @@ const tempo = (iso: string) => {
 };
 const digitos = (s?: string | null) => (s ?? "").replace(/\D/g, "");
 const ITEM: Record<StatusItem, { rotulo: string; cls: string }> = {
+  aguardando: { rotulo: "Confirmar pedido", cls: "bg-[#dff1ee] text-[#1f5f59]" },
   novo: { rotulo: "Novo", cls: "bg-[#fbe4e0] text-[#9b3530]" },
   preparo: { rotulo: "Na cozinha", cls: "bg-[#fcefd9] text-[#7a4600]" },
   pronto: { rotulo: "Pronto", cls: "bg-[#e2f2ea] text-[#1b6149]" },
@@ -487,6 +488,16 @@ function ItemLinha({ i, s }: { i: ItemComanda; s: ReturnType<typeof useSalao> })
         </span>
         {i.obs && <span className="block text-[13px] text-mostarda">{i.obs}</span>}
       </span>
+      {i.status === "aguardando" ? (
+        <span className="flex flex-col items-end gap-1">
+          <button onClick={() => s.acoes.confirmarItens([i.id])} className="rounded-full bg-manjericao px-3 py-1 text-[12px] font-semibold text-carvao">
+            Confirmar e mandar
+          </button>
+          <button onClick={() => s.acoes.statusItem(i.id, "cancelado")} className="text-[11px] text-fumo hover:text-tomate">
+            recusar
+          </button>
+        </span>
+      ) : (
       <span className="flex flex-col items-end gap-1">
         <button disabled={!prox[i.status]} onClick={() => prox[i.status] && s.acoes.statusItem(i.id, prox[i.status]!)} className={`rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${ITEM[i.status].cls}`} title={prox[i.status] ? `Marcar como ${ITEM[prox[i.status]!].rotulo}` : undefined}>
           {ITEM[i.status].rotulo}
@@ -497,6 +508,7 @@ function ItemLinha({ i, s }: { i: ItemComanda; s: ReturnType<typeof useSalao> })
           </button>
         )}
       </span>
+      )}
     </li>
   );
 }
@@ -605,6 +617,22 @@ function EditarMesas({ s }: { s: ReturnType<typeof useSalao> }) {
           <QrCode className="h-4 w-4" /> QR codes para imprimir
         </button>
       </div>
+      <section className="mb-4 rounded-3xl border border-linha bg-forno p-5">
+        <h3 className="font-display text-[18px] font-bold">Pedido feito pelo cliente no QR da mesa</h3>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {(
+            [
+              [true, "O garçom confirma antes", "O pedido aparece para a equipe e só vai para a cozinha quando alguém confirmar."],
+              [false, "Vai direto para a cozinha", "Mais rápido, sem conferência. Bom para casas com pouco movimento de mesa."],
+            ] as const
+          ).map(([v, t, sub]) => (
+            <button key={String(v)} onClick={() => s.acoes.setConfirmar(v)} aria-pressed={s.confirmar === v} className={`rounded-2xl border-2 p-4 text-left ${s.confirmar === v ? "border-brasa bg-[#fde9df]" : "border-linha"}`}>
+              <span className="block font-semibold">{t}</span>
+              <span className="mt-1 block text-[13px] text-areia">{sub}</span>
+            </button>
+          ))}
+        </div>
+      </section>
       <section className="mb-4 rounded-3xl border border-linha bg-forno p-5">
         <h3 className="font-display text-[18px] font-bold">Garçons</h3>
         <p className="text-[13px] text-areia">Aparecem para escolher ao abrir uma mesa.</p>
@@ -726,6 +754,35 @@ export function Salao() {
         </div>
       </div>
 
+      {(() => {
+        const espera = s.itens.filter((i) => i.status === "aguardando");
+        if (!espera.length) return null;
+        const porMesa = new Map<string, ItemComanda[]>();
+        for (const i of espera) porMesa.set(i.tab_id, [...(porMesa.get(i.tab_id) ?? []), i]);
+        return (
+          <div className="mt-4 space-y-2">
+            {[...porMesa.entries()].map(([tab, its]) => {
+              const c = s.comandas.find((x) => x.id === tab);
+              const m = c && s.mesas.find((x) => x.id === c.table_id);
+              return (
+                <div key={tab} className="pulso-borda flex flex-wrap items-center gap-3 rounded-2xl bg-[#dff1ee] p-3 text-[#1f5f59]">
+                  <QrCode className="h-5 w-5 shrink-0" />
+                  <p className="min-w-0 flex-1 font-semibold">
+                    Mesa {m?.numero} pediu pelo QR: {its.map((i) => `${i.qtd}x ${i.nome}`).join(", ")}
+                  </p>
+                  <button onClick={() => m && setSel(m.id)} className="rounded-full border border-[#1f5f59] px-3 py-1.5 text-[14px] font-semibold">
+                    Ver mesa
+                  </button>
+                  <button onClick={() => s.acoes.confirmarItens(its.map((i) => i.id))} className="rounded-full bg-papel px-4 py-1.5 text-[14px] font-semibold text-carvao">
+                    Confirmar e mandar
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       {s.chamados.length > 0 && (
         <div className="mt-4 space-y-2">
           {s.chamados.map((c) => {
@@ -778,7 +835,7 @@ export function Salao() {
                     const c = comandaDe(m);
                     const t = c ? totais(c, s.itens) : null;
                     const chamando = s.chamados.some((x) => x.table_id === m.id);
-                    const pend = c ? s.itens.filter((i) => i.tab_id === c.id && (i.status === "novo" || i.status === "pronto")).length : 0;
+                    const pend = c ? s.itens.filter((i) => i.tab_id === c.id && (i.status === "aguardando" || i.status === "novo" || i.status === "pronto")).length : 0;
                     const estilo = !c ? (m.reservada_para ? "border-azulejo bg-[#dff1ee]" : "border-dashed border-linha bg-forno") : c.status === "conta" ? "border-mostarda bg-[#fcefd9]" : "border-brasa bg-[#fde9df]";
                     return (
                       <button key={m.id} onClick={() => setSel(m.id)} className={`relative flex min-h-[128px] flex-col rounded-3xl border-2 p-4 text-left transition hover:scale-[1.02] ${estilo} ${m.forma === "redonda" ? "rounded-[40px]" : ""}`}>

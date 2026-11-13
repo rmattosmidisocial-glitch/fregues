@@ -19,7 +19,7 @@ const lerMesa = () => {
   }
 };
 
-const STATUS: Record<StatusItem, string> = { novo: "Pedido recebido", preparo: "Na cozinha", pronto: "Saindo", entregue: "Na mesa", cancelado: "Cancelado" };
+const STATUS: Record<StatusItem, string> = { aguardando: "Esperando o garçom confirmar", novo: "Pedido recebido", preparo: "Na cozinha", pronto: "Saindo", entregue: "Na mesa", cancelado: "Cancelado" };
 
 export function Mesa() {
   const d = useDados();
@@ -32,7 +32,7 @@ export function Mesa() {
   const [verConta, setVerConta] = useState(false);
   const qtd = Object.values(sacola).reduce((s, x) => s + x.qtd, 0);
   const totalSacola = Object.values(sacola).reduce((s, x) => s + x.qtd * (x.p.promo ?? x.p.preco), 0);
-  const consumo = (m.dados?.itens ?? []).reduce((s, i) => s + i.qtd * i.unit, 0);
+  const consumo = (m.dados?.itens ?? []).filter((i) => i.status !== "aguardando").reduce((s, i) => s + i.qtd * i.unit, 0);
   const mais = (p: Produto, n: number) =>
     setSacola((c) => {
       const q = Math.max(0, (c[p.id]?.qtd ?? 0) + n);
@@ -73,7 +73,7 @@ export function Mesa() {
           <div className="relative">
             <p className="text-[13px] font-semibold uppercase tracking-[0.12em] text-brasa">{d.loja.nome}</p>
             <h1 className="font-display text-[44px] font-extrabold leading-none tracking-[-0.015em]">Mesa {numero}</h1>
-            <p className="mt-1 text-[14px] text-areia">Peça por aqui que vai direto para a cozinha.</p>
+            <p className="mt-1 text-[14px] text-areia">{m.dados?.confirmar === false ? "Peça por aqui que vai direto para a cozinha." : "Peça por aqui. O garçom confirma e manda para a cozinha."}</p>
           </div>
         </header>
 
@@ -173,11 +173,11 @@ export function Mesa() {
                     if (r) return avisar(r);
                     setSacola({});
                     setVerSacola(false);
-                    avisar("Pedido enviado para a cozinha!");
+                    avisar(m.dados?.confirmar === false ? "Pedido enviado para a cozinha!" : "Pedido enviado! O garçom confirma em instantes.");
                   }}
                   className="mt-4 w-full rounded-full bg-brasa py-4 text-[16px] font-bold text-carvao"
                 >
-                  Enviar para a cozinha · {brl(totalSacola)}
+                  {m.dados?.confirmar === false ? "Enviar para a cozinha" : "Enviar pedido ao garçom"} · {brl(totalSacola)}
                 </button>
                 <p className="mt-2 text-center text-[12px] text-[#8f7b6c]">Você paga no fim, junto com o resto da mesa.</p>
               </>
