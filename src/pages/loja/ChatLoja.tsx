@@ -46,7 +46,7 @@ export function ChatLoja({ subir }: { subir: boolean }) {
               <Bot className="h-5 w-5" />
             </span>
             <div className="flex-1">
-              <p className="font-semibold">{nome || "Atendimento"} · Brasa Burger</p>
+              <p className="font-semibold">{nome || "Atendimento"} · {d.loja.nome}</p>
               <p className="text-[12px] text-areia">{conv?.status === "equipe" ? "Alguém da equipe vai te responder" : "Responde na hora"}</p>
             </div>
             <button onClick={() => setAberto(false)} aria-label="Fechar conversa" className="rounded-full p-2 hover:bg-grafite">
@@ -55,7 +55,7 @@ export function ChatLoja({ subir }: { subir: boolean }) {
           </div>
           <div className="scroll-thin flex-1 space-y-3 overflow-y-auto p-4">
             <p className="max-w-[85%] rounded-2xl rounded-tl-sm bg-[#efe3d3] px-4 py-2.5 text-[15px] leading-relaxed">
-              Oi! 😊 Sou a {nome || "atendente"} da Brasa. Pergunta o que quiser: cardápio, taxa do seu bairro, horário, pagamento.
+              Oi! 😊 Sou a {nome || "atendente"}, da {d.loja.nome}. Pergunta o que quiser: cardápio, taxa do seu bairro, horário, pagamento.
             </p>
             {msgs.map((m) =>
               m.de === "sistema" ? (
