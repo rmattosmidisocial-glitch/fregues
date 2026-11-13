@@ -51,7 +51,7 @@ function SheetProduto({ p, fechar, adicionar }: { p: Produto; fechar: () => void
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={fechar}>
       <div role="dialog" aria-label={p.nome} className="scroll-thin max-h-[92vh] w-full max-w-[480px] overflow-y-auto rounded-t-3xl bg-[#fffaf2] text-carvao sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="relative">
-          <Foto nome={p.nome} arte={p.arte} eager className="h-64 w-full sm:rounded-t-3xl" />
+          <Foto nome={p.nome} arte={p.arte} url={p.foto} eager className="h-64 w-full sm:rounded-t-3xl" />
           <button onClick={fechar} aria-label="Fechar" className="absolute right-4 top-4 rounded-full bg-[#fffaf2] p-2 shadow">
             <X className="h-5 w-5" />
           </button>
@@ -148,7 +148,9 @@ const PASSO: Record<string, number> = { novo: 1, preparo: 2, pronto: 2, rota: 3,
 
 export function Loja() {
   const d = useDados();
-  const { cardapio: CARDAPIO, categorias: CATEGORIAS, loja: LOJA, zonas: ZONAS } = d;
+  const { cardapio: CARDAPIO, loja: LOJA, zonas: ZONAS } = d;
+  // Categoria sem produto não aparece para o cliente.
+  const CATEGORIAS = d.categorias.filter((c) => CARDAPIO.some((p) => p.cat === c));
   const [cat, setCat] = useState("");
   const [aberto, setAberto] = useState<Produto | null>(null);
   const [itens, setItens] = useState<Item[]>([]);
@@ -466,7 +468,7 @@ export function Loja() {
                           )}
                         </p>
                       </div>
-                      <Foto nome={p.nome} arte={p.arte} className="h-24 w-24 shrink-0 rounded-2xl shadow-[0_6px_16px_rgba(23,17,14,.12)]" />
+                      <Foto nome={p.nome} arte={p.arte} url={p.foto} className="h-24 w-24 shrink-0 rounded-2xl shadow-[0_6px_16px_rgba(23,17,14,.12)]" />
                     </button>
                   </li>
                 ))}
@@ -518,7 +520,7 @@ export function Loja() {
                   <ul className="divide-y divide-[#eadccb]">
                     {itens.map((i) => (
                       <li key={i.uid} className="flex gap-3 py-3">
-                        <Foto nome={i.p.nome} arte={i.p.arte} className="h-14 w-14 shrink-0 rounded-xl" />
+                        <Foto nome={i.p.nome} arte={i.p.arte} url={i.p.foto} className="h-14 w-14 shrink-0 rounded-xl" />
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold">
                             {i.qtd}x {i.p.nome}
@@ -537,7 +539,7 @@ export function Loja() {
                   </ul>
                   {ofertaUpsell && !itens.some((i) => i.p.id === ofertaUpsell.id) && itens.length > 0 && (
                     <div className="mt-3 flex items-center gap-3 rounded-2xl bg-[#f3e8d8] p-3">
-                      <Foto nome={ofertaUpsell.nome} arte={ofertaUpsell.arte} className="h-12 w-12 shrink-0 rounded-xl" />
+                      <Foto nome={ofertaUpsell.nome} arte={ofertaUpsell.arte} url={ofertaUpsell.foto} className="h-12 w-12 shrink-0 rounded-xl" />
                       <div className="min-w-0 flex-1">
                         <p className="text-[12px] text-[#5a4c41]">Combina com o seu pedido</p>
                         <p className="truncate font-semibold">{ofertaUpsell.nome}</p>

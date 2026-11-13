@@ -190,7 +190,7 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
             return (
               <li key={p.id}>
                 <button disabled={p.esgotado} onClick={() => mais(p, 1)} className={`relative w-full overflow-hidden rounded-2xl border-2 bg-forno text-left transition active:scale-[.98] disabled:opacity-40 ${q ? "border-brasa" : "border-linha hover:border-areia"}`}>
-                  <Foto nome={p.nome} arte={p.arte} className="h-24 w-full" />
+                  <Foto nome={p.nome} arte={p.arte} url={p.foto} className="h-24 w-full" />
                   {q > 0 && <span className="tabular absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-brasa font-bold text-carvao">{q}</span>}
                   <span className="block p-2.5">
                     <span className="block truncate text-[14px] font-semibold">{p.nome}</span>

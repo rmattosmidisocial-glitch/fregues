@@ -44,6 +44,7 @@ export function fotoDe(nome?: string, arte?: string) {
 export function Foto({
   nome,
   arte,
+  url,
   chave,
   className = "",
   alt,
@@ -51,11 +52,21 @@ export function Foto({
 }: {
   nome?: string;
   arte?: string;
+  /** Foto real do produto (enviada pelo dono). */
+  url?: string;
   chave?: string;
   className?: string;
   alt?: string;
   eager?: boolean;
 }) {
-  const src = chave ? FOTOS[chave] : fotoDe(nome, arte);
+  if (!url && !chave && arte === "sem") {
+    // Produto cadastrado sem foto: quadro neutro com a inicial, nunca uma foto de outro prato.
+    return (
+      <div role="img" aria-label={alt ?? nome ?? ""} style={{ containerType: "size" }} className={`flex items-center justify-center bg-gradient-to-br from-[#f3e2cf] to-[#e6c9a8] font-display font-extrabold text-[#8a5a3c] ${className}`}>
+        <span className="leading-none" style={{ fontSize: "45cqmin" }}>{(nome ?? "?").trim().charAt(0).toUpperCase()}</span>
+      </div>
+    );
+  }
+  const src = url ?? (chave ? FOTOS[chave] : fotoDe(nome, arte));
   return <img src={src} alt={alt ?? nome ?? ""} loading="eager" decoding="async" className={`object-cover ${className}`} />;
 }

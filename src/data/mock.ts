@@ -79,7 +79,7 @@ export function zonaDoBairro(b: string) {
 }
 
 // ---------- Cardápio ----------
-export type Arte = "smash" | "duplo" | "frango" | "veg" | "batata" | "onion" | "refri" | "shake" | "brownie" | "combo" | "suco";
+export type Arte = "smash" | "duplo" | "frango" | "veg" | "batata" | "onion" | "refri" | "shake" | "brownie" | "combo" | "suco" | "sem";
 export type Complemento = { id?: string; nome: string; preco: number };
 export type Grupo = { nome: string; min: number; max: number; itens: Complemento[] };
 export type Produto = {
@@ -90,6 +90,8 @@ export type Produto = {
   preco: number;
   promo?: number;
   arte: Arte;
+  /** Foto enviada pelo dono. Sem ela, usa a ilustração (demo) ou um quadro neutro. */
+  foto?: string;
   tags?: string[];
   grupos?: Grupo[];
   esgotado?: boolean;

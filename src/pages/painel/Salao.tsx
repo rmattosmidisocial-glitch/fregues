@@ -78,7 +78,7 @@ function Cardapio({ adicionar }: { adicionar: (itens: NovoItem[]) => void }) {
           const q = carrinho[p.id]?.qtd ?? 0;
           return (
             <li key={p.id} className={`flex items-center gap-2.5 rounded-2xl border p-2 ${q ? "border-brasa" : "border-linha"} ${p.esgotado ? "opacity-50" : ""}`}>
-              <Foto nome={p.nome} arte={p.arte} className="h-12 w-12 shrink-0 rounded-xl" />
+              <Foto nome={p.nome} arte={p.arte} url={p.foto} className="h-12 w-12 shrink-0 rounded-xl" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[14px] font-semibold">{p.nome}</span>
                 <span className="tabular text-[13px] text-areia">{p.esgotado ? "Acabou hoje" : brl(p.promo ?? p.preco)}</span>

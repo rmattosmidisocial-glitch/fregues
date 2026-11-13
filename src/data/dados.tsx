@@ -42,6 +42,41 @@ export type NovoPedido = {
   usar_cashback: boolean;
   avisar_quando_atender?: boolean;
 };
+export type ProdutoEdit = {
+  id?: string;
+  categoria: string;
+  nome: string;
+  descricao: string;
+  preco: number;
+  promo?: number;
+  foto?: string;
+  maisPedido: boolean;
+  esgotado: boolean;
+  grupos: M.Grupo[];
+};
+
+/** Reduz a foto no próprio aparelho (lado maior 900px, WebP) antes de enviar. */
+async function reduzirFoto(arquivo: File): Promise<Blob> {
+  const url = URL_.createObjectURL(arquivo);
+  try {
+    const img = await new Promise<HTMLImageElement>((ok, falha) => {
+      const i = new Image();
+      i.onload = () => ok(i);
+      i.onerror = () => falha(new Error("img"));
+      i.src = url;
+    });
+    const esc = Math.min(1, 900 / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * esc);
+    c.height = Math.round(img.height * esc);
+    c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+    return await new Promise<Blob>((ok, falha) => c.toBlob((b) => (b ? ok(b) : falha(new Error("blob"))), "image/webp", 0.82));
+  } finally {
+    URL_.revokeObjectURL(url);
+  }
+}
+const URL_ = globalThis.URL;
+
 export type PedidoCriado = { id: string; numero: number; total: number; desconto: number; taxa: number; tempo_min: number; tempo_max: number; erro?: string; fora_da_area?: boolean };
 
 type Dados = {
@@ -65,6 +100,14 @@ type Dados = {
     atenderMunicipio: (cod: string, destino: string | null) => Promise<void>;
     editarZona: (id: string, campo: "taxa" | "minimo" | "t1", valor: number) => Promise<void>;
     toggleEsgotado: (id: string) => Promise<void>;
+    /** Cria ou edita um produto (com complementos). Devolve a mensagem de erro, ou null. */
+    salvarProduto: (p: ProdutoEdit, opcoes?: { semRecarregar?: boolean }) => Promise<string | null>;
+    criarCategoria: (nome: string) => Promise<string | null>;
+    excluirProduto: (id: string) => Promise<string | null>;
+    enviarFoto: (arquivo: File) => Promise<{ url?: string; erro?: string }>;
+    renomearCategoria: (antigo: string, novo: string) => Promise<string | null>;
+    moverCategoria: (nome: string, direcao: -1 | 1) => Promise<void>;
+    excluirCategoria: (nome: string) => Promise<string | null>;
     avancarPedido: (num: number, status: StatusPedido, motoboy?: string) => Promise<void>;
     pagarPedido: (num: number, forma: NonNullable<Pedido["forma"]>) => Promise<string | null>;
     cancelarPedido: (num: number, motivo: string) => Promise<string | null>;
@@ -123,7 +166,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       supabase.from("categories").select("id,nome,ordem").eq("store_id", s.id).order("ordem"),
       supabase
         .from("products")
-        .select("id,nome,descricao,preco,preco_promo,arte,tags,esgotado,mais_pedido,ordem,categories(nome),option_groups(id,nome,min,max,ordem,options(id,nome,preco,ordem))")
+        .select("id,nome,descricao,preco,preco_promo,foto_url,arte,tags,esgotado,mais_pedido,ordem,categories(nome),option_groups(id,nome,min,max,ordem,options(id,nome,preco,ordem))")
         .eq("store_id", s.id)
         .order("ordem"),
     ]);
@@ -150,6 +193,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         preco: Number(p.preco),
         promo: p.preco_promo ? Number(p.preco_promo) : undefined,
         arte: p.arte as M.Arte,
+        foto: p.foto_url ?? undefined,
         tags: p.tags,
         esgotado: p.esgotado,
         maisPedido: p.mais_pedido,
@@ -338,6 +382,103 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         );
         if (supabase) await supabase.from("products").update({ esgotado: novo }).eq("id", id);
       },
+      async criarCategoria(nome) {
+        const n = nome.trim();
+        if (!n) return "Dê um nome à categoria";
+        if (categorias.some((c) => c.toLowerCase() === n.toLowerCase())) return "Já existe uma categoria com esse nome";
+        setCategorias((cs) => [...cs, n]);
+        if (!supabase || !loja.id) return null;
+        const { error } = await supabase.from("categories").insert({ store_id: loja.id, nome: n, ordem: categorias.length });
+        return error ? error.message : null;
+      },
+      async salvarProduto(p, opcoes) {
+        const nome = p.nome.trim();
+        const cat = p.categoria.trim();
+        if (nome.length < 2) return "Dê um nome ao produto";
+        if (!cat) return "Escolha uma categoria";
+        if (!(p.preco >= 0)) return "Preço inválido";
+        if (p.promo != null && p.promo >= p.preco) return "O preço promocional precisa ser menor que o preço normal";
+        const grupos = p.grupos
+          .filter((g) => g.nome.trim())
+          .map((g) => ({ ...g, nome: g.nome.trim(), itens: g.itens.filter((o) => o.nome.trim()) }));
+        if (!supabase) {
+          setCategorias((cs) => (cs.some((c) => c.toLowerCase() === cat.toLowerCase()) ? cs : [...cs, cat]));
+          const catFinal = categorias.find((c) => c.toLowerCase() === cat.toLowerCase()) ?? cat;
+          const base = { cat: catFinal, nome, desc: p.descricao.trim(), preco: p.preco, promo: p.promo, foto: p.foto, esgotado: p.esgotado, maisPedido: p.maisPedido, grupos };
+          setCardapio((l) => (p.id ? l.map((x) => (x.id === p.id ? { ...x, ...base } : x)) : [...l, { id: "n" + Date.now() + Math.random().toString(36).slice(2, 6), arte: "sem", ...base }]));
+          return null;
+        }
+        if (!loja.id) return "Loja não carregada";
+        const { error } = await supabase.rpc("produto_salvar", {
+          p_store: loja.id,
+          p: {
+            id: p.id ?? "",
+            categoria: cat,
+            nome,
+            descricao: p.descricao,
+            preco: p.preco,
+            preco_promo: p.promo ?? "",
+            foto_url: p.foto ?? "",
+            mais_pedido: p.maisPedido,
+            esgotado: p.esgotado,
+            grupos: grupos.map((g) => ({ nome: g.nome, min: g.min, max: g.max, itens: g.itens.map((o) => ({ nome: o.nome, preco: o.preco })) })),
+          },
+        });
+        if (error) return error.message;
+        if (!opcoes?.semRecarregar) await recarregar();
+        return null;
+      },
+      async excluirProduto(id) {
+        setCardapio((l) => l.filter((p) => p.id !== id));
+        if (!supabase) return null;
+        const { error } = await supabase.from("products").delete().eq("id", id);
+        if (error) {
+          await recarregar();
+          return error.message;
+        }
+        return null;
+      },
+      async enviarFoto(arquivo) {
+        let blob: Blob;
+        try {
+          blob = await reduzirFoto(arquivo);
+        } catch {
+          return { erro: "Não consegui abrir essa imagem. Tente uma foto JPG ou PNG." };
+        }
+        if (!supabase) return { url: URL_.createObjectURL(blob) };
+        if (!loja.id) return { erro: "Loja não carregada" };
+        const caminho = `${loja.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
+        const { error } = await supabase.storage.from("produtos").upload(caminho, blob, { contentType: "image/webp", upsert: false });
+        if (error) return { erro: "Não consegui enviar a foto: " + error.message };
+        return { url: supabase.storage.from("produtos").getPublicUrl(caminho).data.publicUrl };
+      },
+      async renomearCategoria(antigo, novo) {
+        const n = novo.trim();
+        if (!n) return "Dê um nome à categoria";
+        if (n !== antigo && categorias.some((c) => c.toLowerCase() === n.toLowerCase())) return "Já existe uma categoria com esse nome";
+        setCategorias((cs) => cs.map((c) => (c === antigo ? n : c)));
+        setCardapio((l) => l.map((p) => (p.cat === antigo ? { ...p, cat: n } : p)));
+        if (!supabase || !loja.id) return null;
+        const { error } = await supabase.from("categories").update({ nome: n }).eq("store_id", loja.id).eq("nome", antigo);
+        return error ? error.message : null;
+      },
+      async moverCategoria(nome, direcao) {
+        const i = categorias.indexOf(nome);
+        const j = i + direcao;
+        if (i < 0 || j < 0 || j >= categorias.length) return;
+        const nova = [...categorias];
+        [nova[i], nova[j]] = [nova[j], nova[i]];
+        setCategorias(nova);
+        if (!supabase || !loja.id) return;
+        await Promise.all(nova.map((c, ordem) => supabase!.from("categories").update({ ordem }).eq("store_id", loja.id).eq("nome", c)));
+      },
+      async excluirCategoria(nome) {
+        if (cardapio.some((p) => p.cat === nome)) return "Mova ou exclua os produtos dessa categoria antes";
+        setCategorias((cs) => cs.filter((c) => c !== nome));
+        if (!supabase || !loja.id) return null;
+        const { error } = await supabase.from("categories").delete().eq("store_id", loja.id).eq("nome", nome);
+        return error ? error.message : null;
+      },
       async avancarPedido(num, status, motoboy) {
         setPedidos((l) => l.map((p) => (p.num === num ? { ...p, status, motoboy: motoboy ?? p.motoboy } : p)));
         if (supabase && loja.id) await supabase.from("orders").update({ status, ...(motoboy ? { motoboy } : {}) }).eq("store_id", loja.id).eq("numero", num);
@@ -414,7 +555,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       },
       recarregar,
     }),
-    [loja.id, zonas, cardapio, pedidos, recarregar],
+    [loja.id, zonas, cardapio, categorias, pedidos, recarregar],
   );
 
   const valor: Dados = { modo: MODO, carregando, erro, sessao, loja, zonas, cardapio, categorias, fregueses, pedidos, pulso, semana, demanda, acoes };

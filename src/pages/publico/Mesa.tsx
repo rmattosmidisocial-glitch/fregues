@@ -93,7 +93,7 @@ export function Mesa() {
         </div>
 
         <nav className="scroll-thin sticky top-0 z-10 mt-4 flex gap-2 overflow-x-auto bg-[#fffaf2] px-4 py-2" aria-label="Categorias">
-          {d.categorias.map((c) => (
+          {d.categorias.filter((c) => d.cardapio.some((p) => p.cat === c)).map((c) => (
             <button key={c} onClick={() => setCat(c)} aria-pressed={cat === c} className={`shrink-0 rounded-full px-4 py-2 text-[14px] font-semibold ${cat === c ? "bg-carvao text-papel" : "bg-[#efe3d3]"}`}>
               {c}
             </button>
@@ -106,7 +106,7 @@ export function Mesa() {
               const q = sacola[p.id]?.qtd ?? 0;
               return (
                 <li key={p.id} className={`flex gap-3 rounded-2xl bg-white p-3 shadow-[0_1px_0_#efe3d3] ${p.esgotado ? "opacity-50" : ""}`}>
-                  <Foto nome={p.nome} arte={p.arte} className="h-20 w-20 shrink-0 rounded-xl" />
+                  <Foto nome={p.nome} arte={p.arte} url={p.foto} className="h-20 w-20 shrink-0 rounded-xl" />
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold leading-tight">{p.nome}</p>
                     <p className="mt-0.5 line-clamp-2 text-[13px] text-[#6b5a4c]">{p.desc}</p>
