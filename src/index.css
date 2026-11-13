@@ -170,3 +170,7 @@ body {
 .noturno .tema-claro .text-\[\#1e3a2c\] { color: #c9eed8; }
 .noturno .tema-claro .text-\[\#9a3412\] { color: #ffc7a6; }
 .noturno .tema-claro .text-\[\#1f5f59\] { color: #9fe0d7; }
+@keyframes carregar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
