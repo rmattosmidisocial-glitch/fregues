@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, AtSign as Instagram, Bot, CheckCheck, MapPin, MessageCircle, Search, Send, Settings2, ShoppingBag, Smile, Frown, Meh, Store, UserRound } from "lucide-react";
-import { crescer, quandoTxt, responder, useCrescer, type Conversa, type Humor } from "../../data/crescer";
+import { ATALHOS_PADRAO, RESPOSTAS_PADRAO, crescer, quandoTxt, responder, useCrescer, type Atalho, type ChaveResposta, type Conversa, type Humor } from "../../data/crescer";
 import { useDados } from "../../data/dados";
 import { brl } from "../../data/mock";
 
@@ -22,6 +22,94 @@ const iniciais = (n: string) =>
     .join("")
     .toUpperCase();
 const hora = (t: number) => new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+function Mensagens() {
+  const aj = useCrescer((s) => s.ajustes);
+  const [aberta, setAberta] = useState<ChaveResposta | null>(null);
+  const chaves = Object.keys(RESPOSTAS_PADRAO) as ChaveResposta[];
+  return (
+    <div className="space-y-2 rounded-3xl border border-linha bg-forno p-5">
+      <h2 className="font-display text-[20px] font-bold">Mensagens automáticas</h2>
+      <p className="text-[14px] text-areia">Toque numa mensagem para reescrever do seu jeito. O que está entre chaves o sistema preenche sozinho (ex.: {"{bairro}"}, {"{taxa}"}).</p>
+      {chaves.map((k) => {
+        const padrao = RESPOSTAS_PADRAO[k];
+        const atual = aj.respostas?.[k] ?? "";
+        const mudou = !!atual.trim() && atual.trim() !== padrao.texto;
+        return (
+          <div key={k} className="rounded-2xl bg-grafite">
+            <button onClick={() => setAberta(aberta === k ? null : k)} aria-expanded={aberta === k} className="flex w-full items-center justify-between gap-3 p-3 text-left">
+              <span>
+                <span className="block font-semibold">{padrao.titulo}</span>
+                <span className="block text-[12px] text-areia">{padrao.quando}</span>
+              </span>
+              {mudou && <span className="shrink-0 rounded-full bg-[#e2f2ea] px-2 py-0.5 text-[11px] font-semibold text-[#1b6149]">Personalizada</span>}
+            </button>
+            {aberta === k && (
+              <div className="space-y-2 px-3 pb-3">
+                <textarea
+                  key={atual}
+                  defaultValue={atual || padrao.texto}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    crescer.setAjustes({ respostas: { ...aj.respostas, [k]: v === padrao.texto ? "" : v } });
+                  }}
+                  rows={4}
+                  aria-label={`Texto: ${padrao.titulo}`}
+                  className="w-full rounded-xl border border-linha bg-carvao px-3 py-2 text-[14px] leading-relaxed text-papel"
+                />
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[12px] text-areia">
+                  <span>{padrao.variaveis ? `Preenchido sozinho: ${padrao.variaveis}` : "Salva quando você sai do campo."}</span>
+                  {mudou && (
+                    <button onClick={() => crescer.setAjustes({ respostas: { ...aj.respostas, [k]: "" } })} className="font-semibold text-papel underline">
+                      Voltar ao texto padrão
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function RespostasRapidas() {
+  const aj = useCrescer((s) => s.ajustes);
+  const lista: Atalho[] = aj.atalhos?.length ? aj.atalhos : ATALHOS_PADRAO;
+  const salvar = (l: Atalho[]) => crescer.setAjustes({ atalhos: l });
+  return (
+    <div className="space-y-3 rounded-3xl border border-linha bg-forno p-5">
+      <h2 className="font-display text-[20px] font-bold">Respostas rápidas da equipe</h2>
+      <p className="text-[14px] text-areia">Aparecem como botões na conversa, para a equipe responder com um toque. {"{nome}"} vira o primeiro nome do cliente. Se quiser oferecer desconto, escreva aqui o que a casa realmente dá.</p>
+      {lista.map((a, i) => (
+        <div key={i} className="space-y-2 rounded-2xl bg-grafite p-3">
+          <div className="flex gap-2">
+            <input
+              defaultValue={a.titulo}
+              onBlur={(e) => salvar(lista.map((x, j) => (j === i ? { ...x, titulo: e.target.value.trim() || x.titulo } : x)))}
+              aria-label="Nome do botão"
+              className="min-w-0 flex-1 rounded-lg border border-linha bg-carvao px-3 py-1.5 text-[14px] font-semibold text-papel"
+            />
+            <button onClick={() => salvar(lista.filter((_, j) => j !== i))} className="rounded-lg px-2 text-[13px] text-areia hover:text-tomate">
+              Remover
+            </button>
+          </div>
+          <textarea
+            defaultValue={a.texto}
+            onBlur={(e) => salvar(lista.map((x, j) => (j === i ? { ...x, texto: e.target.value.trim() || x.texto } : x)))}
+            rows={2}
+            aria-label={`Texto de ${a.titulo}`}
+            className="w-full rounded-lg border border-linha bg-carvao px-3 py-2 text-[14px] text-papel"
+          />
+        </div>
+      ))}
+      <button onClick={() => salvar([...lista, { titulo: "Nova resposta", texto: "{nome}, " }])} className="rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia">
+        + Nova resposta rápida
+      </button>
+    </div>
+  );
+}
 
 function Ajustes() {
   const aj = useCrescer((s) => s.ajustes);
@@ -62,6 +150,8 @@ function Ajustes() {
         <Opcao k="recomendar" rotulo="Sugerir os mais pedidos" desc="Quando perguntam o cardápio, ela indica o que mais vende." />
         <Opcao k="passarReclamacao" rotulo="Reclamação vai direto para a equipe" desc="Pedido frio, atrasado ou errado: ela pede desculpas e chama você." />
       </div>
+      <Mensagens />
+      <RespostasRapidas />
       <div className="rounded-3xl border border-linha bg-forno p-5">
         <h2 className="font-display text-[20px] font-bold">Teste a atendente</h2>
         <p className="text-[14px] text-areia">Escreva como um cliente escreveria.</p>
@@ -93,6 +183,7 @@ function Ajustes() {
 
 export function Atendimento() {
   const conversas = useCrescer((s) => s.conversas);
+  const atalhos = useCrescer((s) => s.ajustes.atalhos) ?? [];
   const d = useDados();
   const [aba, setAba] = useState<"conversas" | "ajustes">("conversas");
   const [filtro, setFiltro] = useState<"todas" | "naolidas" | "equipe" | "fechadas">("todas");
@@ -349,14 +440,19 @@ export function Atendimento() {
                     </dl>
                   </div>
                 )}
-                {sel.humor === "negativo" && (
-                  <button
-                    onClick={() => crescer.enviarEquipe(sel.id, `${sel.cliente.split(" ")[0]}, peço desculpas pelo problema. Já separei um cupom de 15% para o seu próximo pedido: BRASA-DESC15. Posso refazer o que faltou agora?`)}
-                    className="w-full rounded-xl bg-brasa py-2.5 text-[14px] font-semibold text-carvao hover:bg-mostarda"
-                  >
-                    Pedir desculpas com cupom
-                  </button>
-                )}
+                <div className="space-y-1.5">
+                  <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-areia">Respostas rápidas</p>
+                  {(atalhos.length ? atalhos : ATALHOS_PADRAO).map((a) => (
+                    <button
+                      key={a.titulo}
+                      onClick={() => setTexto(a.texto.replace(/\{nome\}/g, sel.cliente.split(" ")[0]))}
+                      className="w-full rounded-xl border border-linha px-3 py-2 text-left text-[14px] font-semibold hover:border-areia"
+                    >
+                      {a.titulo}
+                    </button>
+                  ))}
+                  <p className="text-[12px] text-areia">O texto vai para a caixa de resposta para você conferir antes de enviar. Edite em “Ajustar a IA”.</p>
+                </div>
               </div>
             ) : (
               <p className="text-[14px] text-areia">Os detalhes do cliente aparecem aqui.</p>

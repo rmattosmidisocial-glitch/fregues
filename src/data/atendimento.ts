@@ -38,8 +38,10 @@ const paraConversa = (l: Linha): Conversa => {
   return c;
 };
 
-const ajustesDe = (a: { nome_atendente?: string; nome?: string; tom?: Ajustes["tom"]; emojis?: boolean; recomendar?: boolean; passar_reclamacao?: boolean } | null): Partial<Ajustes> =>
-  a ? { nomeAtendente: a.nome_atendente ?? a.nome ?? "Bia", tom: a.tom ?? "amigavel", emojis: a.emojis ?? true, recomendar: a.recomendar ?? true, passarReclamacao: a.passar_reclamacao ?? true } : {};
+const ajustesDe = (a: { nome_atendente?: string; nome?: string; tom?: Ajustes["tom"]; emojis?: boolean; recomendar?: boolean; passar_reclamacao?: boolean; respostas?: Ajustes["respostas"]; atalhos?: Ajustes["atalhos"] } | null): Partial<Ajustes> =>
+  a
+    ? { nomeAtendente: a.nome_atendente ?? a.nome ?? "Bia", tom: a.tom ?? "amigavel", emojis: a.emojis ?? true, recomendar: a.recomendar ?? true, passarReclamacao: a.passar_reclamacao ?? true, respostas: a.respostas ?? {}, atalhos: a.atalhos ?? [] }
+    : {};
 
 /** Painel do dono: liga o atendimento real enquanto o painel estiver aberto. */
 export function useAtendimentoPainel(lojaId?: string, ativo = true) {
@@ -66,7 +68,7 @@ export function useAtendimentoPainel(lojaId?: string, ativo = true) {
     };
     persistir.ajustes = (a) => {
       sb.from("ai_settings")
-        .upsert({ store_id: lojaId, nome_atendente: a.nomeAtendente, tom: a.tom, emojis: a.emojis, recomendar: a.recomendar, passar_reclamacao: a.passarReclamacao })
+        .upsert({ store_id: lojaId, nome_atendente: a.nomeAtendente, tom: a.tom, emojis: a.emojis, recomendar: a.recomendar, passar_reclamacao: a.passarReclamacao, respostas: a.respostas ?? {}, atalhos: a.atalhos ?? [] })
         .then(() => undefined);
     };
     carregar();

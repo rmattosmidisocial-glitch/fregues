@@ -225,7 +225,34 @@ export function acharBairro(texto: string, zonas: Zona[] = ZONAS) {
   return top.find((b) => zonaDe(b.id, zonas)) ?? top.find((b) => b.id.startsWith("3304557")) ?? top[0];
 }
 
-export type Ajustes = { tom: "amigavel" | "direto"; emojis: boolean; recomendar: boolean; passarReclamacao: boolean; nomeAtendente: string };
+export type ChaveResposta = "saudacao" | "entrega_pergunta" | "entrega_sim" | "entrega_nao" | "reclamacao" | "horario" | "pagamento" | "promocoes" | "reserva" | "status_pedido" | "humano" | "agradecimento" | "nao_sei";
+export type Atalho = { titulo: string; texto: string };
+export type Ajustes = { tom: "amigavel" | "direto"; emojis: boolean; recomendar: boolean; passarReclamacao: boolean; nomeAtendente: string; respostas?: Partial<Record<ChaveResposta, string>>; atalhos?: Atalho[] };
+
+/** Textos padrão da atendente. O dono pode reescrever cada um. Entre chaves, o que o sistema preenche sozinho. */
+export const RESPOSTAS_PADRAO: Record<ChaveResposta, { titulo: string; quando: string; texto: string; variaveis?: string }> = {
+  saudacao: { titulo: "Saudação", quando: "Cliente diz oi, boa noite…", texto: "Oi! 😊 Aqui é a {atendente}, da {loja}. Posso te ajudar com o cardápio, a taxa de entrega do seu bairro, horário ou formas de pagamento. O que vai ser hoje?", variaveis: "{atendente} {loja}" },
+  entrega_pergunta: { titulo: "Pergunta sobre entrega sem dizer o bairro", quando: "“Vocês entregam?”", texto: "Entregamos em vários bairros da região 🛵 Me diz o seu bairro que eu te passo a taxa e o tempo certinho." },
+  entrega_sim: { titulo: "Entregamos no bairro", quando: "Bairro dentro do Território", texto: "Entregamos aí, sim! ({bairro}) 🛵 Taxa de {taxa}, chega em {tempo} minutos e o pedido mínimo é {minimo}.{gratis} Quer que eu te mande o link para pedir?", variaveis: "{bairro} {taxa} {tempo} {minimo} {gratis}" },
+  entrega_nao: { titulo: "Ainda não entregamos no bairro", quando: "Bairro fora do Território", texto: "Ainda não chegamos até {bairro} 😕 Deixei anotado que você quer, e assim que a gente chegar aí eu te aviso. Se preferir, dá para retirar aqui na {bairro_loja}.", variaveis: "{bairro} {bairro_loja}" },
+  reclamacao: { titulo: "Reclamação", quando: "Pedido frio, atrasado, errado…", texto: "Poxa, sinto muito por isso 😔 Já chamei alguém da equipe para resolver com você agora. Pode me mandar o número do pedido enquanto isso?" },
+  horario: { titulo: "Horário", quando: "“Que horas fecha?”", texto: "{aberto}! Funcionamos {horario} 🕗", variaveis: "{aberto} {horario}" },
+  pagamento: { titulo: "Formas de pagamento", quando: "“Aceita Pix?”", texto: "Aceitamos Pix, cartão e dinheiro. Se for dinheiro, me diz se precisa de troco 💸" },
+  promocoes: { titulo: "Promoções e descontos", quando: "“Tem cupom? Tem promoção?”", texto: "Pedindo pela nossa loja online você junta cashback para usar no próximo pedido 🎁 As promoções do dia aparecem marcadas no cardápio." },
+  reserva: { titulo: "Reserva de mesa", quando: "“Quero reservar”", texto: "Dá para reservar sim! Me diz o dia, o horário e quantas pessoas, que a equipe confirma com você aqui mesmo 🎉" },
+  status_pedido: { titulo: "Onde está meu pedido", quando: "“Meu pedido já saiu?”", texto: "Já chamei a equipe para ver o seu pedido 📦 Se tiver o número (aparece na tela de confirmação), manda aqui." },
+  humano: { titulo: "Pediu para falar com alguém", quando: "“Quero falar com uma pessoa”", texto: "Claro! Já chamei alguém da equipe, é rapidinho 🙌" },
+  agradecimento: { titulo: "Agradecimento", quando: "“Obrigado!”", texto: "Nós que agradecemos! Bom apetite 🍔" },
+  nao_sei: { titulo: "Quando ela não sabe", quando: "Qualquer outra pergunta", texto: "Boa pergunta! Essa eu prefiro passar para alguém da equipe, que já te responde aqui mesmo 🙌" },
+};
+
+export const ATALHOS_PADRAO: Atalho[] = [
+  { titulo: "Pedir desculpas", texto: "{nome}, peço desculpas pelo problema. Já estou vendo isso com a cozinha e te dou um retorno em instantes." },
+  { titulo: "Pedido saiu", texto: "{nome}, seu pedido já saiu para entrega e chega em poucos minutos 🛵" },
+  { titulo: "Confirmar reserva", texto: "{nome}, reserva confirmada! Te esperamos 😊" },
+];
+
+const preencher = (t: string, v: Record<string, string>) => t.replace(/\{(\w+)\}/g, (m, k) => (k in v ? v[k] : m));
 
 export type LojaInfo = { nome: string; bairro: string; horario: string; aberto: boolean };
 
@@ -237,11 +264,12 @@ export function responder(texto: string, ctx: { zonas?: Zona[]; ajustes?: Ajuste
   const e = (s: string) => (aj.emojis ? s : s.replace(/[\u{1F300}-\u{1FAFF}☀-➿]️?/gu, "").replace(/\s+([.!?,])/g, "$1").trim());
   const t = norm(texto);
   const tem = (...ps: string[]) => ps.some((p) => t.includes(p));
+  const R = (k: ChaveResposta, v: Record<string, string> = {}) => e(preencher(aj.respostas?.[k]?.trim() || RESPOSTAS_PADRAO[k].texto, { atendente: aj.nomeAtendente || "atendente", loja: LJ.nome, bairro_loja: LJ.bairro, ...v }));
   const disponiveis = CARD.filter((p) => !p.esgotado);
 
   if (tem("frio", "atras", "demor", "errad", "faltou", "falta ", "veio sem", "ruim", "pessim", "horrivel", "reclama", "nao chegou", "cade meu", "estorno", "cru")) {
     return {
-      texto: e(aj.passarReclamacao ? "Poxa, sinto muito por isso 😔 Já chamei alguém da equipe para resolver com você agora. Pode me mandar o número do pedido enquanto isso?" : "Poxa, sinto muito 😔 Me passa o número do pedido que eu verifico para você."),
+      texto: R("reclamacao"),
       humor: "negativo",
       equipe: aj.passarReclamacao,
       titulo: "Problema com pedido",
@@ -250,12 +278,12 @@ export function responder(texto: string, ctx: { zonas?: Zona[]; ajustes?: Ajuste
 
   const b = acharBairro(texto, zonas);
   if (b || tem("entrega", "taxa", "frete", "atende", "chega ai", "chega aqui")) {
-    if (!b) return { texto: e("Entregamos em vários bairros da região 🛵 Me diz o seu bairro que eu te passo a taxa e o tempo certinho."), humor: "neutro", equipe: false, titulo: "Taxa de entrega" };
+    if (!b) return { texto: R("entrega_pergunta"), humor: "neutro", equipe: false, titulo: "Taxa de entrega" };
     const z = zonaDe(b.id, zonas) ?? zonas.find((zz) => zz.municipios?.includes(b.mun));
     if (z) {
       const gratis = z.gratisAcima ? ` Acima de ${brl(z.gratisAcima)} a entrega é grátis.` : "";
       return {
-        texto: e(`Entregamos aí, sim! (${b.nome}) 🛵 Taxa de ${brl(z.taxa)}, chega em ${z.tempo[0]} a ${z.tempo[1]} minutos e o pedido mínimo é ${brl(z.minimo)}.${gratis} Quer que eu te mande o link para pedir?`),
+        texto: R("entrega_sim", { bairro: b.nome, taxa: brl(z.taxa), tempo: `${z.tempo[0]} a ${z.tempo[1]}`, minimo: brl(z.minimo), gratis }),
         humor: "positivo",
         equipe: false,
         titulo: `Entrega em ${b.nome}`,
@@ -263,7 +291,7 @@ export function responder(texto: string, ctx: { zonas?: Zona[]; ajustes?: Ajuste
       };
     }
     return {
-      texto: e(`Ainda não chegamos até ${b.nome} 😕 Deixei anotado que você quer, e assim que a gente chegar aí eu te aviso com o primeiro pedido sem taxa. Se preferir, dá para retirar aqui na ${LJ.bairro}.`),
+      texto: R("entrega_nao", { bairro: b.nome }),
       humor: "neutro",
       equipe: false,
       titulo: `Fora da área: ${b.nome}`,
@@ -292,31 +320,31 @@ export function responder(texto: string, ctx: { zonas?: Zona[]; ajustes?: Ajuste
     return { texto: e(aj.recomendar && lista ? `Os mais pedidos da casa são ${lista} 🔥 O cardápio completo está na loja.` : `O cardápio completo está na loja${cats ? `: ${cats}` : ""}.`), humor: "positivo", equipe: false, titulo: "Cardápio" };
   }
   if (tem("horario", "abre", "aberto", "fecha", "funciona", "hoje tem")) {
-    return { texto: e(`${LJ.aberto ? "Estamos abertos agora" : "Agora estamos fechados"}! Funcionamos ${LJ.horario.replace("Hoje, ", "hoje das ").replace(" às ", " às ")} 🕗`), humor: "neutro", equipe: false, titulo: "Horário" };
+    return { texto: R("horario", { aberto: LJ.aberto ? "Estamos abertos agora" : "Agora estamos fechados", horario: LJ.horario.replace("Hoje, ", "hoje das ") }), humor: "neutro", equipe: false, titulo: "Horário" };
   }
   if (tem("pix", "cartao", "dinheiro", "pagamento", "pagar", "troco")) {
-    return { texto: e("Aceitamos Pix, cartão e dinheiro. Se for dinheiro, me diz se precisa de troco 💸"), humor: "neutro", equipe: false, titulo: "Formas de pagamento" };
+    return { texto: R("pagamento"), humor: "neutro", equipe: false, titulo: "Formas de pagamento" };
   }
   if (tem("cashback", "clube", "pontos", "cupom", "desconto", "promo")) {
-    return { texto: e("Pedindo pela nossa loja online você junta cashback para usar no próximo pedido 🎁 As promoções do dia aparecem marcadas no cardápio."), humor: "positivo", equipe: false, titulo: "Clube e promoções" };
+    return { texto: R("promocoes"), humor: "positivo", equipe: false, titulo: "Clube e promoções" };
   }
   if (tem("reserva", "mesa", "aniversario", "evento", "festa")) {
-    return { texto: e("Dá para reservar sim! Me diz o dia, o horário e quantas pessoas, que a equipe confirma com você aqui mesmo 🎉"), humor: "positivo", equipe: true, titulo: "Reserva de mesa" };
+    return { texto: R("reserva"), humor: "positivo", equipe: true, titulo: "Reserva de mesa" };
   }
   if (tem("meu pedido", "status", "onde esta", "ja saiu", "saiu")) {
-    return { texto: e("Já chamei a equipe para ver o seu pedido 📦 Se tiver o número (aparece na tela de confirmação), manda aqui."), humor: "neutro", equipe: true, titulo: "Status do pedido" };
+    return { texto: R("status_pedido"), humor: "neutro", equipe: true, titulo: "Status do pedido" };
   }
   if (tem("atendente", "humano", "pessoa", "falar com alguem", "gerente", "dono")) {
-    return { texto: e("Claro! Já chamei alguém da equipe, é rapidinho 🙌"), humor: "neutro", equipe: true, titulo: "Pediu atendente" };
+    return { texto: R("humano"), humor: "neutro", equipe: true, titulo: "Pediu atendente" };
   }
   if (tem("obrigad", "valeu", "top", "perfeito", "show", "massa")) {
-    return { texto: e("Nós que agradecemos! Bom apetite 🍔"), humor: "positivo", equipe: false, titulo: "Agradecimento" };
+    return { texto: R("agradecimento"), humor: "positivo", equipe: false, titulo: "Agradecimento" };
   }
   if (tem("oi", "ola", "boa noite", "boa tarde", "bom dia", "eai", "e ai", "opa")) {
-    const nome = aj.nomeAtendente ? `Aqui é a ${aj.nomeAtendente}, da ${LJ.nome}. ` : "";
-    return { texto: e(aj.tom === "amigavel" ? `Oi! 😊 ${nome}Posso te ajudar com o cardápio, a taxa de entrega do seu bairro, horário ou formas de pagamento. O que vai ser hoje?` : `Olá. ${nome}Posso informar cardápio, taxa de entrega, horário e pagamento.`), humor: "neutro", equipe: false, titulo: "Saudação" };
+    const texto = aj.respostas?.saudacao?.trim() || aj.tom === "amigavel" ? R("saudacao") : e(`Olá. Aqui é a ${aj.nomeAtendente || "atendente"}, da ${LJ.nome}. Posso informar cardápio, taxa de entrega, horário e pagamento.`);
+    return { texto, humor: "neutro", equipe: false, titulo: "Saudação" };
   }
-  return { texto: e("Boa pergunta! Essa eu prefiro passar para alguém da equipe, que já te responde aqui mesmo 🙌"), humor: "neutro", equipe: true, titulo: "Dúvida para a equipe" };
+  return { texto: R("nao_sei"), humor: "neutro", equipe: true, titulo: "Dúvida para a equipe" };
 }
 
 function conversaDe(cliente: string, canal: Conversa["canal"], falas: string[], minutos: number, extra: Partial<Conversa> = {}): Conversa {
