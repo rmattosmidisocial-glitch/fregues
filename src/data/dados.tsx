@@ -42,6 +42,7 @@ export type NovoPedido = {
   usar_cashback: boolean;
   avisar_quando_atender?: boolean;
 };
+export type NovoFregues = { nome: string; telefone: string; aniversario?: string; tags?: string[]; obs?: string; aceitaMarketing?: boolean };
 export type ZonaCampos = Partial<{ nome: string; cor: string; taxa: number; tempoMin: number; tempoMax: number; minimo: number; gratisAcima: number | null }>;
 export type Lead = { id: string; telefone: string; nome: string | null; quando: string; avisadoEm: string | null };
 
@@ -103,6 +104,10 @@ type Dados = {
     atenderMunicipio: (cod: string, destino: string | null) => Promise<void>;
     editarZona: (id: string, campo: "taxa" | "minimo" | "t1", valor: number) => Promise<void>;
     salvarZona: (id: string, campos: ZonaCampos) => Promise<string | null>;
+    /** Cadastra/atualiza fregueses pelo telefone (novo freguês e importação). Devolve quantos entraram ou o erro. */
+    salvarFregueses: (lista: NovoFregues[]) => Promise<{ n?: number; erro?: string }>;
+    editarFregues: (id: string, c: Partial<Pick<Freguês, "nome" | "obs" | "tags" | "aceitaMarketing" | "aniversarioISO">>) => Promise<string | null>;
+    etapaFregues: (id: string, etapa: Freguês["etapa"] | null) => Promise<void>;
     criarZona: (nome: string, cor: string) => Promise<string | null>;
     excluirZona: (id: string) => Promise<string | null>;
     /** Loja: cliente fora da área deixa o WhatsApp para ser avisado. */
@@ -219,7 +224,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     if (!supabase || !storeId) return;
     const desde = new Date(Date.now() - 14 * 3600 * 1000).toISOString();
     const [{ data: cp, error: e1 }, { data: ps }, { data: ords }, { data: dem }] = await Promise.all([
-      supabase.from("customer_pulse").select("*").order("gasto", { ascending: false }).limit(1000),
+      supabase.from("customer_lista").select("*").order("gasto", { ascending: false }).limit(2000),
       supabase.rpc("pulse_summary", { p_store: storeId }),
       supabase
         .from("orders")
@@ -253,6 +258,10 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         aniversario: c.aniversario ? new Date(c.aniversario + "T12:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" }) : undefined,
         tags: c.tags ?? [],
         pontos: Math.round(Number(c.gasto)),
+        etapa: c.etapa ?? undefined,
+        obs: c.obs ?? undefined,
+        aceitaMarketing: !!c.aceita_marketing,
+        aniversarioISO: c.aniversario ?? undefined,
       })),
     );
     if (ps) {
@@ -380,6 +389,86 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         if (!supabase || Number.isNaN(valor)) return;
         const col = campo === "taxa" ? { taxa: valor } : campo === "minimo" ? { pedido_minimo: valor } : { tempo_max: valor };
         await supabase.from("delivery_zones").update(col).eq("id", id);
+      },
+      async salvarFregueses(lista) {
+        if (!lista.length) return { erro: "Nenhum freguês para salvar" };
+        if (!supabase) {
+          const novos = lista
+            .map((x) => ({ ...x, tel: x.telefone.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "") }))
+            .filter((x) => x.nome.trim() && x.tel.length >= 10 && x.tel.length <= 11);
+          setFregueses((fs) => {
+            const porTel = new Map(fs.map((f) => [f.tel.replace(/\D/g, ""), f]));
+            for (const x of novos) {
+              const ja = porTel.get(x.tel);
+              if (ja) porTel.set(x.tel, { ...ja, nome: x.nome.trim(), tags: x.tags?.length ? x.tags : ja.tags, obs: x.obs ?? ja.obs, aceitaMarketing: ja.aceitaMarketing || x.aceitaMarketing });
+              else
+                porTel.set(x.tel, {
+                  id: "f" + x.tel,
+                  nome: x.nome.trim(),
+                  tel: fmtTel(x.tel),
+                  bairro: "Sem bairro",
+                  pedidos: 0,
+                  ticket: 0,
+                  intervalo: 14,
+                  diasDesde: 0,
+                  favorito: "—",
+                  status: "ritmo",
+                  nivel: "Visitante",
+                  canal: "Salão",
+                  horario: "—",
+                  tags: x.tags ?? [],
+                  pontos: 0,
+                  obs: x.obs,
+                  aceitaMarketing: !!x.aceitaMarketing,
+                  aniversarioISO: x.aniversario,
+                  aniversario: x.aniversario ? new Date(x.aniversario + "T12:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" }) : undefined,
+                });
+            }
+            return [...porTel.values()];
+          });
+          return { n: novos.length };
+        }
+        if (!loja.id) return { erro: "Loja não carregada" };
+        let total = 0;
+        for (let i = 0; i < lista.length; i += 500) {
+          const parte = lista.slice(i, i + 500).map((x) => ({ nome: x.nome, telefone: x.telefone, aniversario: x.aniversario ?? "", tags: x.tags ?? [], obs: x.obs ?? "", aceita_marketing: !!x.aceitaMarketing }));
+          const { data, error } = await supabase.rpc("fregueses_salvar", { p_store: loja.id, p_lista: parte });
+          if (error) return { erro: error.message, n: total };
+          total += Number(data ?? 0);
+        }
+        await carregarPainel(loja.id);
+        return { n: total };
+      },
+      async editarFregues(id, c) {
+        setFregueses((fs) =>
+          fs.map((f) =>
+            f.id !== id
+              ? f
+              : {
+                  ...f,
+                  ...c,
+                  ...(c.aniversarioISO !== undefined
+                    ? { aniversario: c.aniversarioISO ? new Date(c.aniversarioISO + "T12:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" }) : undefined }
+                    : {}),
+                },
+          ),
+        );
+        if (!supabase) return null;
+        const col: Record<string, unknown> = {};
+        if (c.nome !== undefined) col.nome = c.nome.trim();
+        if (c.obs !== undefined) col.obs = c.obs.trim() || null;
+        if (c.tags !== undefined) col.tags = c.tags;
+        if (c.aniversarioISO !== undefined) col.aniversario = c.aniversarioISO || null;
+        if (c.aceitaMarketing !== undefined) {
+          col.aceita_marketing = c.aceitaMarketing;
+          if (c.aceitaMarketing) col.aceita_marketing_em = new Date().toISOString();
+        }
+        const { error } = await supabase.from("customers").update(col).eq("id", id);
+        return error ? error.message : null;
+      },
+      async etapaFregues(id, etapa) {
+        setFregueses((fs) => fs.map((f) => (f.id === id ? { ...f, etapa: etapa ?? undefined } : f)));
+        if (supabase) await supabase.from("customers").update({ etapa }).eq("id", id);
       },
       async salvarZona(id, c) {
         if (c.nome !== undefined && !c.nome.trim()) return "Dê um nome à zona";

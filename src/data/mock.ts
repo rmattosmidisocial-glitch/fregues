@@ -174,6 +174,12 @@ export type Freguês = {
   aniversario?: string;
   tags: string[];
   pontos: number;
+  /** Etapa escolhida pelo dono no quadro (sem ela, a etapa é calculada). */
+  etapa?: "novo" | "voltando" | "fiel" | "esfriando" | "sumindo";
+  obs?: string;
+  aceitaMarketing?: boolean;
+  /** AAAA-MM-DD */
+  aniversarioISO?: string;
 };
 
 const bairrosAtendidos = ZONAS.flatMap((z) => z.bairros.map((b) => ({ b, w: z.id === "z1" ? 5 : z.id === "z2" ? 3 : 1 })));
