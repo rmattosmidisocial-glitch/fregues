@@ -5,6 +5,8 @@ import { SUPA_URL } from "../_lib/base.js";
 const ANON = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 const CHAVE = process.env.ANTHROPIC_API_KEY;
 const MODELO = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
+// Chave pessoal/de conta de serviço sem workspace fixo precisa dizer o workspace (opcional).
+const WORKSPACE = process.env.ANTHROPIC_WORKSPACE_ID;
 
 export const config = { maxDuration: 120 };
 
@@ -100,7 +102,12 @@ export default async function handler(req, res) {
   try {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: { "x-api-key": CHAVE, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      headers: {
+        "x-api-key": CHAVE,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+        ...(WORKSPACE ? { "anthropic-workspace-id": WORKSPACE } : {}),
+      },
       body: JSON.stringify({
         model: MODELO,
         max_tokens: 16000,
@@ -111,7 +118,13 @@ export default async function handler(req, res) {
       }),
     });
     const corpo = await r.json().catch(() => ({}));
-    if (!r.ok) return res.status(502).json({ erro: "A IA não conseguiu ler agora: " + (corpo?.error?.message || r.status) });
+    if (!r.ok) {
+      const msg = corpo?.error?.message || String(r.status);
+      if (/workspace/i.test(msg)) return res.status(502).json({ erro: "A chave da IA não tem workspace definido. Crie a chave escolhendo um workspace, ou adicione ANTHROPIC_WORKSPACE_ID na Vercel." });
+      if (r.status === 401) return res.status(502).json({ erro: "A chave da IA foi recusada (inválida ou revogada). Gere outra e troque na Vercel." });
+      if (/credit|balance/i.test(msg)) return res.status(502).json({ erro: "A conta da IA está sem crédito. Adicione crédito no console da Anthropic." });
+      return res.status(502).json({ erro: "A IA não conseguiu ler agora: " + msg });
+    }
     const uso = (corpo.content || []).find((c) => c.type === "tool_use");
     if (!uso) return res.status(502).json({ erro: "A IA não devolveu o cardápio. Tente uma foto mais nítida." });
     const truncado = corpo.stop_reason === "max_tokens";
