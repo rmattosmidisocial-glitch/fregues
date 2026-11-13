@@ -2,7 +2,7 @@
 // Estado compartilhado entre as telas (painel e loja) durante a sessão.
 import { useSyncExternalStore } from "react";
 import { BAIRROS, nomeBairro } from "../components/GeoMap";
-import { CARDAPIO, FREGUESES, LOJA, ZONAS, brl, type Zona } from "./mock";
+import { CARDAPIO, FREGUESES, LOJA, ZONAS, brl, type Produto, type Zona } from "./mock";
 
 // ---------------- store mínima ----------------
 type Ouvinte = () => void;
@@ -227,13 +227,17 @@ export function acharBairro(texto: string, zonas: Zona[] = ZONAS) {
 
 export type Ajustes = { tom: "amigavel" | "direto"; emojis: boolean; recomendar: boolean; passarReclamacao: boolean; nomeAtendente: string };
 
-export function responder(texto: string, ctx: { zonas?: Zona[]; ajustes?: Ajustes } = {}): Resposta {
+export type LojaInfo = { nome: string; bairro: string; horario: string; aberto: boolean };
+
+export function responder(texto: string, ctx: { zonas?: Zona[]; ajustes?: Ajustes; cardapio?: Produto[]; loja?: LojaInfo } = {}): Resposta {
   const zonas = ctx.zonas ?? ZONAS;
+  const CARD = ctx.cardapio ?? CARDAPIO;
+  const LJ = ctx.loja ?? LOJA;
   const aj = ctx.ajustes ?? store.get().ajustes;
   const e = (s: string) => (aj.emojis ? s : s.replace(/[\u{1F300}-\u{1FAFF}☀-➿]️?/gu, "").replace(/\s+([.!?,])/g, "$1").trim());
   const t = norm(texto);
   const tem = (...ps: string[]) => ps.some((p) => t.includes(p));
-  const disponiveis = CARDAPIO.filter((p) => !p.esgotado);
+  const disponiveis = CARD.filter((p) => !p.esgotado);
 
   if (tem("frio", "atras", "demor", "errad", "faltou", "falta ", "veio sem", "ruim", "pessim", "horrivel", "reclama", "nao chegou", "cade meu", "estorno", "cru")) {
     return {
@@ -259,7 +263,7 @@ export function responder(texto: string, ctx: { zonas?: Zona[]; ajustes?: Ajuste
       };
     }
     return {
-      texto: e(`Ainda não chegamos até ${b.nome} 😕 Deixei anotado que você quer, e assim que a gente chegar aí eu te aviso com o primeiro pedido sem taxa. Se preferir, dá para retirar aqui na ${LOJA.bairro}.`),
+      texto: e(`Ainda não chegamos até ${b.nome} 😕 Deixei anotado que você quer, e assim que a gente chegar aí eu te aviso com o primeiro pedido sem taxa. Se preferir, dá para retirar aqui na ${LJ.bairro}.`),
       humor: "neutro",
       equipe: false,
       titulo: `Fora da área: ${b.nome}`,
@@ -273,32 +277,34 @@ export function responder(texto: string, ctx: { zonas?: Zona[]; ajustes?: Ajuste
     return { texto: e(`O ${prod.nome} sai por ${preco}. ${prod.desc} Quer pedir? É só tocar em "Fazer pedido" 😉`), humor: "positivo", equipe: false, titulo: prod.nome };
   }
   if (tem("esgot", "onion")) {
-    const esg = CARDAPIO.filter((p) => p.esgotado).map((p) => p.nome);
+    const esg = CARD.filter((p) => p.esgotado).map((p) => p.nome);
     return { texto: e(esg.length ? `Hoje acabou: ${esg.join(", ")}. O resto do cardápio está saindo normal 👍` : "Hoje não acabou nada, o cardápio está completo 👍"), humor: "neutro", equipe: false, titulo: "Disponibilidade" };
   }
   if (tem("vegetar", "vegan", "sem carne")) {
-    const v = CARDAPIO.filter((p) => p.tags?.includes("Vegetariano"));
+    const v = CARD.filter((p) => p.tags?.includes("Vegetariano"));
+    if (!v.length) return { texto: e("Deixa eu confirmar com a equipe as opções sem carne de hoje, já te respondem aqui 🌱"), humor: "neutro", equipe: true, titulo: "Opção vegetariana" };
     return { texto: e(`Temos o ${v.map((p) => `${p.nome} (${brl(p.preco)})`).join(", ")}: ${v[0]?.desc} 🌱`), humor: "positivo", equipe: false, titulo: "Opção vegetariana" };
   }
   if (tem("cardapio", "menu", "o que tem", "oque tem", "recomenda", "mais pedido", "sugest", "indica", "melhor")) {
-    const top = CARDAPIO.filter((p) => p.maisPedido && !p.esgotado);
+    const top = CARD.filter((p) => p.maisPedido && !p.esgotado);
     const lista = top.map((p) => `${p.nome} (${brl(p.promo ?? p.preco)})`).join(", ");
-    return { texto: e(aj.recomendar ? `Os mais pedidos da casa são ${lista} 🔥 Se for para dois, o Combo Casal sai por ${brl(94.9)}. O cardápio completo está na loja.` : `O cardápio completo está na loja: smash, burgers da casa, combos, porções, bebidas e sobremesas.`), humor: "positivo", equipe: false, titulo: "Cardápio" };
+    const cats = [...new Set(CARD.map((p) => p.cat))].join(", ").toLowerCase();
+    return { texto: e(aj.recomendar && lista ? `Os mais pedidos da casa são ${lista} 🔥 O cardápio completo está na loja.` : `O cardápio completo está na loja${cats ? `: ${cats}` : ""}.`), humor: "positivo", equipe: false, titulo: "Cardápio" };
   }
   if (tem("horario", "abre", "aberto", "fecha", "funciona", "hoje tem")) {
-    return { texto: e(`${LOJA.aberto ? "Estamos abertos agora" : "Agora estamos fechados"}! Funcionamos ${LOJA.horario.replace("Hoje, ", "hoje das ").replace(" às ", " às ")} 🕗`), humor: "neutro", equipe: false, titulo: "Horário" };
+    return { texto: e(`${LJ.aberto ? "Estamos abertos agora" : "Agora estamos fechados"}! Funcionamos ${LJ.horario.replace("Hoje, ", "hoje das ").replace(" às ", " às ")} 🕗`), humor: "neutro", equipe: false, titulo: "Horário" };
   }
   if (tem("pix", "cartao", "dinheiro", "pagamento", "pagar", "troco")) {
-    return { texto: e("Aceitamos Pix (com 5% de volta no Clube Brasa), cartão na entrega e dinheiro. Se for dinheiro, me diz se precisa de troco 💸"), humor: "neutro", equipe: false, titulo: "Formas de pagamento" };
+    return { texto: e("Aceitamos Pix, cartão e dinheiro. Se for dinheiro, me diz se precisa de troco 💸"), humor: "neutro", equipe: false, titulo: "Formas de pagamento" };
   }
   if (tem("cashback", "clube", "pontos", "cupom", "desconto", "promo")) {
-    return { texto: e("No Clube Brasa você ganha 5% de volta em todo pedido pago no Pix, e no seu aniversário a batata é por nossa conta 🎁 Hoje o Combo Smash está em promoção."), humor: "positivo", equipe: false, titulo: "Clube e promoções" };
+    return { texto: e("Pedindo pela nossa loja online você junta cashback para usar no próximo pedido 🎁 As promoções do dia aparecem marcadas no cardápio."), humor: "positivo", equipe: false, titulo: "Clube e promoções" };
   }
   if (tem("reserva", "mesa", "aniversario", "evento", "festa")) {
-    return { texto: e("Dá para reservar mesa sim! Preenche aqui que a equipe confirma rapidinho: fregues.app/brasa/reserva 🎉"), humor: "positivo", equipe: false, titulo: "Reserva de mesa" };
+    return { texto: e("Dá para reservar sim! Me diz o dia, o horário e quantas pessoas, que a equipe confirma com você aqui mesmo 🎉"), humor: "positivo", equipe: true, titulo: "Reserva de mesa" };
   }
   if (tem("meu pedido", "status", "onde esta", "ja saiu", "saiu")) {
-    return { texto: e("Me passa o número do pedido (aparece na tela de confirmação) que eu vejo onde ele está 📦"), humor: "neutro", equipe: false, titulo: "Status do pedido" };
+    return { texto: e("Já chamei a equipe para ver o seu pedido 📦 Se tiver o número (aparece na tela de confirmação), manda aqui."), humor: "neutro", equipe: true, titulo: "Status do pedido" };
   }
   if (tem("atendente", "humano", "pessoa", "falar com alguem", "gerente", "dono")) {
     return { texto: e("Claro! Já chamei alguém da equipe, é rapidinho 🙌"), humor: "neutro", equipe: true, titulo: "Pediu atendente" };
@@ -307,7 +313,7 @@ export function responder(texto: string, ctx: { zonas?: Zona[]; ajustes?: Ajuste
     return { texto: e("Nós que agradecemos! Bom apetite 🍔"), humor: "positivo", equipe: false, titulo: "Agradecimento" };
   }
   if (tem("oi", "ola", "boa noite", "boa tarde", "bom dia", "eai", "e ai", "opa")) {
-    const nome = aj.nomeAtendente ? `Aqui é a ${aj.nomeAtendente}, da ${LOJA.nome}. ` : "";
+    const nome = aj.nomeAtendente ? `Aqui é a ${aj.nomeAtendente}, da ${LJ.nome}. ` : "";
     return { texto: e(aj.tom === "amigavel" ? `Oi! 😊 ${nome}Posso te ajudar com o cardápio, a taxa de entrega do seu bairro, horário ou formas de pagamento. O que vai ser hoje?` : `Olá. ${nome}Posso informar cardápio, taxa de entrega, horário e pagamento.`), humor: "neutro", equipe: false, titulo: "Saudação" };
   }
   return { texto: e("Boa pergunta! Essa eu prefiro passar para alguém da equipe, que já te responde aqui mesmo 🙌"), humor: "neutro", equipe: true, titulo: "Dúvida para a equipe" };
@@ -338,7 +344,7 @@ function conversaDe(cliente: string, canal: Conversa["canal"], falas: string[], 
 
 const AJUSTES_INICIAIS: Ajustes = { tom: "amigavel", emojis: true, recomendar: true, passarReclamacao: true, nomeAtendente: "Bia" };
 
-function resumir(c: Conversa) {
+export function resumir(c: Conversa) {
   const temas = [...new Set(c.mensagens.filter((m) => m.de === "cliente").map((m) => responder(m.texto, { ajustes: AJUSTES_INICIAIS }).titulo).filter((x) => x !== "Saudação" && x !== "Agradecimento"))];
   const fim = c.status === "equipe" ? "A IA passou para a equipe." : c.pedidoGerado ? `Virou o pedido #${c.pedidoGerado}.` : "A IA resolveu sozinha.";
   return `${c.cliente.split(" ")[0]} perguntou sobre ${temas.join(", ").toLowerCase() || "a loja"}. ${fim}`;
@@ -489,6 +495,13 @@ export function useCrescer<T>(sel: (s: Estado) => T): T {
   return useSyncExternalStore(store.sub, () => sel(store.get()));
 }
 
+/** Ganchos de gravação no banco (ligados pelo atendimento real quando a loja usa o Supabase). */
+export const persistir: {
+  conversa?: (c: Conversa) => void;
+  equipe?: (id: string, texto: string) => void;
+  ajustes?: (a: Ajustes) => void;
+} = {};
+
 export const crescer = {
   // automações
   setAuto(id: string, f: (a: Automacao) => Automacao) {
@@ -509,12 +522,16 @@ export const crescer = {
   // atendimento
   setConversa(id: string, f: (c: Conversa) => Conversa) {
     store.set((s) => ({ ...s, conversas: s.conversas.map((c) => (c.id === id ? f(c) : c)) }));
+    const c = store.get().conversas.find((x) => x.id === id);
+    if (c) persistir.conversa?.(c);
   },
   enviarEquipe(id: string, texto: string) {
-    crescer.setConversa(id, (c) => ({ ...c, status: "equipe", naoLida: false, mensagens: [...c.mensagens, { id: uid(), de: "equipe", texto, quando: Date.now() }] }));
+    store.set((s) => ({ ...s, conversas: s.conversas.map((c) => (c.id === id ? { ...c, status: "equipe", naoLida: false, mensagens: [...c.mensagens, { id: uid(), de: "equipe", texto, quando: Date.now() }] } : c)) }));
+    persistir.equipe?.(id, texto);
   },
   setAjustes(p: Partial<Ajustes>) {
     store.set((s) => ({ ...s, ajustes: { ...s.ajustes, ...p } }));
+    persistir.ajustes?.(store.get().ajustes);
   },
   /** Mensagem do cliente vinda do chat da loja. Cria a conversa na primeira vez. */
   falarNaLoja(texto: string, zonas?: Zona[]) {

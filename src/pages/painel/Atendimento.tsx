@@ -134,7 +134,7 @@ export function Atendimento() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Atendimento</h1>
-          <p className="max-w-[640px] text-[15px] text-areia">Uma atendente com IA responde na loja, no WhatsApp e no Instagram. Quando precisa de gente, ela passa para você.</p>
+          <p className="max-w-[640px] text-[15px] text-areia">A atendente automática responde as dúvidas do botão “Dúvidas?” da sua loja online. Quando precisa de gente, ela passa para você. WhatsApp e Instagram chegam em breve.</p>
         </div>
         <div className="flex rounded-full border border-linha p-1 text-[14px] font-semibold" role="tablist">
           <button role="tab" aria-selected={aba === "conversas"} onClick={() => setAba("conversas")} className={`rounded-full px-4 py-1.5 ${aba === "conversas" ? "bg-papel text-carvao" : "text-areia"}`}>
@@ -149,7 +149,7 @@ export function Atendimento() {
       <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
           ["Conversas hoje", String(conversas.length)],
-          ["Resolvidas pela IA", `${Math.round((resolvidasIA / Math.max(1, conversas.length)) * 100)}%`],
+          ["Resolvidas sozinha", `${Math.round((resolvidasIA / Math.max(1, conversas.length)) * 100)}%`],
           ["Esperando a equipe", String(conversas.filter((c) => c.status === "equipe").length)],
           ["Viraram pedido", String(pedidos.length)],
         ].map(([k, v]) => (

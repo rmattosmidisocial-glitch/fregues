@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, MessageCircle, Send, X } from "lucide-react";
 import { crescer, useCrescer } from "../../data/crescer";
-import { useDados } from "../../data/dados";
+import { supabase, useDados } from "../../data/dados";
+import { falarNaLojaReal, useChatLojaReal } from "../../data/atendimento";
 
 const SUGESTOES = ["Qual o mais pedido?", "Entregam no meu bairro?", "Que horas fecha?", "Aceita Pix?"];
 
 export function ChatLoja({ subir }: { subir: boolean }) {
   const [aberto, setAberto] = useState(false);
   const [texto, setTexto] = useState("");
-  const zonas = useDados().zonas;
+  const d = useDados();
+  const zonas = d.zonas;
+  useChatLojaReal(aberto);
   const nome = useCrescer((s) => s.ajustes.nomeAtendente);
   const conv = useCrescer((s) => s.conversas.find((c) => c.id === s.conversaLoja));
   const fim = useRef<HTMLDivElement>(null);
@@ -21,7 +24,8 @@ export function ChatLoja({ subir }: { subir: boolean }) {
 
   function enviar(t = texto) {
     if (!t.trim()) return;
-    crescer.falarNaLoja(t.trim(), zonas);
+    if (supabase) falarNaLojaReal(t.trim(), { zonas, cardapio: d.cardapio, loja: { nome: d.loja.nome, bairro: d.loja.bairro, horario: d.loja.horario, aberto: d.loja.aberto } });
+    else crescer.falarNaLoja(t.trim(), zonas);
     setTexto("");
   }
 
