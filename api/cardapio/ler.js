@@ -97,7 +97,7 @@ export default async function handler(req, res) {
     else if (/^image\/(jpeg|png|webp|gif)$/.test(a.tipo)) conteudo.push({ type: "image", source: { type: "base64", media_type: a.tipo, data: a.base64 } });
   }
   if (!conteudo.length) return res.status(400).json({ erro: "Formato não suportado. Envie foto (JPG/PNG) ou PDF." });
-  conteudo.push({ type: "text", text: "Transcreva este cardápio completo usando a ferramenta registrar_cardapio." });
+  conteudo.push({ type: "text", text: "Transcreva este cardápio completo. Responda chamando a ferramenta registrar_cardapio uma única vez, com todos os produtos." });
 
   try {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -113,7 +113,7 @@ export default async function handler(req, res) {
         max_tokens: 16000,
         system: INSTRUCOES,
         tools: [FERRAMENTA],
-        tool_choice: { type: "tool", name: "registrar_cardapio" },
+        tool_choice: { type: "auto" },
         messages: [{ role: "user", content: conteudo }],
       }),
     });
@@ -126,9 +126,20 @@ export default async function handler(req, res) {
       return res.status(502).json({ erro: "A IA não conseguiu ler agora: " + msg });
     }
     const uso = (corpo.content || []).find((c) => c.type === "tool_use");
-    if (!uso) return res.status(502).json({ erro: "A IA não devolveu o cardápio. Tente uma foto mais nítida." });
+    let entrada = uso?.input;
+    if (!entrada) {
+      // às vezes o modelo responde em texto com o JSON; tenta aproveitar
+      const txt = (corpo.content || []).filter((c) => c.type === "text").map((c) => c.text).join("\n");
+      const m = txt.match(/\{[\s\S]*\}/);
+      try {
+        entrada = m ? JSON.parse(m[0]) : null;
+      } catch {
+        entrada = null;
+      }
+    }
+    if (!entrada?.categorias) return res.status(502).json({ erro: "A IA não devolveu o cardápio. Tente uma foto mais nítida." });
     const truncado = corpo.stop_reason === "max_tokens";
-    const dados = uso.input || {};
+    const dados = entrada;
     if (truncado) (dados.avisos ||= []).push("O cardápio é muito grande e pode ter ficado incompleto. Envie as páginas restantes em outra importação.");
     return res.status(200).json(dados);
   } catch (e) {
