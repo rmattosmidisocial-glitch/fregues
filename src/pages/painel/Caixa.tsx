@@ -1,13 +1,29 @@
 import { useMemo, useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, Banknote, Check, CreditCard, Lock, Minus, Plus, Printer, QrCode, Search, Star, Trash2, Unlock, X } from "lucide-react";
-import { brl, type Produto } from "../../data/mock";
-import { useDados } from "../../data/dados";
-import { useCaixa, type Forma, type ItemVenda, type Resumo, type Sessao } from "../../data/caixa";
+import { brl, type Pedido, type Produto } from "../../data/mock";
+import { SLUG, supabase, useDados } from "../../data/dados";
+import { imprimirComanda } from "../../components/comanda";
+import { registrarVendaDemo, useCaixa, type Forma, type ItemVenda, type Resumo, type Sessao } from "../../data/caixa";
 import type { Pagamento } from "../../data/salao";
 import { Foto } from "../../components/Foto";
 import { useToast } from "../../components/ui";
 
-const OPERADORES = ["Léo", "Bia", "Rafa"];
+// nomes de quem já abriu o caixa nesta loja, guardados neste aparelho
+const CHAVE_OPS = `fregues-operadores:${SLUG}`;
+function lerOperadores(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(CHAVE_OPS) || "[]");
+  } catch {
+    return [];
+  }
+}
+function guardarOperador(nome: string) {
+  try {
+    localStorage.setItem(CHAVE_OPS, JSON.stringify([nome, ...lerOperadores().filter((x) => x !== nome)].slice(0, 6)));
+  } catch {
+    /* sem armazenamento */
+  }
+}
 const hora = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 const dataHora = (iso: string) => new Date(iso).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const digitos = (s: string) => s.replace(/\D/g, "");
@@ -22,7 +38,8 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 // ---------- abrir ----------
 function Abrir({ c }: { c: ReturnType<typeof useCaixa> }) {
   const [valor, setValor] = useState("150");
-  const [op, setOp] = useState(OPERADORES[0]);
+  const [ops] = useState(lerOperadores);
+  const [op, setOp] = useState(ops[0] ?? "");
   const [erro, setErro] = useState("");
   return (
     <div className="mx-auto mt-6 max-w-[460px] rounded-3xl border border-linha bg-forno p-6 text-center">
@@ -39,18 +56,23 @@ function Abrir({ c }: { c: ReturnType<typeof useCaixa> }) {
         </span>
       </label>
       <p className="mt-4 text-left text-[15px] font-semibold">Quem está no caixa</p>
-      <div className="mt-1.5 flex gap-2">
-        {OPERADORES.map((o) => (
-          <button key={o} onClick={() => setOp(o)} aria-pressed={op === o} className={`flex-1 rounded-xl py-2.5 font-semibold ${op === o ? "bg-papel text-carvao" : "border border-linha"}`}>
-            {o}
-          </button>
-        ))}
-      </div>
+      <input value={op} onChange={(e) => setOp(e.target.value)} placeholder="Nome de quem abre o caixa" aria-label="Quem está no caixa" className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[17px] text-carvao focus:border-brasa focus:outline-none" />
+      {ops.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {ops.map((o) => (
+            <button key={o} onClick={() => setOp(o)} aria-pressed={op === o} className={`rounded-full px-3 py-1.5 text-[14px] font-semibold ${op === o ? "bg-papel text-carvao" : "border border-linha"}`}>
+              {o}
+            </button>
+          ))}
+        </div>
+      )}
       {erro && <p className="mt-3 rounded-xl bg-[#fbe4e0] p-3 text-[14px] text-[#8e2f2a]">{erro}</p>}
       <button
         onClick={async () => {
-          const r = await c.acoes.abrir(Number(valor.replace(",", ".")) || 0, op);
+          if (!op.trim()) return setErro("Escreva o nome de quem está no caixa.");
+          const r = await c.acoes.abrir(Number(valor.replace(",", ".")) || 0, op.trim());
           if (r) setErro(r);
+          else guardarOperador(op.trim());
         }}
         className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-brasa py-3.5 text-[17px] font-bold text-carvao hover:bg-mostarda"
       >
@@ -75,7 +97,7 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
   const [pags, setPags] = useState<Pagamento[]>([]);
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const [feito, setFeito] = useState<{ numero: number; total: number; troco: number } | null>(null);
+  const [feito, setFeito] = useState<{ numero: number; total: number; troco: number; comanda: Pedido } | null>(null);
 
   const lista = d.cardapio.filter((p) => (busca ? p.nome.toLowerCase().includes(busca.toLowerCase()) : p.cat === cat));
   const linhas = Object.values(itens);
@@ -120,13 +142,16 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
         <p className="font-display text-[44px] font-extrabold leading-none">Pedido #{feito.numero}</p>
         <p className="tabular mt-2 text-[18px]">{brl(feito.total)}</p>
         {feito.troco > 0 && <p className="tabular mt-4 rounded-2xl bg-mostarda py-4 font-display text-[30px] font-extrabold text-carvao">Troco: {brl(feito.troco)}</p>}
+        <button onClick={() => imprimirComanda(feito.comanda, d.loja.nome)} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-papel py-3 font-semibold">
+          <Printer className="h-4 w-4" /> Imprimir comanda
+        </button>
         <button
           autoFocus
           onClick={() => {
             setFeito(null);
             limpar();
           }}
-          className="mt-6 w-full rounded-xl bg-brasa py-3.5 text-[17px] font-bold text-carvao hover:bg-mostarda"
+          className="mt-3 w-full rounded-xl bg-brasa py-3.5 text-[17px] font-bold text-carvao hover:bg-mostarda"
         >
           Nova venda
         </button>
@@ -306,7 +331,27 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
               const r = await c.acoes.vender(linhas, pagamentos, tel, nome, desconto);
               setEnviando(false);
               if (r.erro) setErro(r.erro);
-              else setFeito({ numero: r.numero!, total: r.total!, troco: r.troco ?? 0 });
+              else
+                setFeito({
+                  numero: r.numero!,
+                  total: r.total!,
+                  troco: r.troco ?? 0,
+                  comanda: {
+                    num: r.numero!,
+                    cliente: nome.trim() || "Balcão",
+                    bairro: "Balcão",
+                    itens: linhas.flatMap((l) => [`${l.qtd}x ${l.nome}`, ...(l.obs ? [`+ ${l.obs}`] : [])]),
+                    total: r.total!,
+                    pag: "Maquininha",
+                    modo: "Balcão",
+                    min: 0,
+                    status: "novo",
+                    tel: tel || undefined,
+                    pago: true,
+                    forma: pagamentos.length === 1 ? pagamentos[0].forma : pagamentos[0]?.forma,
+                    criadoEm: new Date().toISOString(),
+                  },
+                });
             }}
             className="mt-3 w-full rounded-xl bg-brasa py-4 text-[18px] font-extrabold text-carvao hover:bg-mostarda disabled:opacity-40"
           >
@@ -393,6 +438,54 @@ function Relatorio({ s, r }: { s: Pick<Sessao, "operador" | "aberto_em" | "fecha
   );
 }
 
+// dinheiro que ainda está com os entregadores: entregas não pagas, agrupadas por quem levou
+function EntregasAReceber() {
+  const d = useDados();
+  const { show, Toast } = useToast();
+  const lista = d.pedidos.filter((p) => p.modo === "Entrega" && !p.pago && (p.status === "rota" || p.status === "entregue"));
+  if (!lista.length) return null;
+  const grupos = new Map<string, Pedido[]>();
+  for (const p of lista) grupos.set(p.motoboy ?? "Sem entregador", [...(grupos.get(p.motoboy ?? "Sem entregador") ?? []), p]);
+  return (
+    <section className="rounded-3xl border border-linha bg-forno p-5">
+      <h2 className="font-display text-[20px] font-bold">Entregas a receber</h2>
+      <p className="text-[14px] text-areia">Pedidos de delivery que o cliente paga na entrega. Quando o entregador prestar contas, marque como recebido e o valor entra neste caixa.</p>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        {[...grupos.entries()].map(([quem, ps]) => (
+          <div key={quem} className="rounded-2xl bg-grafite p-4">
+            <p className="flex justify-between font-semibold">
+              <span>{quem}</span>
+              <span className="tabular">{brl(ps.reduce((a, p) => a + p.total, 0))}</span>
+            </p>
+            <ul className="mt-2 space-y-2 text-[14px]">
+              {ps.map((p) => (
+                <li key={p.num} className="flex items-center justify-between gap-2">
+                  <span>
+                    #{p.num} · {p.cliente.split(" ")[0]} · <span className="tabular">{brl(p.total)}</span>
+                    <span className="block text-[12px] text-areia">{p.forma === "dinheiro" ? "Dinheiro" : p.forma === "maquininha" ? "Maquininha" : p.forma === "pix" ? "Pix" : "Cartão"}</span>
+                  </span>
+                  <button
+                    onClick={async () => {
+                      const forma = p.forma ?? "dinheiro";
+                      const r = await d.acoes.pagarPedido(p.num, forma);
+                      if (!r && !supabase) registrarVendaDemo("Delivery", p.total, [{ forma, valor: p.total }], `Entrega #${p.num}`);
+                      show(r ?? `#${p.num} recebido e somado ao caixa`);
+                    }}
+                    className="rounded-full bg-papel px-3 py-1.5 text-[13px] font-semibold text-carvao hover:bg-mostarda"
+                  >
+                    Recebido
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <Toast />
+    </section>
+  );
+}
+
 function ResumoCaixa({ c, aoFechar }: { c: ReturnType<typeof useCaixa>; aoFechar: (r: Resumo, s: Sessao) => void }) {
   const { show, Toast } = useToast();
   const [mov, setMov] = useState<"retirada" | "reforco" | null>(null);
@@ -413,6 +506,7 @@ function ResumoCaixa({ c, aoFechar }: { c: ReturnType<typeof useCaixa>; aoFechar
 
   return (
     <div className="mt-5 space-y-5">
+      <EntregasAReceber />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
           ["Vendido desde a abertura", brl(Number(r.total)), `${r.vendas} vendas`],

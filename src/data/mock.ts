@@ -277,8 +277,8 @@ export const PEDIDOS: Pedido[] = [
   { num: 1043, cliente: "Felipe Araújo", bairro: "Irajá", itens: ["1x Triplo Brasa", "1x Batata cheddar e bacon"], total: 68.7, pag: "Dinheiro (troco p/ 100)", modo: "Entrega", min: 14, status: "pronto" },
   { num: 1042, cliente: "Bianca Rocha", bairro: "Retirada", itens: ["2x Frango Crocante"], total: 59.8, pag: "Pix pago", modo: "Retirada", min: 17, status: "pronto" },
   { num: 1041, cliente: "Thiago Freitas", bairro: "Olaria", itens: ["1x X-Bacon Duplo", "1x Suco de maracujá"], total: 57.7, pag: "Cartão online", modo: "Entrega", min: 24, status: "rota", motoboy: "Marquinhos" },
-  { num: 1040, cliente: "Juliana Costa", bairro: "Vicente de Carvalho", itens: ["1x Smash Bacon", "1x Brownie com sorvete"], total: 54.7, pag: "Pix pago", modo: "Entrega", min: 29, status: "rota", motoboy: "Dudu" },
-  { num: 1039, cliente: "Marcelo Souza", bairro: "Brás de Pina", itens: ["1x Combo Smash"], total: 43.8, pag: "Pix pago", modo: "Entrega", min: 41, status: "entregue", motoboy: "Marquinhos" },
+  { num: 1040, cliente: "Juliana Costa", bairro: "Vicente de Carvalho", itens: ["1x Smash Bacon", "1x Brownie com sorvete"], total: 54.7, pag: "Dinheiro (troco p/ 100)", modo: "Entrega", min: 29, status: "rota", motoboy: "Dudu" },
+  { num: 1039, cliente: "Marcelo Souza", bairro: "Brás de Pina", itens: ["1x Combo Smash"], total: 43.8, pag: "Maquininha", modo: "Entrega", min: 41, status: "entregue", motoboy: "Marquinhos" },
 ];
 
 // dados de exemplo para detalhes, WhatsApp e impressão da comanda na demonstração
