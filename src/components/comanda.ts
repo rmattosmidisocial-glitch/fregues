@@ -26,7 +26,7 @@ export function imprimirComanda(p: Pedido, loja: string) {
     <ul>${p.itens.map((i) => `<li class="${i.startsWith("+") ? "" : "g"}">${esc(i)}</li>`).join("")}</ul>
     ${p.nota ? `<hr><div class="g">OBS: ${esc(p.nota)}</div>` : ""}<hr>
     <div class="g">TOTAL ${esc(brl(p.total))}</div>
-    <div>${p.pago ? "PAGO" : "A RECEBER"} · ${esc(NOME_FORMA[p.forma ?? ""] ?? p.pag)}</div>
+    <div>${p.pago ? "PAGO" : "A RECEBER"}${p.forma ? ` · ${esc(NOME_FORMA[p.forma])}` : p.pago ? ` · ${esc(p.pag)}` : ""}</div>
     ${p.motoboy ? `<div>Entregador: ${esc(p.motoboy)}</div>` : ""}<hr><div class="c">Freguês</div>
   </body></html>`;
   const f = document.createElement("iframe");

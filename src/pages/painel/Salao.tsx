@@ -7,6 +7,8 @@ import { totais, useSalao, type Comanda, type ItemComanda, type Mesa, type NovoI
 import { Foto } from "../../components/Foto";
 import { useToast } from "../../components/ui";
 import { Couvert } from "../../components/Couvert";
+import { imprimirComanda } from "../../components/comanda";
+import { useGarcons } from "../../data/equipe";
 import { setMesaQR } from "../publico/Mesa";
 
 const minutos = (iso: string) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -27,7 +29,6 @@ const FORMAS: { id: Pagamento["forma"]; rotulo: string }[] = [
   { id: "maquininha", rotulo: "Cartão" },
   { id: "dinheiro", rotulo: "Dinheiro" },
 ];
-const GARCONS = ["Léo", "Bia", "Rafa"];
 export const linkMesa = (n: number) => `${window.location.origin}${window.location.pathname}?r=${SLUG}&mesa=${n}#mesa`;
 
 function QR({ texto, tamanho = 120 }: { texto: string; tamanho?: number }) {
@@ -130,7 +131,12 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
   const { show, Toast } = useToast();
   const [aba, setAba] = useState<"conta" | "lancar" | "pagar">(comanda ? "conta" : "conta");
   const [pessoas, setPessoas] = useState(2);
-  const [garcom, setGarcom] = useState(GARCONS[0]);
+  const garcons = useGarcons();
+  const [garcom, setGarcom] = useState("");
+  useEffect(() => {
+    if (!garcom && garcons.lista[0]) setGarcom(garcons.lista[0].nome);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [garcons.lista]);
   const [tel, setTel] = useState(comanda?.telefone ?? "");
   const [nome, setNome] = useState(comanda?.cliente_nome ?? "");
   const [pags, setPags] = useState<Pagamento[]>([]);
@@ -172,17 +178,24 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
         </div>
         <div>
           <p className="text-[13px] text-areia">Garçom</p>
-          <div className="mt-1 flex gap-1.5">
-            {GARCONS.map((g) => (
-              <button key={g} onClick={() => setGarcom(g)} aria-pressed={garcom === g} className={`rounded-xl px-4 py-2 font-semibold ${garcom === g ? "bg-papel text-carvao" : "border border-linha"}`}>
-                {g}
-              </button>
-            ))}
-          </div>
+          {garcons.lista.length ? (
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {garcons.lista.map((g) => (
+                <button key={g.id} onClick={() => setGarcom(g.nome)} aria-pressed={garcom === g.nome} className={`rounded-xl px-4 py-2 font-semibold ${garcom === g.nome ? "bg-papel text-carvao" : "border border-linha"}`}>
+                  {g.nome}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <>
+              <input value={garcom} onChange={(e) => setGarcom(e.target.value)} placeholder="Nome do garçom" aria-label="Garçom" className="mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px]" />
+              <p className="mt-1 text-[12px] text-areia">Cadastre os garçons em "Mesas e QR" para escolher com um toque.</p>
+            </>
+          )}
         </div>
         <button
           onClick={async () => {
-            await s.acoes.abrirMesa(mesa.id, pessoas, garcom);
+            await s.acoes.abrirMesa(mesa.id, pessoas, garcom.trim());
             show(`Mesa ${mesa.numero} aberta`);
           }}
           className="w-full rounded-xl bg-brasa py-3.5 text-[16px] font-bold text-carvao hover:bg-mostarda"
@@ -373,6 +386,37 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
             Fechar conta e liberar mesa
           </button>
           <button
+            onClick={() =>
+              imprimirComanda(
+                {
+                  num: mesa.numero,
+                  cliente: comanda.cliente_nome || `Conta da mesa ${mesa.numero}`,
+                  bairro: "Salão",
+                  itens: [
+                    ...itens.filter((i) => i.status !== "cancelado").map((i) => `${i.qtd}x ${i.nome}  ${brl(i.qtd * i.unit)}`),
+                    `+ Consumo ${brl(t.sub)}`,
+                    ...(t.servico > 0 ? [`+ Serviço ${comanda.taxa_servico}%: ${brl(t.servico)}`] : []),
+                    ...(t.couvert > 0 ? [`+ Couvert ${comanda.pessoas}x ${brl(comanda.couvert ?? 0)}: ${brl(t.couvert)}`] : []),
+                    ...(comanda.desconto > 0 ? [`+ Desconto: -${brl(comanda.desconto)}`] : []),
+                    ...(comanda.pessoas > 1 ? [`+ ${comanda.pessoas} pessoas: ${brl(t.total / comanda.pessoas)} cada`] : []),
+                  ],
+                  total: t.total,
+                  pag: "Maquininha",
+                  modo: `Mesa ${mesa.numero}`,
+                  min: 0,
+                  status: "novo",
+                  pago: false,
+                  forma: undefined,
+                  criadoEm: new Date().toISOString(),
+                },
+                d.loja.nome,
+              )
+            }
+            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-papel py-3 font-semibold"
+          >
+            <Printer className="h-4 w-4" /> Imprimir conta para o cliente
+          </button>
+          <button
             onClick={async () => {
               if (itens.some((i) => i.status !== "cancelado")) return setErro("Cancele os itens antes de cancelar a comanda.");
               await s.acoes.cancelarComanda(comanda.id);
@@ -512,6 +556,8 @@ function EditarMesas({ s }: { s: ReturnType<typeof useSalao> }) {
   const [imprimir, setImprimir] = useState(false);
   const areas = [...new Set(s.mesas.map((m) => m.area))];
   const prox = Math.max(0, ...s.mesas.map((m) => m.numero)) + 1;
+  const garcons = useGarcons();
+  const [novoG, setNovoG] = useState("");
   if (imprimir)
     return (
       <div>
@@ -559,6 +605,35 @@ function EditarMesas({ s }: { s: ReturnType<typeof useSalao> }) {
           <QrCode className="h-4 w-4" /> QR codes para imprimir
         </button>
       </div>
+      <section className="mb-4 rounded-3xl border border-linha bg-forno p-5">
+        <h3 className="font-display text-[18px] font-bold">Garçons</h3>
+        <p className="text-[13px] text-areia">Aparecem para escolher ao abrir uma mesa.</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {garcons.lista.map((g) => (
+            <span key={g.id} className="flex items-center gap-1 rounded-full bg-grafite py-1 pl-3 pr-1 text-[14px] font-semibold">
+              {g.nome}
+              <button onClick={() => garcons.remover(g.id)} aria-label={`Remover ${g.nome}`} className="rounded-full p-1 text-areia hover:text-tomate">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+          <form
+            className="flex gap-2"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!novoG.trim()) return;
+              const r = await garcons.adicionar(novoG.trim());
+              show(r ?? `${novoG.trim()} incluído`);
+              if (!r) setNovoG("");
+            }}
+          >
+            <input value={novoG} onChange={(e) => setNovoG(e.target.value)} placeholder="Nome do garçom" aria-label="Nome do garçom" className="w-40 rounded-full border border-linha bg-carvao px-3 py-1.5 text-[14px]" />
+            <button className="flex items-center gap-1 rounded-full bg-papel px-3 py-1.5 text-[13px] font-semibold text-carvao">
+              <Plus className="h-4 w-4" /> Incluir
+            </button>
+          </form>
+        </div>
+      </section>
       <div className="overflow-x-auto rounded-3xl border border-linha bg-forno">
         <table className="w-full min-w-[560px] text-[14px]">
           <thead>
