@@ -205,9 +205,15 @@ export function Mesa() {
                       <span>Serviço ({m.dados?.taxa_servico ?? 10}%)</span>
                       <span className="tabular">{brl((consumo * (m.dados?.taxa_servico ?? 10)) / 100)}</span>
                     </p>
+                    {(m.dados?.couvert ?? 0) > 0 && (
+                      <p className="flex justify-between">
+                        <span>Couvert ({m.dados?.pessoas ?? 1} × {brl(m.dados?.couvert ?? 0)})</span>
+                        <span className="tabular">{brl((m.dados?.couvert ?? 0) * (m.dados?.pessoas ?? 1))}</span>
+                      </p>
+                    )}
                     <p className="flex justify-between text-[18px] font-bold">
                       <span>Total</span>
-                      <span className="tabular">{brl(consumo * (1 + (m.dados?.taxa_servico ?? 10) / 100))}</span>
+                      <span className="tabular">{brl(consumo * (1 + (m.dados?.taxa_servico ?? 10) / 100) + (m.dados?.couvert ?? 0) * (m.dados?.pessoas ?? 1))}</span>
                     </p>
                   </div>
                 )}

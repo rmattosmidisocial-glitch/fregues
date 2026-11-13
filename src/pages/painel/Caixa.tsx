@@ -7,6 +7,7 @@ import { registrarVendaDemo, useCaixa, type Forma, type ItemVenda, type Resumo, 
 import type { Pagamento } from "../../data/salao";
 import { Foto } from "../../components/Foto";
 import { useToast } from "../../components/ui";
+import { Couvert } from "../../components/Couvert";
 
 // nomes de quem já abriu o caixa nesta loja, guardados neste aparelho
 const CHAVE_OPS = `fregues-operadores:${SLUG}`;
@@ -91,6 +92,9 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
   const [tel, setTel] = useState("");
   const [nome, setNome] = useState("");
   const [desconto, setDesconto] = useState(0);
+  const [servicoPct, setServicoPct] = useState(0);
+  const [couvertP, setCouvertP] = useState(0);
+  const [pessoas, setPessoas] = useState(1);
   const [forma, setForma] = useState<Forma>("pix");
   const [recebido, setRecebido] = useState("");
   const [dividir, setDividir] = useState(false);
@@ -102,7 +106,9 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
   const lista = d.cardapio.filter((p) => (busca ? p.nome.toLowerCase().includes(busca.toLowerCase()) : p.cat === cat));
   const linhas = Object.values(itens);
   const sub = r2(linhas.reduce((a, i) => a + i.preco * i.qtd, 0));
-  const total = Math.max(0, r2(sub - desconto));
+  const servico = r2((sub * servicoPct) / 100);
+  const couvert = r2(couvertP * pessoas);
+  const total = Math.max(0, r2(sub + servico + couvert - desconto));
   const recebidoN = Number(recebido.replace(",", ".")) || 0;
   const pagamentos: Pagamento[] = dividir ? pags : forma === "dinheiro" ? [{ forma, valor: recebido ? recebidoN : total }] : [{ forma, valor: total }];
   const pago = r2(pagamentos.reduce((a, p) => a + (Number(p.valor) || 0), 0));
@@ -126,6 +132,9 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
     setTel("");
     setNome("");
     setDesconto(0);
+    setServicoPct(0);
+    setCouvertP(0);
+    setPessoas(1);
     setRecebido("");
     setDividir(false);
     setPags([]);
@@ -242,6 +251,18 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
               <span className="text-areia">Subtotal</span>
               <span className="tabular">{brl(sub)}</span>
             </p>
+            <div className="flex items-center justify-between">
+              <span className="text-areia">Serviço</span>
+              <span className="flex items-center gap-1.5">
+                {[0, 10].map((p) => (
+                  <button key={p} onClick={() => setServicoPct(p)} aria-pressed={servicoPct === p} className={`rounded-full px-3 py-1 text-[13px] font-semibold ${servicoPct === p ? "bg-papel text-carvao" : "border border-linha"}`}>
+                    {p === 0 ? "Sem" : `${p}%`}
+                  </button>
+                ))}
+                {servico > 0 && <span className="tabular ml-1 w-20 text-right">{brl(servico)}</span>}
+              </span>
+            </div>
+            <Couvert valor={couvertP} pessoas={pessoas} mudar={setCouvertP} mudarPessoas={setPessoas} />
             <label className="flex items-center justify-between">
               <span className="text-areia">Desconto</span>
               <input type="number" min={0} step="0.5" value={desconto || ""} onChange={(e) => setDesconto(Number(e.target.value) || 0)} placeholder="0,00" className="tabular w-24 rounded-lg border border-linha bg-carvao px-2 py-1 text-right" />
@@ -328,7 +349,7 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
             onClick={async () => {
               setErro("");
               setEnviando(true);
-              const r = await c.acoes.vender(linhas, pagamentos, tel, nome, desconto);
+              const r = await c.acoes.vender(linhas, pagamentos, tel, nome, desconto, servicoPct, couvert);
               setEnviando(false);
               if (r.erro) setErro(r.erro);
               else
@@ -340,7 +361,11 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
                     num: r.numero!,
                     cliente: nome.trim() || "Balcão",
                     bairro: "Balcão",
-                    itens: linhas.flatMap((l) => [`${l.qtd}x ${l.nome}`, ...(l.obs ? [`+ ${l.obs}`] : [])]),
+                    itens: [
+                      ...linhas.flatMap((l) => [`${l.qtd}x ${l.nome}`, ...(l.obs ? [`+ ${l.obs}`] : [])]),
+                      ...(servico > 0 ? [`+ Serviço ${servicoPct}%: ${brl(servico)}`] : []),
+                      ...(couvert > 0 ? [`+ Couvert ${pessoas}x ${brl(couvertP)}: ${brl(couvert)}`] : []),
+                    ],
                     total: r.total!,
                     pag: "Maquininha",
                     modo: "Balcão",

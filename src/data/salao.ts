@@ -6,7 +6,7 @@ import { registrarVendaDemo } from "./caixa";
 
 export type Mesa = { id: string; numero: number; area: string; lugares: number; forma: "quadrada" | "redonda" | "retangular"; ativa: boolean; reservada_para: string | null };
 export type StatusComanda = "aberta" | "conta" | "fechada" | "cancelada";
-export type Comanda = { id: string; table_id: string; status: StatusComanda; pessoas: number; garcom: string | null; cliente_nome: string | null; telefone: string | null; taxa_servico: number; desconto: number; aberta_em: string; fechada_em?: string | null; total_fechado?: number };
+export type Comanda = { id: string; table_id: string; status: StatusComanda; pessoas: number; garcom: string | null; cliente_nome: string | null; telefone: string | null; taxa_servico: number; desconto: number; couvert?: number; aberta_em: string; fechada_em?: string | null; total_fechado?: number };
 export type StatusItem = "novo" | "preparo" | "pronto" | "entregue" | "cancelado";
 export type ItemComanda = { id: string; tab_id: string; product_id: string | null; nome: string; qtd: number; unit: number; obs: string | null; status: StatusItem; origem: "garcom" | "cliente"; criado_em: string };
 export type Chamado = { id: number; table_id: string; tipo: "garcom" | "conta"; criado_em: string };
@@ -67,7 +67,8 @@ export const subtotal = (itens: ItemComanda[], tab: string) => itens.filter((i) 
 export const totais = (c: Comanda, itens: ItemComanda[]) => {
   const sub = subtotal(itens, c.id);
   const servico = Math.round(sub * c.taxa_servico) / 100;
-  return { sub, servico, total: Math.max(0, sub + servico - c.desconto) };
+  const couvert = Math.round((c.couvert ?? 0) * c.pessoas * 100) / 100;
+  return { sub, servico, couvert, total: Math.max(0, sub + servico + couvert - c.desconto) };
 };
 
 export function useSalao() {
@@ -91,7 +92,7 @@ export function useSalao() {
     const it = ids.length ? await supabase.from("tab_items").select("*").in("tab_id", ids).order("criado_em") : { data: [] };
     setREstado({
       mesas: (m.data ?? []) as Mesa[],
-      comandas: ((c.data ?? []) as Comanda[]).map((x) => ({ ...x, taxa_servico: Number(x.taxa_servico), desconto: Number(x.desconto) })),
+      comandas: ((c.data ?? []) as Comanda[]).map((x) => ({ ...x, taxa_servico: Number(x.taxa_servico), desconto: Number(x.desconto), couvert: Number(x.couvert ?? 0) })),
       itens: ((it.data ?? []) as ItemComanda[]).map((x) => ({ ...x, unit: Number(x.unit) })),
       chamados: (ch.data ?? []) as Chamado[],
       fechadasHoje: (f.data ?? []).map((x) => ({ pessoas: x.pessoas, total: Number((x.orders as unknown as { total: number } | null)?.total ?? 0) })),
@@ -153,7 +154,7 @@ export function useSalao() {
       setDemo((s) => ({ ...s, itens: s.itens.map((i) => (i.id === id ? { ...i, status } : i)) }));
       return null;
     },
-    async setComanda(id: string, p: Partial<Pick<Comanda, "pessoas" | "taxa_servico" | "desconto" | "cliente_nome" | "telefone" | "status" | "garcom">>) {
+    async setComanda(id: string, p: Partial<Pick<Comanda, "pessoas" | "taxa_servico" | "desconto" | "couvert" | "cliente_nome" | "telefone" | "status" | "garcom">>) {
       if (real) {
         const r = await supabase!.from("tabs").update(p).eq("id", id);
         await carregar();
@@ -230,7 +231,7 @@ export function useSalao() {
 }
 
 // ---------- página do cliente na mesa (QR code) ----------
-export type MesaPublica = { mesa: number; area: string; aberta: boolean; status: StatusComanda | null; taxa_servico: number; itens: { nome: string; qtd: number; unit: number; status: StatusItem }[] };
+export type MesaPublica = { mesa: number; area: string; aberta: boolean; status: StatusComanda | null; taxa_servico: number; couvert?: number; pessoas?: number; itens: { nome: string; qtd: number; unit: number; status: StatusItem }[] };
 
 export function useMesaPublica(numero: number) {
   const demoEstado = useSyncExternalStore(subDemo, () => demo);

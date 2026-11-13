@@ -174,9 +174,9 @@ export function useCaixa() {
       setDemo((s) => ({ ...s, sessao: null, historico: [{ ...sessao, status: "fechado", fechado_em, dinheiro_contado: contado, resumo: final, observacao: obs }, ...s.historico] }));
       return { resumo: final };
     },
-    async vender(itens: ItemVenda[], pagamentos: Pagamento[], telefone: string, nome: string, desconto: number): Promise<{ erro?: string; numero?: number; total?: number; troco?: number }> {
+    async vender(itens: ItemVenda[], pagamentos: Pagamento[], telefone: string, nome: string, desconto: number, servico = 0, couvert = 0): Promise<{ erro?: string; numero?: number; total?: number; troco?: number }> {
       if (real) {
-        const r = await supabase!.rpc("venda_balcao", { p_store: d.loja.id, p_itens: itens.map((i) => ({ produto: i.produto, qtd: i.qtd, obs: i.obs ?? null })), p_pagamentos: pagamentos, p_telefone: telefone || null, p_nome: nome || null, p_desconto: desconto || 0 });
+        const r = await supabase!.rpc("venda_balcao", { p_store: d.loja.id, p_itens: itens.map((i) => ({ produto: i.produto, qtd: i.qtd, obs: i.obs ?? null })), p_pagamentos: pagamentos, p_telefone: telefone || null, p_nome: nome || null, p_desconto: desconto || 0, p_servico: servico || 0, p_couvert: couvert || 0 });
         await carregar();
         if (r.error) return { erro: msg(r.error)! };
         const x = r.data as { numero: number; total: number; troco: number };
@@ -184,7 +184,7 @@ export function useCaixa() {
       }
       if (!demo.sessao) return { erro: "Abra o caixa antes de vender" };
       const sub = itens.reduce((a, i) => a + i.preco * i.qtd, 0);
-      const total = Math.max(0, Math.round((sub - (desconto || 0)) * 100) / 100);
+      const total = Math.max(0, Math.round((sub + Math.round(sub * servico) / 100 + couvert - (desconto || 0)) * 100) / 100);
       const pago = pagamentos.reduce((a, p) => a + p.valor, 0);
       if (pago + 0.009 < total) return { erro: `Falta receber ${(total - pago).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}` };
       const troco = Math.round((pago - total) * 100) / 100;

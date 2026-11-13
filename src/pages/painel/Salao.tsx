@@ -6,6 +6,7 @@ import { SLUG, useDados } from "../../data/dados";
 import { totais, useSalao, type Comanda, type ItemComanda, type Mesa, type NovoItem, type Pagamento, type StatusItem } from "../../data/salao";
 import { Foto } from "../../components/Foto";
 import { useToast } from "../../components/ui";
+import { Couvert } from "../../components/Couvert";
 import { setMesaQR } from "../publico/Mesa";
 
 const minutos = (iso: string) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -136,7 +137,7 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
   const [erro, setErro] = useState("");
   const [transf, setTransf] = useState(false);
   const itens = comanda ? s.itens.filter((i) => i.tab_id === comanda.id) : [];
-  const t = comanda ? totais(comanda, s.itens) : { sub: 0, servico: 0, total: 0 };
+  const t = comanda ? totais(comanda, s.itens) : { sub: 0, servico: 0, couvert: 0, total: 0 };
   const pago = pags.reduce((x, p) => x + (Number(p.valor) || 0), 0);
   const falta = Math.max(0, Math.round((t.total - pago) * 100) / 100);
   const fregues = useMemo(() => {
@@ -150,6 +151,10 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
   useEffect(() => {
     if (aba === "pagar" && pags.length === 0 && t.total > 0) setPags([{ forma: "pix", valor: Math.round(t.total * 100) / 100 }]);
   }, [aba]);
+  // com uma forma só, o valor acompanha o total (serviço, couvert e desconto mudam o total)
+  useEffect(() => {
+    setPags((ps) => (ps.length === 1 ? [{ ...ps[0], valor: Math.round(t.total * 100) / 100 }] : ps));
+  }, [t.total]);
 
   if (!comanda)
     return (
@@ -312,6 +317,7 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
               <input type="number" min={0} step="0.5" value={comanda.desconto || ""} onChange={(e) => s.acoes.setComanda(comanda.id, { desconto: Number(e.target.value) || 0 })} className="tabular w-20 rounded-lg border border-linha bg-carvao px-2 py-1 text-papel" />
             </label>
           </div>
+          <Couvert valor={comanda.couvert ?? 0} pessoas={comanda.pessoas} mudar={(v) => s.acoes.setComanda(comanda.id, { couvert: v })} mudarPessoas={(n) => s.acoes.setComanda(comanda.id, { pessoas: n })} />
           <div className="flex flex-wrap gap-2">
             <span className="w-full text-[13px] text-areia">Dividir igual por:</span>
             {[2, 3, 4, 5, 6].map((n) => (
@@ -388,6 +394,14 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
           <span className="text-areia">Serviço {comanda.taxa_servico}%</span>
           <span className="tabular">{brl(t.servico)}</span>
         </p>
+        {t.couvert > 0 && (
+          <p className="flex justify-between">
+            <span className="text-areia">
+              Couvert {comanda.pessoas} × {brl(comanda.couvert ?? 0)}
+            </span>
+            <span className="tabular">{brl(t.couvert)}</span>
+          </p>
+        )}
         {comanda.desconto > 0 && (
           <p className="flex justify-between">
             <span className="text-areia">Desconto</span>
