@@ -621,6 +621,7 @@ export function Loja() {
                     ) : (
                       <>
                         <b>{entrega.bairro ? `Ainda não entregamos em ${entrega.bairro}` : "Esse ponto está fora do mapa"}</b>. Você pode retirar no balcão ou mudar o pino.
+                        <AvisarBairro key={entrega.bairro ?? "fora"} ponto={ponto} nome={nome} telInicial={tel} bairro={entrega.bairro} />
                       </>
                     )}
                   </div>
@@ -835,3 +836,46 @@ export function Loja() {
 }
 
 export type { Feature };
+
+/** Fora da área: o cliente deixa o WhatsApp e a loja avisa quando começar a entregar ali. */
+function AvisarBairro({ ponto, nome, telInicial, bairro }: { ponto: [number, number]; nome: string; telInicial: string; bairro: string | null }) {
+  const d = useDados();
+  const [tel, setTel] = useState(telInicial);
+  const [feito, setFeito] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [indo, setIndo] = useState(false);
+  if (feito) return <p className="mt-2 rounded-xl bg-white/70 px-3 py-2 font-semibold text-[#1e6b42]">✓ {feito}</p>;
+  return (
+    <form
+      className="mt-2 rounded-xl bg-white/70 p-3 text-[#3a2a20]"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setIndo(true);
+        const r = await d.acoes.interesseFora(ponto, tel, nome);
+        setIndo(false);
+        if (r) setErro(r);
+        else setFeito(`Combinado! Avisamos no seu WhatsApp quando começarmos a entregar${bairro ? ` em ${bairro}` : " aí"}.`);
+      }}
+    >
+      <p className="text-[13px] font-semibold">Quer ser avisado quando começarmos a entregar{bairro ? ` em ${bairro}` : " aí"}?</p>
+      <div className="mt-2 flex gap-2">
+        <input
+          value={tel}
+          onChange={(e) => {
+            setTel(e.target.value);
+            setErro(null);
+          }}
+          inputMode="tel"
+          autoComplete="tel"
+          placeholder="Seu WhatsApp com DDD"
+          aria-label="Seu WhatsApp para aviso"
+          className="min-w-0 flex-1 rounded-lg border border-[#eadccb] bg-white px-3 py-2 text-[15px]"
+        />
+        <button disabled={indo} className="shrink-0 rounded-lg bg-[#1f1712] px-3 py-2 text-[13px] font-semibold text-white disabled:opacity-60">
+          {indo ? "…" : "Me avise"}
+        </button>
+      </div>
+      {erro && <p className="mt-1 text-[12px] text-[#9b2c1f]">{erro}</p>}
+    </form>
+  );
+}

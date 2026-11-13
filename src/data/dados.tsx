@@ -42,6 +42,9 @@ export type NovoPedido = {
   usar_cashback: boolean;
   avisar_quando_atender?: boolean;
 };
+export type ZonaCampos = Partial<{ nome: string; cor: string; taxa: number; tempoMin: number; tempoMax: number; minimo: number; gratisAcima: number | null }>;
+export type Lead = { id: string; telefone: string; nome: string | null; quando: string; avisadoEm: string | null };
+
 export type ProdutoEdit = {
   id?: string;
   categoria: string;
@@ -99,6 +102,13 @@ type Dados = {
     moverBairro: (bairroId: string, destino: string | null) => Promise<void>;
     atenderMunicipio: (cod: string, destino: string | null) => Promise<void>;
     editarZona: (id: string, campo: "taxa" | "minimo" | "t1", valor: number) => Promise<void>;
+    salvarZona: (id: string, campos: ZonaCampos) => Promise<string | null>;
+    criarZona: (nome: string, cor: string) => Promise<string | null>;
+    excluirZona: (id: string) => Promise<string | null>;
+    /** Loja: cliente fora da área deixa o WhatsApp para ser avisado. */
+    interesseFora: (coord: [number, number], telefone: string, nome: string) => Promise<string | null>;
+    leadsBairro: (bairroId: string) => Promise<Lead[]>;
+    marcarAvisados: (ids: string[]) => Promise<void>;
     toggleEsgotado: (id: string) => Promise<void>;
     /** Cria ou edita um produto (com complementos). Devolve a mensagem de erro, ou null. */
     salvarProduto: (p: ProdutoEdit, opcoes?: { semRecarregar?: boolean }) => Promise<string | null>;
@@ -371,6 +381,87 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         const col = campo === "taxa" ? { taxa: valor } : campo === "minimo" ? { pedido_minimo: valor } : { tempo_max: valor };
         await supabase.from("delivery_zones").update(col).eq("id", id);
       },
+      async salvarZona(id, c) {
+        if (c.nome !== undefined && !c.nome.trim()) return "Dê um nome à zona";
+        if (c.tempoMin !== undefined && c.tempoMax !== undefined && c.tempoMin > c.tempoMax) return "O tempo mínimo não pode passar do máximo";
+        setZonas((zs) =>
+          zs.map((z) =>
+            z.id !== id
+              ? z
+              : {
+                  ...z,
+                  ...(c.nome !== undefined ? { nome: c.nome.trim() } : {}),
+                  ...(c.cor !== undefined ? { cor: c.cor } : {}),
+                  ...(c.taxa !== undefined ? { taxa: c.taxa } : {}),
+                  ...(c.minimo !== undefined ? { minimo: c.minimo } : {}),
+                  ...(c.gratisAcima !== undefined ? { gratisAcima: c.gratisAcima ?? undefined } : {}),
+                  tempo: [c.tempoMin ?? z.tempo[0], c.tempoMax ?? z.tempo[1]] as [number, number],
+                },
+          ),
+        );
+        if (!supabase) return null;
+        const col: Record<string, unknown> = {};
+        if (c.nome !== undefined) col.nome = c.nome.trim();
+        if (c.cor !== undefined) col.cor = c.cor;
+        if (c.taxa !== undefined) col.taxa = c.taxa;
+        if (c.minimo !== undefined) col.pedido_minimo = c.minimo;
+        if (c.tempoMin !== undefined) col.tempo_min = c.tempoMin;
+        if (c.tempoMax !== undefined) col.tempo_max = c.tempoMax;
+        if (c.gratisAcima !== undefined) col.gratis_acima = c.gratisAcima;
+        const { error } = await supabase.from("delivery_zones").update(col).eq("id", id);
+        return error ? error.message : null;
+      },
+      async criarZona(nome, cor) {
+        const n = nome.trim();
+        if (!n) return "Dê um nome à zona";
+        if (zonas.some((z) => z.nome.toLowerCase() === n.toLowerCase())) return "Já existe uma zona com esse nome";
+        if (!supabase) {
+          setZonas((zs) => [...zs, { id: "z" + Date.now(), nome: n, cor, taxa: 0, tempo: [30, 45], minimo: 0, bairros: [], municipios: [] }]);
+          return null;
+        }
+        if (!loja.id) return "Loja não carregada";
+        const { error } = await supabase.from("delivery_zones").insert({ store_id: loja.id, nome: n, cor, taxa: 0, tempo_min: 30, tempo_max: 45, pedido_minimo: 0, ordem: zonas.length });
+        if (error) return error.message;
+        await recarregar();
+        return null;
+      },
+      async excluirZona(id) {
+        setZonas((zs) => zs.filter((z) => z.id !== id));
+        if (!supabase) return null;
+        const { error } = await supabase.from("delivery_zones").delete().eq("id", id);
+        if (error) {
+          await recarregar();
+          return error.message;
+        }
+        return null;
+      },
+      async interesseFora(coord, telefone, nome) {
+        const tel = telefone.replace(/\D/g, "");
+        if (tel.length < 10 || tel.length > 11) return "Informe seu WhatsApp com DDD";
+        if (!supabase) return null;
+        const { error } = await supabase.rpc("interesse_fora", { p_slug: SLUG, p_lon: coord[0], p_lat: coord[1], p_telefone: tel, p_nome: nome });
+        return error ? error.message : null;
+      },
+      async leadsBairro(bairroId) {
+        if (!supabase || !loja.id) {
+          const n = demanda[bairroId] ?? 0;
+          return Array.from({ length: Math.min(n, 6) }, (_, i) => ({
+            id: `demo-${bairroId}-${i}`,
+            telefone: `2198${String(7000000 + i * 13579).slice(0, 7)}`,
+            nome: ["Ana", "Bruno", null, "Carla", "Diego", null][i] ?? null,
+            quando: new Date(Date.now() - (i + 1) * 86400000 * 3).toISOString(),
+            avisadoEm: null,
+          }));
+        }
+        const { data } = await supabase.rpc("leads_bairro", { p_store: loja.id, p_bairro: bairroId });
+        return ((data as { id: string; telefone: string; nome: string | null; quando: string; avisado_em: string | null }[]) ?? [])
+          .map((l) => ({ id: l.id, telefone: l.telefone, nome: l.nome, quando: l.quando, avisadoEm: l.avisado_em }))
+          .sort((a, b) => (a.avisadoEm ? 1 : 0) - (b.avisadoEm ? 1 : 0) || b.quando.localeCompare(a.quando));
+      },
+      async marcarAvisados(ids) {
+        if (!supabase || !loja.id || !ids.length) return;
+        await supabase.rpc("lead_avisado", { p_store: loja.id, p_ids: ids });
+      },
       async toggleEsgotado(id) {
         let novo = false;
         setCardapio((l) =>
@@ -555,7 +646,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       },
       recarregar,
     }),
-    [loja.id, zonas, cardapio, categorias, pedidos, recarregar],
+    [loja.id, zonas, cardapio, categorias, pedidos, demanda, recarregar],
   );
 
   const valor: Dados = { modo: MODO, carregando, erro, sessao, loja, zonas, cardapio, categorias, fregueses, pedidos, pulso, semana, demanda, acoes };
