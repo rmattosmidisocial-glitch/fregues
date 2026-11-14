@@ -451,6 +451,21 @@ export function Loja() {
   const codigoDoPix = pixOnline?.copia_cola || (usaOnline && !pixOnline ? "" : codigoEstatico);
   const aguardandoPix = usaOnline && !pixOnline;
 
+  if (d.modo === "real" && d.erro === "FORA_DO_AR")
+    return (
+      <div className="grid min-h-screen place-items-center bg-[#fffaf2] p-6 text-center text-carvao">
+        <div className="max-w-[360px]">
+          <Store className="mx-auto h-10 w-10 text-[#c2410c]" />
+          <h1 className="mt-3 font-display text-[26px] font-extrabold">Loja fora do ar</h1>
+          <p className="mt-2 text-[#5a4c41]">Esta loja não está recebendo pedidos pelo site agora, ou o endereço está errado. Confira o link com o restaurante.</p>
+          {d.sessao && (
+            <a href="#painel" className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-carvao px-5 py-3 font-semibold text-papel">
+              <ArrowLeft className="h-4 w-4" /> Voltar ao painel
+            </a>
+          )}
+        </div>
+      </div>
+    );
   if (d.modo === "real" && d.carregando) return <div className="grid min-h-screen place-items-center bg-[#fffaf2] text-[#5a4c41]">Abrindo o cardápio…</div>;
 
   return (

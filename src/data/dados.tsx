@@ -288,7 +288,9 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) return;
     const { data: s, error } = await supabase.from("stores").select("id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem,cashback_ativo,cashback_percentual,cashback_minimo_uso,cashback_validade_dias,servico_padrao,couvert_padrao,org_id,relatorios_ativo,pagamento_online,pagamento_online_ok,whatsapp_ativo,whatsapp_ok,whatsapp_eventos,nfce_ativo,nfce_ok,nfce_automatica,nfce_cnpj,nfce_producao,nfce_ncm").eq("slug", SLUG).single();
     if (error || !s) {
-      setErro("Não foi possível abrir a loja agora.");
+      // sem linha = endereço errado ou loja fora do ar (só a equipe vê loja fora do ar)
+      setErro(error && error.code !== "PGRST116" ? "Não foi possível abrir a loja agora. Tente de novo em instantes." : "FORA_DO_AR");
+      setCarregando(false);
       return;
     }
     const coord: [number, number] = s.lon != null && s.lat != null ? [Number(s.lon), Number(s.lat)] : M.LOJA.coord;

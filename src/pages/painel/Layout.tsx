@@ -221,7 +221,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
               </a>
             </p>
           )}
-          {d.erro && <p className="mb-4 rounded-2xl bg-[#fbe4e0] p-4 text-[#8e2f2a]">{d.erro}</p>}
+          {d.erro && <p className="mb-4 rounded-2xl bg-[#fbe4e0] p-4 text-[#8e2f2a]">{d.erro === "FORA_DO_AR" ? "Loja não encontrada para este login." : d.erro}</p>}
           {chefe && (rota === "painel" || rota === "cardapio" || rota === "links" || (d.modo === "real" && d.loja.publicada === false)) && <LinkDaLoja />}
           {rota === "painel" && <Pulso abrirCopiloto={() => setCopiloto(true)} />}
           {rota === "pedidos" && <Pedidos />}
