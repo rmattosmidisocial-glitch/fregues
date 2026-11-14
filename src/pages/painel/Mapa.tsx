@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { geoContains, type GeoPermissibleObjects } from "d3-geo";
 import { ArrowLeft, Check, ChevronRight, Flame, Layers, MapPin, Plus, Search, Trash2, Users } from "lucide-react";
 import {
@@ -138,7 +138,7 @@ export function MapaAtuacao() {
         interactive: true,
         fill: (f, h) => {
           const z = zonaDoBairro(f.properties.id) ?? zonaPorRaio(f);
-          if (z) return z.cor;
+          if (z) return z.coresBairro?.[f.properties.id] ?? z.cor;
           if (demanda && DEMANDA[f.properties.id]) return h ? "#4a3820" : "#2e2416";
           return h ? "#33281f" : "#1c1512";
         },
@@ -152,7 +152,7 @@ export function MapaAtuacao() {
         interactive: true,
         fill: (f, h) => {
           const z = zonaDoBairro(f.properties.id) ?? zonaPorRaio(f);
-          if (z) return z.cor;
+          if (z) return z.coresBairro?.[f.properties.id] ?? z.cor;
           if (demanda && DEMANDA[f.properties.id]) return h ? "#5a4320" : "#3b2c17";
           return h ? "#3d2f27" : "#2a201a";
         },
@@ -777,6 +777,13 @@ function Simulador({ zonaDoBairro, zonaDoMun }: { zonaDoBairro: (id: string) => 
 function TaxaBairro({ bairroId, zona, avisar }: { bairroId: string; zona: Zona; avisar: (t: string) => void }) {
   const d = useDados();
   const atual = zona.taxasBairro?.[bairroId];
+  const [cor, setCor] = useState(zona.coresBairro?.[bairroId] ?? zona.cor);
+  const espera = useRef<ReturnType<typeof setTimeout>>();
+  const mudarCor = (c: string) => {
+    setCor(c);
+    clearTimeout(espera.current);
+    espera.current = setTimeout(() => d.acoes.corDoBairro(bairroId, c), 350);
+  };
   const [v, setV] = useState(atual != null ? dec(atual) : "");
   const [erro, setErro] = useState("");
   async function salvar() {
@@ -789,7 +796,7 @@ function TaxaBairro({ bairroId, zona, avisar }: { bairroId: string; zona: Zona; 
     avisar(t === null ? "Este bairro voltou a usar a taxa da zona" : `Taxa deste bairro: ${brl(t)}`);
   }
   return (
-    <label className="mt-3 block text-[13px] text-areia">
+    <div className="mt-3 block text-[13px] text-areia">
       Taxa de entrega deste bairro
       <div className="mt-1 flex items-center gap-2">
         <span className="text-papel">R$</span>
@@ -802,6 +809,23 @@ function TaxaBairro({ bairroId, zona, avisar }: { bairroId: string; zona: Zona; 
       </div>
       {erro && <span className="mt-1 block text-[#e8846f]">{erro}</span>}
       <span className="mt-1 block text-[12px]">Vazio = usa a taxa da zona ({brl(zona.taxa)}).</span>
-    </label>
+      <span className="mt-3 flex items-center gap-2">
+        Cor no mapa
+        <span className="relative h-7 w-7 overflow-hidden rounded-lg border border-linha" style={{ background: cor }}>
+          <input
+            type="color"
+            value={cor}
+            onChange={(e) => mudarCor(e.target.value)}
+            aria-label="Cor deste bairro no mapa"
+            className="absolute inset-0 cursor-pointer opacity-0"
+          />
+        </span>
+        {zona.coresBairro?.[bairroId] && (
+          <button type="button" onClick={() => (setCor(zona.cor), d.acoes.corDoBairro(bairroId, null).then(() => avisar("Este bairro voltou à cor da zona")))} className="text-[12px] underline">
+            usar a da zona
+          </button>
+        )}
+      </span>
+    </div>
   );
 }
