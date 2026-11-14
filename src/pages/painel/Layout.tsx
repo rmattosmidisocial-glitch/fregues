@@ -42,10 +42,24 @@ const ITENS: Item[] = [
   { rota: "config", rotulo: "Configurações", curto: "Ajustes", grupo: "Loja", icone: <Settings className="h-5 w-5" /> },
 ];
 
+// o que cada função da equipe enxerga no painel
+const POR_PAPEL: Record<string, Rota[]> = {
+  caixa: ["pedidos", "caixa", "salao", "atendimento"],
+  cozinha: ["pedidos"],
+  garcom: ["salao"],
+  entregador: ["pedidos"],
+};
+
 export function PainelLayout({ rota }: { rota: Rota }) {
   const [copiloto, setCopiloto] = useState(false);
   const [conta, setConta] = useState(false);
   const d = useDados();
+  const restrito = d.modo === "real" && d.papel ? POR_PAPEL[d.papel] : undefined;
+  const ITENS_VIS = restrito ? ITENS.filter((i) => restrito.includes(i.rota)) : ITENS;
+  const chefe = !restrito; // dono e gerente
+  useEffect(() => {
+    if (restrito && !restrito.includes(rota)) window.location.hash = "#" + restrito[0];
+  }, [restrito, rota]);
   const [suporte, setSuporte] = useState("21967640607");
   // aceite dos termos: null = ainda conferindo
   const [aceitou, setAceitou] = useState<boolean | null>(null);
@@ -128,10 +142,10 @@ export function PainelLayout({ rota }: { rota: Rota }) {
           </button>
         </div>
         <nav className="scroll-thin mt-5 min-h-0 flex-1 space-y-0.5 overflow-y-auto" aria-label="Painel">
-          {ITENS.map((i, k) => {
+          {ITENS_VIS.map((i, k) => {
             const ativo = rota === i.rota;
             const n = contador(i.rota);
-            const titulo = k === 0 || ITENS[k - 1].grupo !== i.grupo;
+            const titulo = k === 0 || ITENS_VIS[k - 1].grupo !== i.grupo;
             return (
               <div key={i.rota}>
               {titulo && <p className={`px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-fumo ${k ? "pt-4" : ""}`}>{i.grupo}</p>}
@@ -150,12 +164,14 @@ export function PainelLayout({ rota }: { rota: Rota }) {
           })}
         </nav>
         <div className="mt-3 space-y-1.5">
-          <button
-            onClick={() => setCopiloto(true)}
-            className="flex w-full items-center gap-3 rounded-xl bg-brasa px-3 py-3 text-[15px] font-semibold text-carvao transition hover:bg-mostarda"
-          >
-            <Sparkles className="h-5 w-5" /> Copiloto Chef
-          </button>
+          {chefe && (
+            <button
+              onClick={() => setCopiloto(true)}
+              className="flex w-full items-center gap-3 rounded-xl bg-brasa px-3 py-3 text-[15px] font-semibold text-carvao transition hover:bg-mostarda"
+            >
+              <Sparkles className="h-5 w-5" /> Copiloto Chef
+            </button>
+          )}
           <a href="#loja" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] text-areia hover:text-papel">
             <ExternalLink className="h-4 w-4" /> Ver a loja do cliente
           </a>
@@ -183,13 +199,15 @@ export function PainelLayout({ rota }: { rota: Rota }) {
               <UserRound className="h-4 w-4" />
             </button>
           )}
-          <button onClick={() => setCopiloto(true)} className="flex items-center gap-2 rounded-full bg-brasa px-3 py-2 text-[14px] font-semibold text-carvao">
-            <Sparkles className="h-4 w-4" /> Copiloto
-          </button>
+          {chefe && (
+            <button onClick={() => setCopiloto(true)} className="flex items-center gap-2 rounded-full bg-brasa px-3 py-2 text-[14px] font-semibold text-carvao">
+              <Sparkles className="h-4 w-4" /> Copiloto
+            </button>
+          )}
           </span>
         </header>
         <main className="mx-auto max-w-[1280px] px-4 py-6 md:px-8 md:py-8">
-          {assin && assin.status !== "ativa" && (
+          {chefe && assin && assin.status !== "ativa" && (
             <p className={`mb-4 rounded-2xl p-4 text-[15px] ${assin.status === "teste" ? "bg-[#dff1ee] text-[#1f5f59]" : "bg-[#fcefd9] text-[#7a4600]"}`}>
               {assin.status === "teste" && `Você está no período de teste do plano ${assin.plano_nome} até ${assin.teste_ate ? new Date(assin.teste_ate + "T12:00:00").toLocaleDateString("pt-BR") : "breve"}.`}
               {assin.status === "atrasada" && `Sua mensalidade do Freguês está em atraso. Regularize para a loja não sair do ar.`}
@@ -201,7 +219,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
             </p>
           )}
           {d.erro && <p className="mb-4 rounded-2xl bg-[#fbe4e0] p-4 text-[#8e2f2a]">{d.erro}</p>}
-          {(rota === "painel" || rota === "cardapio" || rota === "links" || (d.modo === "real" && d.loja.publicada === false)) && <LinkDaLoja />}
+          {chefe && (rota === "painel" || rota === "cardapio" || rota === "links" || (d.modo === "real" && d.loja.publicada === false)) && <LinkDaLoja />}
           {rota === "painel" && <Pulso abrirCopiloto={() => setCopiloto(true)} />}
           {rota === "pedidos" && <Pedidos />}
           {rota === "mapa" && <MapaAtuacao />}
@@ -218,7 +236,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
       </div>
 
       <nav className="scroll-thin fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-linha bg-forno md:hidden" aria-label="Painel">
-        {ITENS.map((i) => (
+        {ITENS_VIS.map((i) => (
           <a
             key={i.rota}
             href={`#${i.rota}`}

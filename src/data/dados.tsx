@@ -27,7 +27,7 @@ export const supabase: SupabaseClient | null = URL && KEY ? createClient(URL, KE
 export const supabaseAdmin: SupabaseClient | null = URL && KEY ? createClient(URL, KEY, { auth: { storageKey: "fregues-admin-auth" } }) : null;
 export const MODO: "real" | "demo" = supabase ? "real" : "demo";
 
-export type Loja = typeof M.LOJA & { id?: string; publicada?: boolean; demonstracao?: boolean; pix_chave?: string | null; pix_nome?: string | null; pix_cidade?: string | null; descricao?: string | null; whatsapp?: string | null; instagram?: string | null; logo_url?: string | null; capa_url?: string | null; rua?: string | null; numero?: string | null; cep?: string | null; lon?: number | null; lat?: number | null; ligada?: boolean; horarios?: Horarios | null; pausa_ate?: string | null; extra_min?: number; extra_ate?: string | null; aceita_pix?: boolean; aceita_cartao?: boolean; aceita_dinheiro?: boolean; entrega_ativa?: boolean; retirada_ativa?: boolean; pedido_minimo_geral?: number; taxa_embalagem?: number; cashback_ativo?: boolean; cashback_percentual?: number; cashback_minimo_uso?: number; cashback_validade_dias?: number | null };
+export type Loja = typeof M.LOJA & { id?: string; publicada?: boolean; demonstracao?: boolean; pix_chave?: string | null; pix_nome?: string | null; pix_cidade?: string | null; descricao?: string | null; whatsapp?: string | null; instagram?: string | null; logo_url?: string | null; capa_url?: string | null; rua?: string | null; numero?: string | null; cep?: string | null; lon?: number | null; lat?: number | null; ligada?: boolean; horarios?: Horarios | null; pausa_ate?: string | null; extra_min?: number; extra_ate?: string | null; aceita_pix?: boolean; aceita_cartao?: boolean; aceita_dinheiro?: boolean; entrega_ativa?: boolean; retirada_ativa?: boolean; pedido_minimo_geral?: number; taxa_embalagem?: number; cashback_ativo?: boolean; cashback_percentual?: number; cashback_minimo_uso?: number; cashback_validade_dias?: number | null; servico_padrao?: number; couvert_padrao?: number; org_id?: string };
 export type Pulso = { risco: number; recuperado: number; voltaram: number; ritmo: number; atrasado: number; sumindo: number; total: number; comissao: number };
 export type DiaSemana = { dia: string; propria: number; marketplace: number };
 export type Entrega = {
@@ -54,6 +54,7 @@ export type NovoPedido = {
   cupom?: string;
 };
 export type Cupom = { id: string; codigo: string; tipo: "percentual" | "valor" | "entrega"; valor: number; minimo: number; validade: string | null; limite_total: number | null; uma_por_cliente: boolean; primeiro_pedido: boolean; ativo: boolean; usos?: number; desconto?: number; vendas?: number };
+export type Papel = "dono" | "gerente" | "caixa" | "cozinha" | "garcom" | "entregador" | null;
 export type NovoFregues = { nome: string; telefone: string; aniversario?: string; tags?: string[]; obs?: string; aceitaMarketing?: boolean };
 export type ZonaCampos = Partial<{ nome: string; cor: string; taxa: number; tempoMin: number; tempoMax: number; minimo: number; gratisAcima: number | null; raioKm: number | null }>;
 export type Lead = { id: string; telefone: string; nome: string | null; quando: string; avisadoEm: string | null };
@@ -102,6 +103,7 @@ type Dados = {
   sessao: Session | null;
   /** Entrou com um login que não é desta loja (por exemplo, o do administrador). */
   semAcesso: boolean;
+  papel: Papel;
   loja: Loja;
   zonas: Zona[];
   cardapio: Produto[];
@@ -115,7 +117,7 @@ type Dados = {
     entrar: (email: string, senha: string) => Promise<string | null>;
     sair: () => Promise<void>;
     /** Grava campos da loja (configurações do dono). */
-    salvarLoja: (c: Partial<Pick<Loja, "nome" | "pix_chave" | "pix_nome" | "pix_cidade" | "descricao" | "whatsapp" | "instagram" | "logo_url" | "capa_url" | "cidade" | "bairro" | "rua" | "numero" | "cep" | "lon" | "lat" | "horarios" | "pausa_ate" | "extra_min" | "extra_ate" | "aceita_pix" | "aceita_cartao" | "aceita_dinheiro" | "entrega_ativa" | "retirada_ativa" | "pedido_minimo_geral" | "taxa_embalagem" | "cashback_ativo" | "cashback_percentual" | "cashback_minimo_uso" | "cashback_validade_dias">>) => Promise<string | null>;
+    salvarLoja: (c: Partial<Pick<Loja, "nome" | "pix_chave" | "pix_nome" | "pix_cidade" | "descricao" | "whatsapp" | "instagram" | "logo_url" | "capa_url" | "cidade" | "bairro" | "rua" | "numero" | "cep" | "lon" | "lat" | "horarios" | "pausa_ate" | "extra_min" | "extra_ate" | "aceita_pix" | "aceita_cartao" | "aceita_dinheiro" | "entrega_ativa" | "retirada_ativa" | "pedido_minimo_geral" | "taxa_embalagem" | "cashback_ativo" | "cashback_percentual" | "cashback_minimo_uso" | "cashback_validade_dias" | "servico_padrao" | "couvert_padrao">>) => Promise<string | null>;
     /** Coloca a loja no ar (ou tira). Devolve o erro, ou null. */
     publicarLoja: (noAr: boolean) => Promise<string | null>;
     /** Minha conta: troca a senha (e tira o aviso de senha provisória). */
@@ -194,6 +196,8 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   const [carregando, setCarregando] = useState(MODO === "real");
   const [erro, setErro] = useState<string | null>(null);
   const [semAcesso, setSemAcesso] = useState(false);
+  // função de quem entrou: dono, gerente, caixa, cozinha, garcom ou entregador
+  const [papel, setPapel] = useState<Papel>(MODO === "demo" ? "dono" : null);
   const [loja, setLoja] = useState<Loja>(REAL ? LOJA_VAZIA : M.LOJA);
   const [zonas, setZonas] = useState<Zona[]>(() => (REAL ? [] : M.ZONAS).map((z) => ({ ...z, bairros: [...z.bairros] })));
   const [cardapio, setCardapio] = useState<Produto[]>(REAL ? [] : M.CARDAPIO);
@@ -207,7 +211,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   // ---------- leitura pública: loja, zonas, cardápio ----------
   const carregarPublico = useCallback(async () => {
     if (!supabase) return;
-    const { data: s, error } = await supabase.from("stores").select("id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem,cashback_ativo,cashback_percentual,cashback_minimo_uso,cashback_validade_dias").eq("slug", SLUG).single();
+    const { data: s, error } = await supabase.from("stores").select("id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem,cashback_ativo,cashback_percentual,cashback_minimo_uso,cashback_validade_dias,servico_padrao,couvert_padrao,org_id").eq("slug", SLUG).single();
     if (error || !s) {
       setErro("Não foi possível abrir a loja agora.");
       return;
@@ -380,6 +384,8 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       const { data: atual } = await supabase.from("stores").select("org_id").eq("slug", SLUG).maybeSingle();
       if (atual && orgs.includes(atual.org_id as string)) {
         setSemAcesso(false);
+        const { data: pp } = await supabase.rpc("meu_papel", { p_org: atual.org_id });
+        setPapel((pp as Papel) ?? null);
         return;
       }
       // tem loja, mas o endereço é de outra: vai para a dele
@@ -836,7 +842,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       },
       async setAberta(v) {
         setLoja((l) => ({ ...l, aberto: v, ligada: v }));
-        if (supabase && loja.id) await supabase.from("stores").update({ aberta: v }).eq("id", loja.id);
+        if (supabase && loja.id) await supabase.rpc("loja_ligar", { p_store: loja.id, p_ligada: v });
       },
       async resolverEntrega(coord, bairroLocalId) {
         if (supabase && loja.id) {
@@ -946,6 +952,6 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     return { ...loja, aberto, horario, extra_min: extra };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loja, minuto]);
-  const valor: Dados = { modo: MODO, carregando, erro, sessao, semAcesso, loja: lojaAgora, zonas, cardapio, categorias, fregueses, pedidos, pulso, semana, demanda, acoes };
+  const valor: Dados = { modo: MODO, carregando, erro, sessao, semAcesso, papel, loja: lojaAgora, zonas, cardapio, categorias, fregueses, pedidos, pulso, semana, demanda, acoes };
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
 }

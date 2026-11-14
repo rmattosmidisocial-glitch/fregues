@@ -9,6 +9,7 @@ import { DadosProvider } from "./data/dados";
 import { Bio } from "./pages/publico/Bio";
 import { Pesquisa } from "./pages/publico/Pesquisa";
 import { Privacidade, Termos } from "./pages/publico/Legal";
+import { Redefinir } from "./pages/painel/Login";
 import { Admin } from "./pages/admin/Admin";
 import { Mesa } from "./pages/publico/Mesa";
 
@@ -42,6 +43,7 @@ function App() {
   if (rota === "admin") return <Admin />;
   if (rota === "mesa") return <Mesa />;
   if (rota === "termos") return <Termos />;
+  if (rota === "redefinir") return <Redefinir />;
   if (rota === "privacidade") return <Privacidade />;
   return <PainelLayout rota={rota} />;
 }

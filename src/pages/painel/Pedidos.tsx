@@ -5,6 +5,7 @@ import { SLUG, supabase, useDados } from "../../data/dados";
 import { useToast } from "../../components/ui";
 import { enderecoTxt, imprimirComanda, NOME_FORMA } from "../../components/comanda";
 import { ImpressoraModal } from "./Impressora";
+import { avisar } from "../../lib/avisos";
 
 const COLUNAS: { id: StatusPedido; rotulo: string; acao?: string; prox?: StatusPedido }[] = [
   { id: "novo", rotulo: "Novos", acao: "Aceitar", prox: "preparo" },
@@ -374,6 +375,7 @@ export function Pedidos() {
     if (!chegaram.length) return;
     if (som) apito();
     if (auto) chegaram.forEach((p) => imprimirComanda(p, d.loja.nome));
+    avisar(chegaram.length === 1 ? `Pedido novo #${chegaram[0].num}` : `${chegaram.length} pedidos novos`, chegaram.map((p) => `${p.cliente} · ${brl(p.total)}`).join("\n"));
     show(chegaram.length === 1 ? `Pedido novo: #${chegaram[0].num} de ${chegaram[0].cliente}` : `${chegaram.length} pedidos novos`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lista]);

@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { CheckCircle2, Clock, Gift, ImagePlus, MapPin, ShoppingBag, Store, Trash2, Wallet } from "lucide-react";
+import { Armchair, Bell, CheckCircle2, Clock, CreditCard, Download, Gift, ImagePlus, MapPin, ShoppingBag, Store, Trash2, Users, Wallet } from "lucide-react";
+import { avisar, avisosLigados, avisosSuportados, instalarApp, jaInstalado, pedirAvisos, podeInstalar, quandoPuderInstalar } from "../../lib/avisos";
+import { supabase } from "../../data/dados";
 import { useEffect } from "react";
 import type { Cupom } from "../../data/dados";
 import { DIAS, linhaDoDia, type Faixa, type Horarios } from "../../lib/horario";
@@ -25,6 +27,11 @@ export function Configuracoes() {
         <Regras key={"reg" + d.loja.id} />
         <Pagamentos key={d.loja.id} />
         <Fidelidade key={"fid" + d.loja.id} />
+        <SalaoPadroes key={"sal" + d.loja.id} />
+        <Avisos />
+        {(d.papel === "dono" || d.modo === "demo") && <Equipe key={"eq" + d.loja.id} />}
+        {(d.papel === "dono" || d.modo === "demo") && <Assinatura />}
+        {(d.papel === "dono" || d.modo === "demo") && <SeusDados />}
       </div>
     </div>
   );
@@ -615,5 +622,377 @@ function Cupons() {
         ))}
       </ul>
     </div>
+  );
+}
+
+// ---------- 13. Salão ----------
+function SalaoPadroes() {
+  const d = useDados();
+  const [serv, setServ] = useState(String(d.loja.servico_padrao ?? 10).replace(".", ","));
+  const [couv, setCouv] = useState(d.loja.couvert_padrao ? String(d.loja.couvert_padrao).replace(".", ",") : "");
+  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+  async function salvar() {
+    const sv = num(serv), cv = num(couv);
+    if (!Number.isFinite(sv) || sv < 0 || sv > 30) return setMsg({ ok: false, t: "A taxa de serviço vai de 0% a 30%." });
+    if (!Number.isFinite(cv) || cv < 0) return setMsg({ ok: false, t: "Couvert inválido." });
+    const r = await d.acoes.salvarLoja({ servico_padrao: sv, couvert_padrao: cv });
+    setMsg(r ? { ok: false, t: r } : { ok: true, t: "Salvo. Vale para as próximas mesas abertas." });
+  }
+  return (
+    <Secao icone={<Armchair className="h-5 w-5 text-brasa" />} titulo="Salão" sub="Valores que já vêm em cada mesa aberta. O garçom ainda pode mudar numa mesa específica.">
+      <div className="grid gap-3 text-[14px] sm:grid-cols-2">
+        <label className="block font-semibold">
+          Taxa de serviço (%)
+          <input value={serv} onChange={(e) => (setServ(e.target.value), setMsg(null))} inputMode="decimal" className={campo} />
+          <span className="mt-1 block text-[12px] font-normal text-areia">0 = sem taxa. O comum é 10%.</span>
+        </label>
+        <label className="block font-semibold">
+          Couvert por pessoa (R$)
+          <input value={couv} onChange={(e) => (setCouv(e.target.value), setMsg(null))} inputMode="decimal" placeholder="sem couvert" className={campo} />
+          <span className="mt-1 block text-[12px] font-normal text-areia">Música ao vivo, pão de entrada etc.</span>
+        </label>
+      </div>
+      {msg && <p className={`mt-3 text-[14px] ${msg.ok ? "text-manjericao" : "text-[#e8846f]"}`}>{msg.t}</p>}
+      <button onClick={salvar} className="mt-3 w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda">
+        Salvar salão
+      </button>
+    </Secao>
+  );
+}
+
+// ---------- 16. App e avisos ----------
+function Avisos() {
+  const [, forcar] = useState(0);
+  useEffect(() => quandoPuderInstalar(() => forcar((x) => x + 1)), []);
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const [estado, setEstado] = useState(avisosLigados() ? "ligado" : avisosSuportados() && Notification.permission === "denied" ? "bloqueado" : "");
+  return (
+    <Secao icone={<Bell className="h-5 w-5 text-brasa" />} titulo="App e avisos de pedido" sub="Instale o painel como app no celular ou no computador e receba um aviso a cada pedido novo.">
+      <div className="space-y-3 text-[14px]">
+        <div className="rounded-2xl border border-linha p-3">
+          <p className="font-semibold">Instalar como app</p>
+          {jaInstalado() ? (
+            <p className="mt-1 text-manjericao">Já está instalado neste aparelho.</p>
+          ) : podeInstalar() ? (
+            <button onClick={() => instalarApp().then(() => forcar((x) => x + 1))} className="mt-2 rounded-full bg-brasa px-4 py-2 font-semibold text-carvao">
+              Instalar o Freguês
+            </button>
+          ) : ios ? (
+            <p className="mt-1 text-areia">No iPhone: abra no Safari, toque em Compartilhar (quadrado com seta) e depois em "Adicionar à Tela de Início".</p>
+          ) : (
+            <p className="mt-1 text-areia">No Chrome: menu (três pontinhos) → "Instalar app" ou "Adicionar à tela inicial".</p>
+          )}
+        </div>
+        <div className="rounded-2xl border border-linha p-3">
+          <p className="font-semibold">Aviso de pedido novo</p>
+          {estado === "ligado" ? (
+            <>
+              <p className="mt-1 text-manjericao">Ligado neste aparelho.</p>
+              <button onClick={() => avisar("Teste do Freguês", "Assim chega o aviso de pedido novo.")} className="mt-2 rounded-full border border-linha px-4 py-2 font-semibold">
+                Testar aviso
+              </button>
+            </>
+          ) : estado === "bloqueado" ? (
+            <p className="mt-1 text-[#e8846f]">O navegador bloqueou os avisos. Libere em: cadeado ao lado do endereço → Notificações → Permitir.</p>
+          ) : !avisosSuportados() ? (
+            <p className="mt-1 text-areia">Este navegador não mostra avisos. No iPhone, instale o app primeiro (acima) e abra por ele.</p>
+          ) : (
+            <button onClick={async () => setEstado((await pedirAvisos()) === "granted" ? "ligado" : "bloqueado")} className="mt-2 rounded-full bg-brasa px-4 py-2 font-semibold text-carvao">
+              Ligar avisos
+            </button>
+          )}
+          <p className="mt-2 text-[12px] text-areia">O aviso chega com o painel aberto (pode estar minimizado ou em outra aba). Deixe a tela de Pedidos aberta no computador do caixa.</p>
+        </div>
+      </div>
+    </Secao>
+  );
+}
+
+// ---------- 14. Equipe ----------
+const PAPEIS: { v: string; t: string; d: string }[] = [
+  { v: "gerente", t: "Gerente", d: "Vê e muda tudo, menos a equipe e a assinatura" },
+  { v: "caixa", t: "Caixa", d: "Pedidos, caixa, salão e conversas" },
+  { v: "cozinha", t: "Cozinha", d: "Só a tela de pedidos" },
+  { v: "garcom", t: "Garçom", d: "Só o salão e as mesas" },
+  { v: "entregador", t: "Entregador", d: "Só a tela de pedidos" },
+];
+type Membro = { user_id: string; email: string; papel: string; ultimo_login: string | null; provisoria: boolean };
+
+function Equipe() {
+  const d = useDados();
+  const [lista, setLista] = useState<Membro[] | null>(null);
+  const [novo, setNovo] = useState<{ email: string; papel: string; senha: string } | null>(null);
+  const [pronto, setPronto] = useState<{ email: string; senha: string; papel: string } | null>(null);
+  const [erro, setErro] = useState("");
+  const carregar = async () => {
+    if (!supabase || !d.loja.id) return setLista([]);
+    const { data } = await supabase.rpc("equipe_listar", { p_store: d.loja.id });
+    setLista((data as Membro[]) ?? []);
+  };
+  useEffect(() => {
+    carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const senhaNova = () => (d.loja.nome || "equipe").toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "").slice(0, 10) + String(1000 + Math.floor(Math.random() * 9000));
+  const nomePapel = (v: string) => (v === "dono" ? "Dono" : PAPEIS.find((p) => p.v === v)?.t ?? v);
+
+  async function criar() {
+    if (!novo || !supabase) return;
+    setErro("");
+    const { data } = await supabase.auth.getSession();
+    const r = await fetch("/api/conta/equipe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+      body: JSON.stringify({ org_id: d.loja.org_id, email: novo.email, papel: novo.papel, senha: novo.senha }),
+    }).catch(() => null);
+    const c = r ? await r.json().catch(() => ({})) : {};
+    if (!r || !r.ok) return setErro(c.erro || "Não consegui criar agora.");
+    setPronto(c.ja_existia ? { email: novo.email, senha: "", papel: novo.papel } : { ...novo });
+    setNovo(null);
+    carregar();
+  }
+  async function mudar(m: Membro, papel: string | null) {
+    if (!supabase) return;
+    if (papel === null && !confirm(`Tirar o acesso de ${m.email}?`)) return;
+    const { error } = await supabase.rpc("equipe_mudar", { p_store: d.loja.id, p_user: m.user_id, p_papel: papel });
+    if (error) setErro(error.message);
+    carregar();
+  }
+  const link = `${window.location.origin}/?r=${d.loja.slug}#pedidos`;
+  const msgZap = pronto ? `Seu acesso ao painel da ${d.loja.nome} (${nomePapel(pronto.papel)}):\n\n${link}\nE-mail: ${pronto.email}${pronto.senha ? `\nSenha provisória: ${pronto.senha}\n\nNo primeiro acesso, crie a sua senha.` : "\nUse a senha que você já tem."}` : "";
+
+  return (
+    <Secao icone={<Users className="h-5 w-5 text-brasa" />} titulo="Equipe" sub="Cada pessoa entra com o próprio e-mail e vê só a parte dela.">
+      <ul className="space-y-2 text-[14px]">
+        {lista === null && <li className="text-areia">Carregando…</li>}
+        {lista?.map((m) => (
+          <li key={m.user_id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-grafite px-3 py-2.5">
+            <span className="min-w-0">
+              <b className="block break-all">{m.email}</b>
+              <span className="text-[12px] text-areia">{m.ultimo_login ? `Último acesso ${new Date(m.ultimo_login).toLocaleDateString("pt-BR")}` : "Ainda não entrou"}</span>
+            </span>
+            {m.papel === "dono" ? (
+              <span className="rounded-full bg-papel px-3 py-1 text-[12px] font-bold text-carvao">Dono</span>
+            ) : (
+              <span className="flex items-center gap-1.5">
+                <select value={m.papel} onChange={(e) => mudar(m, e.target.value)} className="rounded-lg border border-linha bg-carvao px-2 py-1.5 text-[13px] text-papel">
+                  {PAPEIS.map((p) => (
+                    <option key={p.v} value={p.v}>
+                      {p.t}
+                    </option>
+                  ))}
+                </select>
+                <button onClick={() => mudar(m, null)} aria-label={`Tirar ${m.email}`} className="rounded-full p-1.5 text-areia hover:text-[#ff8b80]">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {pronto && (
+        <div className="mt-3 rounded-xl bg-carvao p-3 text-[14px]">
+          <p className="font-semibold text-manjericao">Acesso criado. Mande para a pessoa:</p>
+          <p className="mt-2 whitespace-pre-line break-words rounded-lg bg-grafite p-2.5">{msgZap}</p>
+          <div className="mt-2 flex gap-2">
+            <a href={`https://wa.me/?text=${encodeURIComponent(msgZap)}`} target="_blank" rel="noreferrer" className="flex-1 rounded-xl bg-[#25d366] py-2.5 text-center font-bold text-[#0b2e17]">
+              Enviar no WhatsApp
+            </a>
+            <button onClick={() => setPronto(null)} className="rounded-xl border border-linha px-4 font-semibold">
+              Ok
+            </button>
+          </div>
+        </div>
+      )}
+
+      {novo ? (
+        <div className="mt-3 space-y-3 rounded-xl border border-linha p-3 text-[14px]">
+          <label className="block font-semibold">
+            E-mail da pessoa
+            <input type="email" value={novo.email} onChange={(e) => setNovo({ ...novo, email: e.target.value })} className={campo} />
+          </label>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {PAPEIS.map((p) => (
+              <label key={p.v} className={`flex cursor-pointer items-start gap-2 rounded-xl px-3 py-2 ${novo.papel === p.v ? "bg-papel text-carvao" : "bg-grafite"}`}>
+                <input type="radio" name="papel" checked={novo.papel === p.v} onChange={() => setNovo({ ...novo, papel: p.v })} className="mt-1 accent-[#ff5b1f]" />
+                <span>
+                  <b>{p.t}</b>
+                  <span className="block text-[12px] opacity-80">{p.d}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <label className="block font-semibold">
+            Senha provisória
+            <input value={novo.senha} onChange={(e) => setNovo({ ...novo, senha: e.target.value })} className={campo} />
+          </label>
+          {erro && <p className="text-[#e8846f]">{erro}</p>}
+          <div className="flex gap-2">
+            <button onClick={criar} className="flex-1 rounded-xl bg-brasa py-2.5 font-semibold text-carvao">
+              Criar acesso
+            </button>
+            <button onClick={() => (setNovo(null), setErro(""))} className="rounded-xl border border-linha px-4 font-semibold">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setNovo({ email: "", papel: "caixa", senha: senhaNova() })} className="mt-3 w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda">
+          + Adicionar pessoa
+        </button>
+      )}
+      {!novo && erro && <p className="mt-2 text-[14px] text-[#e8846f]">{erro}</p>}
+    </Secao>
+  );
+}
+
+// ---------- 15. Minha assinatura ----------
+type Fatura = { id: string; competencia: string; vencimento: string; valor: number; status: string; pago_em: string | null; link: string | null };
+function Assinatura() {
+  const [a, setA] = useState<{ status: string; plano_nome: string; valor: number; teste_ate: string | null; proximo_vencimento: string | null } | null>(null);
+  const [faturas, setFaturas] = useState<Fatura[]>([]);
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.rpc("minha_assinatura").then(({ data }) => setA(data as typeof a));
+    supabase.rpc("minhas_faturas").then(({ data }) => setFaturas((data as Fatura[]) ?? []));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const dt = (s: string | null) => (s ? new Date(s + (s.length === 10 ? "T12:00" : "")).toLocaleDateString("pt-BR") : "—");
+  const ST: Record<string, [string, string]> = { teste: ["Em teste", "text-[#1f5f59]"], ativa: ["Ativa", "text-manjericao"], atrasada: ["Em atraso", "text-mostarda"], suspensa: ["Suspensa", "text-[#e8846f]"], cancelada: ["Cancelada", "text-areia"] };
+  return (
+    <Secao icone={<CreditCard className="h-5 w-5 text-brasa" />} titulo="Minha assinatura" sub="Seu plano do Freguês e as mensalidades.">
+      {a ? (
+        <div className="grid gap-2 text-[14px] sm:grid-cols-3">
+          <div className="rounded-xl bg-grafite p-3">
+            <p className="text-[12px] text-areia">Plano</p>
+            <p className="font-bold">{a.plano_nome}</p>
+            <p className="text-[13px]">{brlSimples(Number(a.valor))}/mês</p>
+          </div>
+          <div className="rounded-xl bg-grafite p-3">
+            <p className="text-[12px] text-areia">Situação</p>
+            <p className={`font-bold ${ST[a.status]?.[1] ?? ""}`}>{ST[a.status]?.[0] ?? a.status}</p>
+            {a.status === "teste" && <p className="text-[13px]">até {dt(a.teste_ate)}</p>}
+          </div>
+          <div className="rounded-xl bg-grafite p-3">
+            <p className="text-[12px] text-areia">Próximo vencimento</p>
+            <p className="font-bold">{dt(a.proximo_vencimento)}</p>
+          </div>
+        </div>
+      ) : (
+        <p className="text-[14px] text-areia">{supabase ? "Carregando…" : "Na demonstração não há assinatura."}</p>
+      )}
+      <ul className="mt-3 divide-y divide-linha rounded-xl border border-linha text-[14px]">
+        {faturas.map((f) => (
+          <li key={f.id} className="flex items-center justify-between gap-2 px-3 py-2.5">
+            <span>
+              <b>{new Date(f.competencia + "T12:00").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</b>
+              <span className="block text-[12px] text-areia">
+                {brlSimples(Number(f.valor))} · vence {dt(f.vencimento)}
+                {f.pago_em ? ` · paga em ${dt(f.pago_em.slice(0, 10))}` : ""}
+              </span>
+            </span>
+            {f.status === "paga" ? (
+              <span className="text-[13px] font-semibold text-manjericao">Paga</span>
+            ) : f.link ? (
+              <a href={f.link} target="_blank" rel="noreferrer" className="rounded-full bg-brasa px-3 py-1.5 text-[13px] font-semibold text-carvao">
+                Pagar / 2ª via
+              </a>
+            ) : (
+              <span className={`text-[13px] font-semibold ${f.status === "atrasada" ? "text-mostarda" : "text-areia"}`}>{f.status === "atrasada" ? "Em atraso" : "Em aberto"}</span>
+            )}
+          </li>
+        ))}
+        {faturas.length === 0 && <li className="px-3 py-3 text-areia">Nenhuma fatura ainda.</li>}
+      </ul>
+    </Secao>
+  );
+}
+
+// ---------- 17. Seus dados (LGPD) ----------
+async function todasAsLinhas(tabela: string, colunas: string, filtro: (q: any) => any) {
+  const linhas: Record<string, unknown>[] = [];
+  for (let de = 0; de < 50000; de += 1000) {
+    const { data, error } = await filtro(supabase!.from(tabela).select(colunas)).range(de, de + 999);
+    if (error || !data?.length) break;
+    linhas.push(...(data as Record<string, unknown>[]));
+    if (data.length < 1000) break;
+  }
+  return linhas;
+}
+function baixarCSV(nome: string, linhas: Record<string, unknown>[]) {
+  if (!linhas.length) return alert("Nada para exportar ainda.");
+  const cols = Object.keys(linhas[0]);
+  const esc = (v: unknown) => {
+    const t = v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+    return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  const csv = "\ufeff" + [cols.join(";"), ...linhas.map((l) => cols.map((c) => esc(l[c])).join(";"))].join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  a.download = nome;
+  a.click();
+}
+
+function SeusDados() {
+  const d = useDados();
+  const [baixando, setBaixando] = useState("");
+  const [cancelar, setCancelar] = useState(false);
+  const [motivo, setMotivo] = useState("");
+  const [msg, setMsg] = useState("");
+  const exportar = async (tipo: "fregueses" | "pedidos" | "cardapio") => {
+    if (!supabase || !d.loja.id) return alert("Na demonstração não há dados para exportar.");
+    setBaixando(tipo);
+    const dia = new Date().toISOString().slice(0, 10);
+    if (tipo === "fregueses") baixarCSV(`fregueses-${dia}.csv`, await todasAsLinhas("customers", "nome,telefone,aniversario,tags,obs,aceita_marketing,canal_origem,created_at", (q) => q.eq("org_id", d.loja.org_id)));
+    if (tipo === "pedidos") baixarCSV(`pedidos-${dia}.csv`, await todasAsLinhas("orders", "numero,created_at,status,modo,subtotal,taxa_entrega,taxa_embalagem,desconto,total,pagamento,pago,cupom_codigo,endereco", (q) => q.eq("store_id", d.loja.id).order("created_at")));
+    if (tipo === "cardapio") baixarCSV(`cardapio-${dia}.csv`, await todasAsLinhas("products", "nome,descricao,preco,preco_promo,esgotado", (q) => q.eq("store_id", d.loja.id).order("ordem")));
+    setBaixando("");
+  };
+  return (
+    <Secao icone={<Download className="h-5 w-5 text-brasa" />} titulo="Seus dados" sub="Os dados da sua loja são seus. Baixe quando quiser, em planilha (abre no Excel e no Google Planilhas).">
+      <div className="flex flex-wrap gap-2 text-[14px]">
+        {(
+          [
+            ["fregueses", "Fregueses"],
+            ["pedidos", "Pedidos"],
+            ["cardapio", "Cardápio"],
+          ] as const
+        ).map(([t, r]) => (
+          <button key={t} disabled={!!baixando} onClick={() => exportar(t)} className="flex items-center gap-1.5 rounded-full border border-linha px-4 py-2 font-semibold hover:border-areia disabled:opacity-50">
+            <Download className="h-4 w-4" /> {baixando === t ? "Baixando…" : r}
+          </button>
+        ))}
+      </div>
+      <div className="mt-5 border-t border-linha pt-4 text-[14px]">
+        {msg ? (
+          <p className="text-manjericao">{msg}</p>
+        ) : cancelar ? (
+          <div className="space-y-2">
+            <p>Antes de cancelar, baixe seus dados acima. Depois do cancelamento a loja sai do ar e os dados são apagados.</p>
+            <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Conta pra gente o motivo (opcional)" rows={3} className={campo} />
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  if (!supabase) return;
+                  const { error } = await supabase.rpc("pedir_cancelamento", { p_motivo: motivo });
+                  setMsg(error ? error.message : "Pedido de cancelamento enviado. A equipe do Freguês fala com você em até 1 dia útil.");
+                }}
+                className="flex-1 rounded-xl bg-tomate py-2.5 font-semibold text-papel"
+              >
+                Pedir cancelamento
+              </button>
+              <button onClick={() => setCancelar(false)} className="rounded-xl border border-linha px-4 font-semibold">
+                Voltar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setCancelar(true)} className="text-[13px] text-areia underline hover:text-[#ff8b80]">
+            Encerrar minha conta
+          </button>
+        )}
+      </div>
+    </Secao>
   );
 }
