@@ -173,7 +173,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
             </button>
           )}
           <a href="#loja" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] text-areia hover:text-papel">
-            <ExternalLink className="h-4 w-4" /> Ver a loja do cliente
+            <ExternalLink className="h-4 w-4" /> Ver minha loja
           </a>
           <BotaoTema rotulo />
           {d.sessao && (

@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChatLoja } from "./ChatLoja";
-import { geoContains, type GeoPermissibleObjects } from "d3-geo";
 import { ArrowLeft, Bike, Check, ChevronRight, Clock, Copy, CreditCard, Minus, Plus, ShoppingBag, Star, Store, Wallet, X } from "lucide-react";
 import { brl, type Grupo, type Produto } from "../../data/mock";
 import QRCode from "qrcode";
 import { codigoPix, tipoChave } from "../../lib/pix";
 import { useDados, type Entrega } from "../../data/dados";
 import { Foto, FOTOS } from "../../components/Foto";
-import { BAIRROS, BAIRROS_RIO, GeoMap, centroide, vizinhos, type Feature, type Layer } from "../../components/GeoMap";
+import type { Feature, Layer } from "../../components/GeoMap";
+
+// O mapa (pesado) chega em segundo plano: o cardápio abre na hora e o mapa já está pronto quando o cliente vai informar o endereço.
+type Geo = typeof import("../../components/GeoMap");
+let geoPromessa: Promise<Geo> | null = null;
+const carregarGeo = () => (geoPromessa ??= import("../../components/GeoMap"));
+const PONTO_INICIAL: [number, number] = [-43.3125, -22.8296];
 import { Brasinha } from "../../components/Logo";
 import { buscarCep, localizar, type EnderecoCep } from "../../data/endereco";
 
@@ -174,10 +179,22 @@ export function Loja() {
     if (modo === "retirada" && !temRetirada && temEntrega) setModo("entrega");
   }, [modo, temEntrega, temRetirada]);
   const [troco, setTroco] = useState("");
-  const [ponto, setPonto] = useState<[number, number]>(() => {
-    const f = BAIRROS_RIO.find((b) => b.properties.nome === "Vista Alegre")!;
-    return centroide(f);
-  });
+  const [geo, setGeo] = useState<Geo | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    const t = setTimeout(() => carregarGeo().then((g) => vivo && setGeo(g)), 400);
+    return () => {
+      vivo = false;
+      clearTimeout(t);
+    };
+  }, []);
+  const [ponto, setPonto] = useState<[number, number]>(() => (LOJA.coord as [number, number] | undefined) ?? PONTO_INICIAL);
+  // a loja terminou de carregar: o pino começa no endereço dela
+  const lojaLon = LOJA.coord?.[0];
+  const lojaLat = LOJA.coord?.[1];
+  useEffect(() => {
+    if (lojaLon != null && lojaLat != null) setPonto([lojaLon, lojaLat]);
+  }, [lojaLon, lojaLat]);
   const [entrega, setEntrega] = useState<Entrega | null>(null);
   const [rua, setRua] = useState("");
   const [cep, setCep] = useState("");
@@ -214,13 +231,14 @@ export function Loja() {
   const [pedido, setPedido] = useState<{ id: string; numero: number; total: number; desconto: number; taxa: number; tempo_min: number; tempo_max: number } | null>(null);
 
   const categoriaAtual = cat || CATEGORIAS[0];
-  const bairroF = useMemo(() => BAIRROS.find((b) => geoContains(b.geometry as GeoPermissibleObjects, ponto)) ?? null, [ponto]);
+  const bairroF = useMemo(() => (geo ? geo.bairroNoPonto(ponto) : null), [geo, ponto]);
   const bairro = bairroF?.properties.id ?? null;
   const mapaBase = useMemo(() => {
+    if (!geo) return [] as Feature[];
     const ids = ZONAS.flatMap((z) => z.bairros);
-    const alvo = BAIRROS.filter((b) => ids.includes(b.properties.id));
-    return vizinhos(alvo.length ? alvo : BAIRROS_RIO, 0.35);
-  }, [ZONAS]);
+    const alvo = geo.BAIRROS.filter((b) => ids.includes(b.properties.id));
+    return geo.vizinhos(alvo.length ? alvo : geo.BAIRROS_RIO, 0.35);
+  }, [geo, ZONAS]);
 
   useEffect(() => {
     let vivo = true;
@@ -345,10 +363,11 @@ export function Loja() {
     [bairro, ZONAS, mapaBase],
   );
   const fitEntrega = useMemo(() => {
+    if (!geo) return [] as Feature[];
     const ids = ZONAS.slice(0, 2).flatMap((z) => z.bairros);
-    const f = BAIRROS.filter((b) => ids.includes(b.properties.id));
-    return f.length ? f : BAIRROS_RIO;
-  }, [ZONAS]);
+    const f = geo.BAIRROS.filter((b) => ids.includes(b.properties.id));
+    return f.length ? f : geo.BAIRROS_RIO;
+  }, [geo, ZONAS]);
 
   function avancarEntrega() {
     if (!atende) {
@@ -415,9 +434,9 @@ export function Loja() {
     <div className="min-h-screen bg-[#f6ecdf] text-carvao">
       <div className="mx-auto min-h-screen max-w-[480px] bg-[#fffaf2] pb-28 shadow-[0_0_80px_rgba(0,0,0,.08)]">
         <div className="flex items-center justify-between bg-carvao px-4 py-2 text-[12px] text-areia">
-          {d.modo === "demo" ? (
-            <a href="#painel" className="flex items-center gap-1 hover:text-papel">
-              <ArrowLeft className="h-3.5 w-3.5" /> Painel do dono
+          {d.modo === "demo" || (d.sessao && d.papel && !d.semAcesso) ? (
+            <a href="#painel" className="flex items-center gap-1.5 rounded-full bg-brasa px-3 py-1 font-semibold text-carvao hover:bg-mostarda">
+              <ArrowLeft className="h-3.5 w-3.5" /> Voltar ao painel
             </a>
           ) : (
             <span>{d.loja.nome}</span>
@@ -663,7 +682,10 @@ export function Loja() {
                               : "Digite o CEP e o número, ou toque no mapa para marcar o ponto."}
                   </p>
                   <div className="mt-3 overflow-hidden rounded-2xl border border-[#eadccb] bg-[#f6ecdf]">
-                    <GeoMap
+                    {!geo ? (
+                      <div className="grid h-[260px] place-items-center text-[14px] text-[#5a4c41]">Carregando o mapa…</div>
+                    ) : (
+                    <geo.GeoMap
                       width={440}
                       height={340}
                       padding={10}
@@ -677,6 +699,7 @@ export function Loja() {
                       className="h-auto w-full cursor-crosshair"
                       ariaLabel="Mapa para marcar o ponto de entrega"
                     />
+                    )}
                   </div>
                   <div className={`mt-3 rounded-2xl p-3 text-[14px] ${atende ? "bg-[#e3f5e9] text-[#1e6b42]" : "bg-[#fde7e4] text-[#9b2c1f]"}`} aria-live="polite">
                     {!entrega ? (

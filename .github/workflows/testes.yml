@@ -1,0 +1,28 @@
+# Testes automáticos: rodam a cada envio para o GitHub. Se algo quebrar, o commit fica com um X vermelho.
+name: Testes
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Tipos
+        run: npx tsc --noEmit -p .
+      - name: Testes das regras (Pix, horário, mensagens, mapa)
+        run: npx vitest run
+      - name: Build
+        run: npx vite build
+      - name: Navegador
+        run: npx playwright install --with-deps chromium
+      - name: Telas abrem sem erro
+        run: node tests/e2e/smoke.mjs

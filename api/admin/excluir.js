@@ -1,5 +1,5 @@
 // Exclui um cliente de vez: cancela a assinatura na Asaas, apaga a loja e todos os dados dela, e apaga o login do dono.
-import { SUPA_URL, asaas, exigirAdmin, lerServidor, rpcServidor } from "../_lib/base.js";
+import { SUPA_URL, asaas, exigirAdmin, lerServidor, rpcServidor, erroServidor } from "../_lib/base.js";
 
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -51,6 +51,7 @@ export default async function handler(req, res) {
     }).catch(() => null);
     return res.status(200).json({ ok: true, logins_apagados: users.length, aviso: avisoAsaas });
   } catch (e) {
+    await erroServidor("admin/excluir", e);
     return res.status(500).json({ erro: e.message });
   }
 }

@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
 import * as M from "./mock";
 import type { Freguês, Pedido, Produto, StatusPedido, Zona } from "./mock";
-import { nomeBairro } from "../components/GeoMap";
+import { nomeBairro } from "./bairrosNomes";
 import { dentroDoHorario, textoHorario, type Horarios } from "../lib/horario";
 
 const URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -388,8 +388,9 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         setPapel((pp as Papel) ?? null);
         return;
       }
-      // tem loja, mas o endereço é de outra: vai para a dele
-      if (orgs.length) {
+      // tem loja, mas o endereço é de outra: vai para a dele (só no painel; nas telas públicas, como a loja de outro restaurante, fica onde está)
+      const publica = /^#(loja|mesa|bio|pesquisa|termos|privacidade)/.test(window.location.hash);
+      if (orgs.length && !publica) {
         const { data: st } = await supabase.from("stores").select("slug").in("org_id", orgs).order("created_at").limit(1);
         const slug = st?.[0]?.slug;
         if (slug && slug !== SLUG) {

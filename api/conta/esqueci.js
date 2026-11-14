@@ -1,6 +1,6 @@
 // "Esqueci minha senha": manda por e-mail um link de uso único (vale 1 hora).
 import crypto from "node:crypto";
-import { SUPA_URL, rpcServidor } from "../_lib/base.js";
+import { SUPA_URL, rpcServidor, erroServidor } from "../_lib/base.js";
 import { emailConfigurado, enviarEmail } from "../_lib/email.js";
 
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -31,6 +31,7 @@ export default async function handler(req, res) {
     // a resposta é sempre a mesma, para ninguém descobrir quais e-mails têm conta
     return res.status(200).json({ enviado: true });
   } catch (e) {
+    await erroServidor("conta/esqueci", e);
     return res.status(500).json({ erro: "Não consegui enviar agora. Tente de novo em alguns minutos." });
   }
 }

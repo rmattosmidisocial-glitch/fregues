@@ -1,7 +1,7 @@
 // Rotas do administrador do Freguês que precisam do servidor:
 //   acao "saude": confere se cada integração está funcionando (não devolve nenhuma chave)
 //   acao "novo_admin": cria (ou liga) o login de outro administrador com senha provisória
-import { ASAAS_URL, SUPA_URL, asaas, corpoJson, exigirAdmin, lerServidor, rpcServidor } from "../_lib/base.js";
+import { ASAAS_URL, SUPA_URL, asaas, corpoJson, exigirAdmin, lerServidor, rpcServidor, erroServidor } from "../_lib/base.js";
 import { emailConfigurado } from "../_lib/email.js";
 
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -148,6 +148,7 @@ export default async function handler(req, res) {
 
     return res.status(400).json({ erro: "Ação desconhecida" });
   } catch (e) {
+    await erroServidor("admin/geral", e);
     return res.status(500).json({ erro: e.message });
   }
 }

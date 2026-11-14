@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Check, CheckCircle2, CircleHelp, Download, Pencil, Plus, RefreshCw, ShieldCheck, Trash2, X, XCircle } from "lucide-react";
 import { brl } from "../../data/mock";
 import { Enviar, dataBR, desde, diasAte, linkLojaDe, senhaProvisoria } from "./comum";
-import { MODELOS_INFO, MODELOS_PADRAO, REGRAS_PADRAO, mensagem, preencher, type AdminUser, type ChaveModelo, type Cliente, type FichaExtra, type ItemSaude, type LinhaRelatorio, type Plano, type Regras, type useAdmin } from "./adminDados";
+import { MODELOS_INFO, MODELOS_PADRAO, REGRAS_PADRAO, mensagem, preencher, type AdminUser, type ChaveModelo, type Cliente, type FichaExtra, type GrupoErro, type ItemSaude, type LinhaRelatorio, type Plano, type Regras, type useAdmin } from "./adminDados";
 
 type A = ReturnType<typeof useAdmin>;
 const inp = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
@@ -808,5 +808,94 @@ export function FichaExtras({ a, c }: { a: A; c: Cliente }) {
       )}
       {msg && <p className="mt-2 text-[14px] text-manjericao">{msg}</p>}
     </>
+  );
+}
+
+/* ---------------- 26. Monitor de erros ---------------- */
+
+const ORIGEM: Record<string, string> = { navegador: "Navegador", promessa: "Navegador", tela: "Tela quebrou", servidor: "Servidor" };
+const navegadorCurto = (ua: string | null) => {
+  if (!ua) return "";
+  const so = /iPhone|iPad/.test(ua) ? "iPhone" : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows" : /Mac OS/.test(ua) ? "Mac" : "";
+  const nav = /Edg\//.test(ua) ? "Edge" : /SamsungBrowser/.test(ua) ? "Samsung" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : /Firefox\//.test(ua) ? "Firefox" : "";
+  return [nav, so].filter(Boolean).join(" no ");
+};
+
+export function ErrosSistema({ a }: { a: A }) {
+  const [dias, setDias] = useState(7);
+  const [lista, setLista] = useState<GrupoErro[] | null>(null);
+  const [aberto, setAberto] = useState<string | null>(null);
+  const carregar = () => {
+    setLista(null);
+    a.acoes.erros(dias).then(setLista);
+  };
+  useEffect(carregar, [dias]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <section className={`${caixa} space-y-3`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-[18px] font-bold">Erros do sistema</h2>
+        <div className="flex items-center gap-2">
+          <select value={dias} onChange={(e) => setDias(Number(e.target.value))} className="rounded-full border border-linha bg-carvao px-3 py-1.5 text-[13px]" aria-label="Período">
+            <option value={1}>Últimas 24 horas</option>
+            <option value={7}>Últimos 7 dias</option>
+            <option value={30}>Últimos 30 dias</option>
+          </select>
+          <button onClick={carregar} className="flex items-center gap-1.5 rounded-full border border-linha px-3 py-1.5 text-[13px] font-semibold hover:border-areia">
+            <RefreshCw className="h-3.5 w-3.5" /> Atualizar
+          </button>
+        </div>
+      </div>
+      <p className="text-[14px] text-areia">Tudo o que deu errado na tela de alguém (painel, loja ou aqui) ou no servidor, agrupado. Mande para o suporte técnico quando algo se repetir.</p>
+      {a.modo === "demo" && <p className="text-[14px] text-areia">Na versão publicada, os erros reais aparecem aqui.</p>}
+      {lista === null && a.modo === "real" && <p className="text-[14px] text-areia">Carregando…</p>}
+      {lista?.length === 0 && (
+        <p className="flex items-center gap-2 rounded-2xl bg-grafite p-3 text-[14px]">
+          <CheckCircle2 className="h-5 w-5 text-manjericao" /> Nenhum erro no período.
+        </p>
+      )}
+      <ul className="space-y-2">
+        {(lista ?? []).map((e) => {
+          const k = e.origem + e.mensagem;
+          return (
+            <li key={k} className="rounded-2xl bg-grafite p-3 text-[14px]">
+              <button onClick={() => setAberto(aberto === k ? null : k)} className="w-full text-left">
+                <span className="flex items-start justify-between gap-2">
+                  <span className="min-w-0 break-words font-semibold">{e.mensagem}</span>
+                  <span className="tabular shrink-0 rounded-full bg-carvao px-2 py-0.5 text-[12px] font-bold">{e.vezes}×</span>
+                </span>
+                <span className="mt-0.5 block text-[12px] text-areia">
+                  {ORIGEM[e.origem] ?? e.origem} · {e.rotas?.length ? `tela ${e.rotas.join(", ")}` : "sem tela"}
+                  {e.lojas?.length ? ` · ${e.lojas.join(", ")}` : ""} · última {desde(e.ultima)}
+                  {e.pessoas > 1 ? ` · ${e.pessoas} pessoas` : ""}
+                </span>
+              </button>
+              {aberto === k && (
+                <div className="mt-2 space-y-2">
+                  {e.exemplo_navegador && <p className="text-[12px] text-areia">{navegadorCurto(e.exemplo_navegador) || e.exemplo_navegador}</p>}
+                  {e.exemplo_pilha && <pre className="scroll-thin max-h-[180px] overflow-auto whitespace-pre-wrap rounded-xl bg-carvao p-2 text-[11px] text-areia">{e.exemplo_pilha}</pre>}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => navigator.clipboard?.writeText(`Erro no Freguês (${e.vezes}x, ${ORIGEM[e.origem] ?? e.origem}, tela ${e.rotas?.join(", ") ?? "-"})\n${e.mensagem}\n\n${e.exemplo_pilha ?? ""}\n${e.exemplo_navegador ?? ""}`).catch(() => {})}
+                      className="rounded-full border border-linha px-3 py-1 text-[12px] font-semibold hover:border-areia"
+                    >
+                      Copiar para o suporte
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await a.acoes.resolverErro(e.origem, e.mensagem);
+                        setLista((l) => (l ?? []).filter((x) => x.origem + x.mensagem !== k));
+                      }}
+                      className="rounded-full bg-manjericao px-3 py-1 text-[12px] font-semibold text-carvao"
+                    >
+                      Marcar como resolvido
+                    </button>
+                  </div>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

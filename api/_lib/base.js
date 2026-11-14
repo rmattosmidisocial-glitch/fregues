@@ -139,3 +139,13 @@ export async function regrasAsaas() {
     return { fine: { value: 2 }, interest: { value: 1 } };
   }
 }
+
+// Monitor: erro do servidor vai para a mesma lista de erros do Admin. Nunca derruba a resposta.
+export async function erroServidor(rota, e) {
+  try {
+    if (!SUPA_URL || !SERVICE) return;
+    await rpcServidor("registrar_erro", { p_origem: "servidor", p_mensagem: String(e?.message || e || "erro").slice(0, 500), p_pilha: String(e?.stack || "").slice(0, 2000), p_rota: rota });
+  } catch {
+    /* sem monitor, segue */
+  }
+}

@@ -1,4 +1,4 @@
-import { geoCircle, geoMercator, geoPath, type GeoPermissibleObjects } from "d3-geo";
+import { geoCircle, geoContains, geoMercator, geoPath, type GeoPermissibleObjects } from "d3-geo";
 import React, { useMemo, useRef, useState } from "react";
 import { feature } from "topojson-client";
 import bairrosTopo from "../data/bairros-rj.topo.json";
@@ -44,6 +44,8 @@ export const MUNICIPIOS_RJ = rewind((rjMunicipios as unknown as { features: Feat
 export const MUNICIPIOS_COM_BAIRROS = new Set(BAIRROS.map((b) => b.properties.municipio));
 export const bairrosDoMunicipio = (nome: string) => BAIRROS.filter((b) => b.properties.municipio === nome);
 export const nomeBairro = (id: string) => BAIRRO_POR_ID[id]?.properties.nome ?? id;
+/** Bairro que contém o ponto [lon, lat], ou null. */
+export const bairroNoPonto = (p: [number, number]) => BAIRROS.find((b) => geoContains(b.geometry, p)) ?? null;
 export const idRio = (nome: string) => BAIRROS_RIO.find((b) => b.properties.nome === nome)?.properties.id ?? nome;
 
 export function bbox(fs: Feature[]): [number, number, number, number] {

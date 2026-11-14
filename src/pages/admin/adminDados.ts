@@ -237,6 +237,7 @@ export type FichaExtra = {
   cancelamento_motivo: string | null;
   termos: { email: string; versao: string; aceito_em: string }[];
 };
+export type GrupoErro = { origem: string; mensagem: string; vezes: number; pessoas: number; primeira: string; ultima: string; rotas: string[] | null; lojas: string[] | null; exemplo_pilha: string | null; exemplo_navegador: string | null };
 export type NovoCliente = {
   empresa: string;
   loja: string;
@@ -766,6 +767,16 @@ export function useAdmin() {
         faturado: Number(l.faturado),
         em_atraso: Number(l.em_atraso),
       }));
+    },
+    async erros(dias: number, resolvidos = false): Promise<GrupoErro[]> {
+      if (!supabase) return [];
+      const { data } = await supabase.rpc("admin_erros", { p_dias: dias, p_resolvidos: resolvidos });
+      return (data as GrupoErro[]) ?? [];
+    },
+    async resolverErro(origem: string, mensagem: string): Promise<string | null> {
+      if (!supabase) return null;
+      const { error } = await supabase.rpc("admin_erro_resolver", { p_origem: origem, p_mensagem: mensagem });
+      return error ? error.message : null;
     },
     async fichaExtra(org_id: string): Promise<FichaExtra | null> {
       if (!supabase) return null;

@@ -5,7 +5,7 @@ import { brl } from "../../data/mock";
 import { BotaoTema } from "../../tema";
 import { EnderecoLoja, ENDERECO_VAZIO, type Endereco } from "./EnderecoLoja";
 import { Enviar, dataBR, desde, diasAte, linkLojaDe, linkPainelDe, senhaProvisoria, telFmt } from "./comum";
-import { Administradores, FichaExtras, Lembretes, ModelosMensagem, PlanosAdmin, PrimeiraSenhaAdmin, RegrasCobranca, Relatorios, SaudeIntegracoes } from "./AdminExtra";
+import { Administradores, ErrosSistema, FichaExtras, Lembretes, ModelosMensagem, PlanosAdmin, PrimeiraSenhaAdmin, RegrasCobranca, Relatorios, SaudeIntegracoes } from "./AdminExtra";
 import { assinaturaDe, mensagem, useAdmin, type Cliente, type Config, type Cobranca, type NovoCliente, type StatusAssin } from "./adminDados";
 
 const STATUS: Record<StatusAssin, { rotulo: string; cls: string; cor: string }> = {
@@ -617,7 +617,7 @@ function Configuracoes({ a }: { a: ReturnType<typeof useAdmin> }) {
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
   const [senha, setSenha] = useState("");
   const [msgSenha, setMsgSenha] = useState<{ ok: boolean; t: string } | null>(null);
-  const [sec, setSec] = useState<"dados" | "cobranca" | "mensagens" | "admins" | "integracoes">("dados");
+  const [sec, setSec] = useState<"dados" | "cobranca" | "mensagens" | "admins" | "integracoes" | "erros">("dados");
   useEffect(() => setF(a.config), [a.config]);
   const inp = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
   const campo = (k: "empresa" | "responsavel" | "email" | "whatsapp" | "assinatura", rotulo: string, tipo = "text", dica?: string) => (
@@ -633,6 +633,7 @@ function Configuracoes({ a }: { a: ReturnType<typeof useAdmin> }) {
     ["mensagens", "Mensagens"],
     ["admins", "Administradores"],
     ["integracoes", "Integrações"],
+    ["erros", "Erros"],
   ] as const;
   return (
     <div className="max-w-[720px]">
@@ -649,6 +650,7 @@ function Configuracoes({ a }: { a: ReturnType<typeof useAdmin> }) {
         {sec === "mensagens" && <ModelosMensagem a={a} />}
         {sec === "admins" && <Administradores a={a} />}
         {sec === "integracoes" && <SaudeIntegracoes a={a} />}
+        {sec === "erros" && <ErrosSistema a={a} />}
       </div>
       {sec === "dados" && (
         <>

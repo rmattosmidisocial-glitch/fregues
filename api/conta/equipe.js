@@ -1,5 +1,5 @@
 // O dono cria o login de alguém da equipe (caixa, garçom, cozinha, entregador, gerente) com senha provisória.
-import { SUPA_URL, rpcServidor } from "../_lib/base.js";
+import { SUPA_URL, rpcServidor, erroServidor } from "../_lib/base.js";
 
 const ANON = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -49,6 +49,7 @@ export default async function handler(req, res) {
     await rpcServidor("equipe_vincular_srv", { p_org: org_id, p_user: id, p_papel: papel });
     return res.status(200).json({ ok: true, ja_existia: ja.length > 0 });
   } catch (e) {
+    await erroServidor("conta/equipe", e);
     return res.status(500).json({ erro: e.message });
   }
 }

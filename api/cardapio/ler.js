@@ -1,6 +1,6 @@
 // Lê um cardápio (fotos ou PDF) com IA e devolve os produtos organizados para o dono revisar.
 // Precisa da variável ANTHROPIC_API_KEY na Vercel. Só aceita quem está logado no painel.
-import { SUPA_URL } from "../_lib/base.js";
+import { SUPA_URL, erroServidor } from "../_lib/base.js";
 
 const ANON = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 const CHAVE = process.env.ANTHROPIC_API_KEY;
@@ -143,6 +143,7 @@ export default async function handler(req, res) {
     if (truncado) (dados.avisos ||= []).push("O cardápio é muito grande e pode ter ficado incompleto. Envie as páginas restantes em outra importação.");
     return res.status(200).json(dados);
   } catch (e) {
+    await erroServidor("cardapio/ler", e);
     return res.status(502).json({ erro: "Falha ao falar com a IA: " + e.message });
   }
 }

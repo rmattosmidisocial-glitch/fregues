@@ -1,5 +1,5 @@
 // Dados de exemplo da demonstração. Nada aqui é dado real de cliente.
-import { idRio, nomeBairro } from "../components/GeoMap";
+import { idRio, nomeBairro } from "./bairrosNomes";
 
 let seed = 20261109;
 function rnd() {
