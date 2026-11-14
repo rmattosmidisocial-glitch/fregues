@@ -100,7 +100,8 @@ function NovoClienteModal({ a, fechar }: { a: ReturnType<typeof useAdmin>; fecha
               <Check className="h-7 w-7" />
             </span>
             <h2 className="mt-4 font-display text-[24px] font-extrabold">{n.loja} entrou na carteira</h2>
-            <p className="mt-2 text-[15px] text-areia">Mande para {n.responsavel.split(" ")[0] || "o dono"} criar o acesso com o e-mail {n.email || "dele"}. Ao entrar, o painel da loja abre direto.</p>
+            <p className="mt-2 text-[15px] text-areia">Mande para {n.responsavel.split(" ")[0] || "o dono"} criar o acesso com o e-mail {n.email || "dele"}. Ao entrar, o painel da loja abre direto. Você também pode abrir e configurar agora, como suporte.</p>
+            <a href={`${LINK_BASE}?r=${n.slug}#painel`} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brasa px-4 py-2 text-[14px] font-semibold text-carvao">Abrir painel do dono <ArrowUpRight className="h-4 w-4" /></a>
             <div className="mt-4 rounded-2xl bg-carvao p-3 text-left text-[14px]">
               <p className="text-areia">Painel do restaurante</p>
               <p className="break-all font-semibold">{`${LINK_BASE}?r=${n.slug}#painel`}</p>
@@ -410,6 +411,9 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
             )}
             <a href={linkLoja} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full border border-linha px-3 py-1.5 text-[13px] font-semibold hover:border-areia">
               <Store className="h-3.5 w-3.5" /> Abrir a loja
+            </a>
+            <a href={linkPainel} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full bg-brasa px-3 py-1.5 text-[13px] font-semibold text-carvao hover:bg-mostarda">
+              <ArrowUpRight className="h-3.5 w-3.5" /> Abrir painel do dono
             </a>
             <button
               onClick={() => {

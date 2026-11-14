@@ -328,6 +328,9 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     if (!supabase || !sessao) return;
     (async () => {
       await supabase.rpc("aceitar_convites");
+      // Administrador do Freguês (suporte) abre o painel de qualquer loja pelo link: não redireciona.
+      const { data: adm } = await supabase.rpc("is_platform_admin");
+      if (adm === true) return;
       const { data: ms } = await supabase.from("memberships").select("org_id").eq("user_id", sessao.user.id);
       if (!ms?.length) return;
       const { data: st } = await supabase.from("stores").select("slug").in("org_id", ms.map((m) => m.org_id)).order("created_at").limit(1);
