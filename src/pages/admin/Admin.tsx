@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, MessageCircle, Pencil, Building2, Check, ChevronRight, CircleDollarSign, Clock, Copy, CreditCard, ExternalLink, History, LayoutDashboard, Layers, LogOut, Pause, Play, Plus, Search, ShieldCheck, Store, TrendingUp, X } from "lucide-react";
+import { ArrowUpRight, MessageCircle, Pencil, Trash2, Building2, Check, ChevronRight, CircleDollarSign, Clock, Copy, CreditCard, ExternalLink, History, LayoutDashboard, Layers, LogOut, Pause, Play, Plus, Search, ShieldCheck, Store, TrendingUp, X } from "lucide-react";
 import { Logo } from "../../components/Logo";
 import { brl } from "../../data/mock";
 import { BotaoTema } from "../../tema";
@@ -246,6 +246,52 @@ function AcessoDono({ a, org_id, loja, slug, email, responsavel, telefone }: { a
         </button>
       )}
     </div>
+  );
+}
+
+/** Zona de perigo: excluir o cliente de vez, digitando o nome da loja para confirmar. */
+function ExcluirCliente({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>; fechar: () => void }) {
+  const [aberto, setAberto] = useState(false);
+  const [nome, setNome] = useState("");
+  const [erro, setErro] = useState("");
+  const [excluindo, setExcluindo] = useState(false);
+  const confere = nome.trim().toLowerCase() === c.loja.trim().toLowerCase();
+  if (!aberto)
+    return (
+      <button onClick={() => setAberto(true)} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-tomate py-3 text-[14px] font-semibold text-tomate hover:bg-[#fbe4e0]">
+        <Trash2 className="h-4 w-4" /> Excluir cliente
+      </button>
+    );
+  return (
+    <section className="mt-6 rounded-2xl border-2 border-tomate p-4 text-[14px]">
+      <h3 className="font-semibold text-tomate">Excluir {c.loja} de vez</h3>
+      <p className="mt-1">Isso apaga a loja, o cardápio, os pedidos, os fregueses, as faturas e o login do dono, e cancela a assinatura na Asaas. Não dá para desfazer.</p>
+      <p className="mt-2 text-areia">Se só quer tirar a loja do ar, use "Suspender" ou "Cancelar assinatura" lá em cima.</p>
+      <label className="mt-3 block font-semibold">
+        Para confirmar, digite o nome da loja: <span className="text-tomate">{c.loja}</span>
+        <input value={nome} onChange={(e) => setNome(e.target.value)} className="mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel" />
+      </label>
+      {erro && <p className="mt-2 text-[#e8846f]">{erro}</p>}
+      <div className="mt-3 flex gap-2">
+        <button
+          disabled={!confere || excluindo}
+          onClick={async () => {
+            setExcluindo(true);
+            const r = await a.acoes.excluirCliente(c.org_id);
+            setExcluindo(false);
+            if (r.erro) return setErro(r.erro);
+            if (r.aviso) alert(r.aviso);
+            fechar();
+          }}
+          className="flex-1 rounded-xl bg-tomate py-2.5 font-semibold text-papel disabled:opacity-40"
+        >
+          {excluindo ? "Excluindo…" : "Excluir de vez"}
+        </button>
+        <button onClick={() => setAberto(false)} className="rounded-xl border border-linha px-4 py-2.5 font-semibold">
+          Cancelar
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -667,6 +713,8 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
             </ul>
           </section>
         )}
+
+        {!c.demo && <ExcluirCliente c={c} a={a} fechar={fechar} />}
       </div>
     </div>
   );

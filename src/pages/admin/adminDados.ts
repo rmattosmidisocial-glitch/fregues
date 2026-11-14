@@ -262,6 +262,23 @@ export function useAdmin() {
       log(org_id, "editou cadastro");
       return null;
     },
+    /** Exclui o cliente de vez (assinatura na Asaas, loja, dados e login do dono). */
+    async excluirCliente(org_id: string): Promise<{ erro?: string; aviso?: string }> {
+      if (!supabase) {
+        setClientes((cs) => cs.filter((c) => c.org_id !== org_id));
+        return {};
+      }
+      const { data } = await supabase.auth.getSession();
+      const r = await fetch("/api/admin/excluir", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+        body: JSON.stringify({ org_id }),
+      }).catch(() => null);
+      const c = r ? await r.json().catch(() => ({})) : {};
+      if (!r || !r.ok) return { erro: c.erro || "Não consegui excluir agora. Tente de novo." };
+      await recarregar();
+      return { aviso: c.aviso };
+    },
     /** Logins ligados ao cliente (e-mail, último acesso, se ainda está com a senha provisória). */
     async logins(org_id: string): Promise<{ email: string; papel: string; ultimo_login: string | null; provisoria: boolean }[]> {
       if (!supabase) return [];
