@@ -242,9 +242,16 @@ function AcessoDono({ a, org_id, loja, slug, email, responsavel, telefone }: { a
           </div>
         </div>
       ) : (
-        <button onClick={() => setNovaSenha(true)} className={`mt-3 w-full rounded-xl py-3 font-semibold ${dono.ultimo_login && !dono.provisoria ? "border border-linha text-papel hover:border-areia" : "bg-brasa text-carvao hover:bg-mostarda"}`}>
-          {dono.ultimo_login && !dono.provisoria ? "Dono esqueceu a senha: gerar nova provisória" : "Gerar senha provisória e enviar no WhatsApp"}
-        </button>
+        <>
+          {erro && <p className="mt-2 text-[#e8846f]">{erro}</p>}
+          <button
+            disabled={enviando}
+            onClick={() => (dono.ultimo_login && !dono.provisoria ? setNovaSenha(true) : criar(dono.email, true))}
+            className={`mt-3 w-full rounded-xl py-3 font-semibold disabled:opacity-60 ${dono.ultimo_login && !dono.provisoria ? "border border-linha text-papel hover:border-areia" : "bg-brasa text-carvao hover:bg-mostarda"}`}
+          >
+            {enviando ? "Gerando…" : dono.ultimo_login && !dono.provisoria ? "Dono esqueceu a senha: gerar nova provisória" : "Gerar senha provisória e enviar no WhatsApp"}
+          </button>
+        </>
       )}
     </div>
   );

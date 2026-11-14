@@ -1,6 +1,6 @@
 // Dados da área de administração do Freguês (dono da plataforma).
 // Modo real: funções admin_* do banco. Modo demonstração: carteira fictícia de restaurantes.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { MODO, supabase } from "../../data/dados";
 import type { Endereco } from "./EnderecoLoja";
@@ -182,13 +182,15 @@ export function useAdmin() {
   const [planos, setPlanos] = useState<Plano[]>(PLANOS_PADRAO);
   const [visao, setVisao] = useState<Visao | null>(null);
   const [config, setConfig] = useState<Config>(CONFIG_PADRAO);
+  const jaCarregou = useRef(false);
 
   const recarregar = useCallback(async () => {
     if (!supabase) {
       setCarregando(false);
       return;
     }
-    setCarregando(true);
+    // só mostra "carregando" na primeira vez; depois atualiza por baixo, sem fechar o que está aberto na tela
+    if (!jaCarregou.current) setCarregando(true);
     const { data: ok } = await supabase.rpc("is_platform_admin");
     setAdmin(!!ok);
     if (!ok) {
@@ -205,6 +207,7 @@ export function useAdmin() {
     setFaturas(((f.data ?? []) as Fatura[]).map((x) => ({ ...x, valor: Number(x.valor) })));
     setAuditoria((a.data ?? []) as Auditoria[]);
     if (p.data?.length) setPlanos(p.data.map((x) => ({ ...x, preco: Number(x.preco) })) as Plano[]);
+    jaCarregou.current = true;
     setCarregando(false);
   }, []);
 
