@@ -81,6 +81,8 @@ export function MapaAtuacao() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doMun, mun]);
   const fitAtual = !mun ? MUNICIPIOS_RJ : temBairros ? (!verTudo && focoAtivo ? focoAtivo : doMun) : munFeature ? [munFeature] : MUNICIPIOS_RJ;
+  // bairros das cidades vizinhas: aparecem em volta e também podem ser marcados
+  const contexto = useMemo(() => (temBairros ? vizinhos(doMun, 0.6).filter((b) => b.properties.municipio !== mun) : []), [doMun, temBairros, mun]);
   const labels = useMemo(() => {
     if (!mun) {
       return MUNICIPIOS_RJ.filter((m) => ativosPorMun[m.properties.nome] || zonaDoMun(m.properties.nome)).map((m) => ({ coord: centroide(m), text: m.properties.nome, forte: true }));
@@ -88,11 +90,11 @@ export function MapaAtuacao() {
     if (!temBairros) return [];
     const fs = fitAtual as Feature[];
     const escolhidos = fs.length > 40 ? fs.filter((b) => zonaDoBairro(b.properties.id) || DEMANDA[b.properties.id]) : fs;
-    return escolhidos.map((b) => ({ coord: centroide(b), text: b.properties.nome }));
+    const deFora = contexto.filter((b) => zonaDoBairro(b.properties.id) || sel?.properties.id === b.properties.id);
+    return [...escolhidos, ...deFora].map((b) => ({ coord: centroide(b), text: b.properties.nome }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mun, temBairros, fitAtual, ativosPorMun, zonas, DEMANDA]);
+  }, [mun, temBairros, fitAtual, ativosPorMun, zonas, DEMANDA, contexto, sel]);
 
-  const contexto = useMemo(() => (temBairros ? vizinhos(doMun, 0.12).filter((b) => b.properties.municipio !== mun) : []), [doMun, temBairros, mun]);
 
   const layers: Layer[] = useMemo(() => {
     if (!mun) {
@@ -127,7 +129,20 @@ export function MapaAtuacao() {
       ];
     }
     return [
-      { id: "ctx", features: contexto, fill: () => "#1c1512", stroke: () => "#2a201a", strokeWidth: 0.5 },
+      {
+        id: "ctx",
+        features: contexto,
+        interactive: true,
+        fill: (f, h) => {
+          const z = zonaDoBairro(f.properties.id) ?? zonaPorRaio(f);
+          if (z) return z.cor;
+          if (demanda && DEMANDA[f.properties.id]) return h ? "#4a3820" : "#2e2416";
+          return h ? "#33281f" : "#1c1512";
+        },
+        opacity: (f) => (zonaDoBairro(f.properties.id) ? 0.85 : zonaPorRaio(f) ? 0.45 : 1),
+        stroke: (f) => (sel?.properties.id === f.properties.id ? "#fff6e9" : "#2a201a"),
+        strokeWidth: 0.5,
+      },
       {
         id: "bairros",
         features: doMun,
