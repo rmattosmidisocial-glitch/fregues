@@ -63,22 +63,19 @@ export function useFormulariosPainel(lojaId: string | undefined, ativo: boolean,
     const timers = new Map<string, ReturnType<typeof setTimeout>>();
     crescer.carregarForms([]); // nada de formulário de exemplo na loja real
 
-    const dbg = ((globalThis as unknown as { __forms?: unknown[] }).__forms ??= []) as unknown[];
-    dbg.push({ ini: lojaId, t: Date.now() });
     (async () => {
-      let { data: fs, error: e1 } = await sb.from("forms").select("id,nome,descricao,estado,cor,obrigado,campos").eq("store_id", lojaId).order("created_at");
+      let { data: fs } = await sb.from("forms").select("id,nome,descricao,estado,cor,obrigado,campos").eq("store_id", lojaId).order("created_at");
       if (fs && fs.length === 0) {
         const novos = modelos(loja, pratos).map((m) => ({ ...m, store_id: lojaId }));
         const { data } = await sb.from("forms").insert(novos).select("id,nome,descricao,estado,cor,obrigado,campos");
         fs = data ?? [];
       }
-      dbg.push({ fs: fs?.length, e1: e1?.message, vivo });
       const { data: rs } = await sb.from("form_respostas").select("id,form_id,cliente,valores,created_at").eq("store_id", lojaId).order("created_at", { ascending: false }).limit(2000);
-      dbg.push({ fim: vivo });
       if (!vivo) return;
       crescer.carregarForms(
         ((fs as LinhaForm[]) ?? []).map((f) => ({
           ...f,
+          descricao: f.descricao ?? "",
           respostas: ((rs as { id: string; form_id: string; cliente: string | null; valores: Record<string, string | number>; created_at: string }[]) ?? [])
             .filter((r) => r.form_id === f.id)
             .map((r) => ({ id: r.id, quando: new Date(r.created_at).getTime(), cliente: r.cliente ?? "Cliente", valores: r.valores })),
