@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { MODO, supabase } from "../../data/dados";
+import type { Endereco } from "./EnderecoLoja";
+
+const enderecoArgs = (org: string, e: Endereco) => ({ p_org: org, p_cidade: e.cidade, p_bairro: e.bairro, p_rua: e.rua, p_numero: e.numero, p_cep: e.cep, p_lon: e.lon ?? null, p_lat: e.lat ?? null });
 
 export type Config = { empresa: string; responsavel: string; email: string; whatsapp: string; assinatura: string };
 export const CONFIG_PADRAO: Config = { empresa: "MMATTOS Assessoria de MKT", responsavel: "", email: "", whatsapp: "21967640607", assinatura: "" };
@@ -47,7 +50,7 @@ export type Fatura = { id: string; org_id: string; competencia: string; vencimen
 export type Cobranca = { ativa: boolean; link: string | null; documento: string | null; assinatura: string | null };
 export type Auditoria = { id: number; org_id: string | null; acao: string; criado_em: string };
 export type Visao = { mrr: number; clientes_ativos: number; em_teste: number; atrasados: number; suspensos: number; cancelados_30d: number; a_receber: number; recebido_mes: number; pedidos_30d: number; vendas_30d: number; fregueses: number };
-export type NovoCliente = { empresa: string; loja: string; slug: string; bairro: string; plano: string; responsavel: string; telefone: string; email: string; dias_teste: number };
+export type NovoCliente = { empresa: string; loja: string; slug: string; bairro: string; plano: string; responsavel: string; telefone: string; email: string; dias_teste: number; endereco?: Endereco };
 
 export const PLANOS_PADRAO: Plano[] = [
   { id: "essencial", nome: "Essencial", preco: 149, descricao: "Loja própria e CRM para começar.", recursos: ["Loja e cardápio digital", "Mapa de atuação", "Fregueses e Pulso", "1 usuário"] },
@@ -248,6 +251,7 @@ export function useAdmin() {
       if (supabase) {
         const { data, error } = await supabase.rpc("admin_criar_cliente", { p_empresa: n.empresa, p_loja: n.loja, p_slug: n.slug, p_bairro: n.bairro, p_plano: n.plano, p_responsavel: n.responsavel, p_telefone: n.telefone, p_email: n.email, p_dias_teste: n.dias_teste });
         if (error) return { erro: error.message };
+        if (n.endereco) await supabase.rpc("admin_endereco_salvar", enderecoArgs(data as string, n.endereco));
         await recarregar();
         return { id: data as string };
       }
@@ -287,6 +291,19 @@ export function useAdmin() {
       const { error } = await supabase.auth.updateUser({ password: nova });
       if (!error) return null;
       return /different from the old/i.test(error.message) ? "A nova senha precisa ser diferente da atual." : error.message;
+    },
+    async enderecoLer(org_id: string): Promise<Endereco | null> {
+      if (!supabase) return null;
+      const { data } = await supabase.rpc("admin_endereco_ler", { p_org: org_id });
+      const e = (data as Endereco[] | null)?.[0];
+      return e ? { cidade: e.cidade ?? "Rio de Janeiro", bairro: e.bairro ?? "", rua: e.rua ?? "", numero: e.numero ?? "", cep: e.cep ?? "", lon: e.lon, lat: e.lat } : null;
+    },
+    async enderecoSalvar(org_id: string, e: Endereco): Promise<string | null> {
+      if (!supabase) return null;
+      const { error } = await supabase.rpc("admin_endereco_salvar", enderecoArgs(org_id, e));
+      if (error) return error.message;
+      await recarregar();
+      return null;
     },
     /** Exclui o cliente de vez (assinatura na Asaas, loja, dados e login do dono). */
     async excluirCliente(org_id: string): Promise<{ erro?: string; aviso?: string }> {

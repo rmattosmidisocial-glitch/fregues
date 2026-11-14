@@ -182,12 +182,13 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   // ---------- leitura pública: loja, zonas, cardápio ----------
   const carregarPublico = useCallback(async () => {
     if (!supabase) return;
-    const { data: s, error } = await supabase.from("stores").select("id,nome,slug,bairro,nota,avaliacoes,horario,aberta").eq("slug", SLUG).single();
+    const { data: s, error } = await supabase.from("stores").select("id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta").eq("slug", SLUG).single();
     if (error || !s) {
       setErro("Não foi possível abrir a loja agora.");
       return;
     }
-    setLoja({ ...M.LOJA, ...s, nota: Number(s.nota), aberto: s.aberta } as Loja);
+    const coord: [number, number] = s.lon != null && s.lat != null ? [Number(s.lon), Number(s.lat)] : M.LOJA.coord;
+    setLoja({ ...M.LOJA, ...s, cidade: s.cidade || M.LOJA.cidade, coord, nota: Number(s.nota), aberto: s.aberta } as Loja);
     const [{ data: zs }, { data: zb }, { data: zm }, { data: cats }, { data: prods }] = await Promise.all([
       supabase.from("delivery_zones").select("*").eq("store_id", s.id).order("ordem"),
       supabase.from("zone_bairros").select("zone_id, bairro_id").eq("store_id", s.id),

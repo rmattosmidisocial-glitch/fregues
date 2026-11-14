@@ -3,6 +3,7 @@ import { ArrowUpRight, MessageCircle, Pencil, Settings, Trash2, Building2, Check
 import { Logo } from "../../components/Logo";
 import { brl } from "../../data/mock";
 import { BotaoTema } from "../../tema";
+import { EnderecoLoja, ENDERECO_VAZIO, type Endereco } from "./EnderecoLoja";
 import { assinaturaDe, useAdmin, type Cliente, type Config, type Cobranca, type NovoCliente, type StatusAssin } from "./adminDados";
 
 const STATUS: Record<StatusAssin, { rotulo: string; cls: string; cor: string }> = {
@@ -296,7 +297,8 @@ function ExcluirCliente({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof use
 }
 
 /** Editar o cadastro do cliente (dados da empresa, da loja e do responsável). */
-function EditarCadastro({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>; fechar: (msg?: string) => void }) {
+function EditarCadastro({ c, a, endereco, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>; endereco: Endereco | null; fechar: (msg?: string) => void }) {
+  const [end, setEnd] = useState<Endereco>(endereco ?? { ...ENDERECO_VAZIO, bairro: c.bairro ?? "" });
   const [f, setF] = useState({ empresa: c.empresa, loja: c.loja, slug: c.slug, bairro: c.bairro ?? "", responsavel: c.responsavel ?? "", telefone: c.telefone ?? "", email: c.email ?? "" });
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -313,7 +315,7 @@ function EditarCadastro({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof use
       onSubmit={async (e) => {
         e.preventDefault();
         setSalvando(true);
-        const r = await a.acoes.editarCliente(c.org_id, f);
+        const r = (await a.acoes.editarCliente(c.org_id, { ...f, bairro: end.bairro })) ?? (await a.acoes.enderecoSalvar(c.org_id, end));
         setSalvando(false);
         if (r) setErro(r);
         else fechar("Cadastro atualizado.");
@@ -321,9 +323,12 @@ function EditarCadastro({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof use
     >
       {campo("empresa", "Empresa (razão ou nome fantasia)")}
       {campo("loja", "Nome da loja")}
-      {campo("slug", "Endereço da loja")}
-      {f.slug !== c.slug && <p className="text-[13px] text-mostarda">Mudar o endereço troca os links da loja e do painel. Os links antigos param de funcionar.</p>}
-      {campo("bairro", "Bairro")}
+      {campo("slug", "Link da loja (o que vem depois de ?r=)")}
+      {f.slug !== c.slug && <p className="text-[13px] text-mostarda">Mudar o link troca o endereço da loja e do painel. Os links antigos param de funcionar.</p>}
+      <div className="rounded-xl border border-linha p-3">
+        <p className="mb-2 font-semibold">Endereço do restaurante</p>
+        <EnderecoLoja valor={end} mudar={setEnd} />
+      </div>
       {campo("responsavel", "Responsável")}
       {campo("telefone", "WhatsApp", "tel")}
       {campo("email", "E-mail de contato", "email")}
@@ -342,7 +347,7 @@ function EditarCadastro({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof use
 }
 
 function NovoClienteModal({ a, fechar }: { a: ReturnType<typeof useAdmin>; fechar: () => void }) {
-  const [n, setN] = useState<NovoCliente>({ empresa: "", loja: "", slug: "", bairro: "", plano: "completo", responsavel: "", telefone: "", email: "", dias_teste: 14 });
+  const [n, setN] = useState<NovoCliente>({ empresa: "", loja: "", slug: "", bairro: "", plano: "completo", responsavel: "", telefone: "", email: "", dias_teste: 14, endereco: ENDERECO_VAZIO });
   const [erro, setErro] = useState("");
   const [ok, setOk] = useState<string | null>(null);
   const set = (p: Partial<NovoCliente>) => setN((x) => ({ ...x, ...p }));
@@ -395,17 +400,19 @@ function NovoClienteModal({ a, fechar }: { a: ReturnType<typeof useAdmin>; fecha
                 Razão social
                 <input required value={n.empresa} onChange={(e) => set({ empresa: e.target.value })} className={inp} placeholder="Ex.: Forno Velho LTDA" />
               </label>
-              <label className="block text-[13px] text-areia">
-                Endereço da loja
+              <label className="block text-[13px] text-areia sm:col-span-2">
+                Link da loja <span className="text-fumo">(sai do nome; os clientes dele usam este link)</span>
                 <span className="mt-1 flex items-center rounded-xl border border-linha bg-carvao px-3 text-[15px]">
-                  <span className="text-fumo">?r=</span>
+                  <span className="shrink-0 text-fumo">{window.location.host}/?r=</span>
                   <input required pattern="[a-z0-9-]{3,60}" value={n.slug} onChange={(e) => set({ slug: slugDe(e.target.value) })} className="min-w-0 flex-1 bg-transparent py-2.5 text-papel outline-none" />
                 </span>
               </label>
-              <label className="block text-[13px] text-areia">
-                Bairro
-                <input value={n.bairro} onChange={(e) => set({ bairro: e.target.value })} className={inp} placeholder="Ex.: Méier" />
-              </label>
+              <div className="sm:col-span-2">
+                <p className="text-[13px] font-semibold text-papel">Endereço do restaurante</p>
+                <div className="mt-2">
+                  <EnderecoLoja valor={n.endereco ?? ENDERECO_VAZIO} mudar={(e) => set({ endereco: e, bairro: e.bairro })} />
+                </div>
+              </div>
               <label className="block text-[13px] text-areia">
                 Responsável
                 <input required value={n.responsavel} onChange={(e) => set({ responsavel: e.target.value })} className={inp} />
@@ -602,6 +609,11 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
   const plano = a.planos.find((p) => p.id === c.plano);
   const acao = async (p: Promise<string | null>, ok: string) => setMsg((await p) ?? ok);
   const [editando, setEditando] = useState(false);
+  const [endereco, setEndereco] = useState<Endereco | null>(null);
+  useEffect(() => {
+    a.acoes.enderecoLer(c.org_id).then(setEndereco);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c.org_id, editando]);
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={fechar}>
       <div role="dialog" aria-label={`Cliente ${c.loja}`} className="scroll-thin h-full w-full max-w-[560px] overflow-y-auto border-l border-linha bg-forno p-6" onClick={(e) => e.stopPropagation()}>
@@ -726,6 +738,7 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
             <EditarCadastro
               c={c}
               a={a}
+              endereco={endereco}
               fechar={(m) => {
                 setEditando(false);
                 if (m) setMsg(m);
@@ -743,8 +756,11 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
                   {linkLojaDe(c.slug).replace(/^https?:\/\//, "")}
                 </a>
               </dd>
-              <dt className="text-areia">Bairro</dt>
-              <dd>{c.bairro || "—"}</dd>
+              <dt className="text-areia">Endereço</dt>
+              <dd>
+                {endereco ? [[endereco.rua, endereco.numero].filter(Boolean).join(", "), endereco.bairro, endereco.cidade].filter(Boolean).join(" · ") || "—" : c.bairro || "—"}
+                {endereco && (endereco.lon != null ? <span className="ml-1 text-[12px] text-manjericao">· no mapa</span> : <span className="ml-1 text-[12px] text-mostarda">· sem ponto no mapa</span>)}
+              </dd>
               <dt className="text-areia">Responsável</dt>
               <dd>{c.responsavel || "—"}</dd>
               <dt className="text-areia">WhatsApp</dt>

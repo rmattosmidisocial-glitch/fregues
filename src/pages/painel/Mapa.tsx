@@ -26,7 +26,11 @@ export function MapaAtuacao() {
   const zonas = d.zonas;
   const DEMANDA = d.demanda;
   const LOJA = d.loja;
-  const [mun, setMun] = useState<string | null>("Rio de Janeiro");
+  const [mun, setMun] = useState<string | null>(LOJA.cidade || "Rio de Janeiro");
+  // abre o mapa na cidade do restaurante
+  useEffect(() => {
+    if (LOJA.cidade) setMun(LOJA.cidade);
+  }, [LOJA.cidade]);
   const [sel, setSel] = useState<Feature | null>(null);
   const [calor, setCalor] = useState(true);
   const [demanda, setDemanda] = useState(true);
