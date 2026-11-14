@@ -167,6 +167,13 @@ export function Loja() {
   const [itens, setItens] = useState<Item[]>([]);
   const [etapa, setEtapa] = useState<Etapa | null>(null);
   const [modo, setModo] = useState<"entrega" | "retirada">("entrega");
+  const temEntrega = d.loja.entrega_ativa !== false;
+  const temRetirada = d.loja.retirada_ativa !== false;
+  useEffect(() => {
+    if (modo === "entrega" && !temEntrega && temRetirada) setModo("retirada");
+    if (modo === "retirada" && !temRetirada && temEntrega) setModo("entrega");
+  }, [modo, temEntrega, temRetirada]);
+  const [troco, setTroco] = useState("");
   const [ponto, setPonto] = useState<[number, number]>(() => {
     const f = BAIRROS_RIO.find((b) => b.properties.nome === "Vista Alegre")!;
     return centroide(f);
@@ -186,6 +193,12 @@ export function Loja() {
   // Pix só aparece quando a loja cadastrou a chave dela (na demonstração, sempre)
   const pixPronto = d.modo === "demo" || !!(LOJA.pix_chave && tipoChave(LOJA.pix_chave));
   const [pag, setPag] = useState<"pix" | "maquininha" | "dinheiro">(pixPronto ? "pix" : "maquininha");
+  // forma escolhida deixou de existir (a loja mudou as configurações): pega a primeira que vale
+  useEffect(() => {
+    const ok = { pix: pixPronto && LOJA.aceita_pix !== false, maquininha: LOJA.aceita_cartao !== false, dinheiro: LOJA.aceita_dinheiro !== false };
+    if (!ok[pag]) setPag((["pix", "maquininha", "dinheiro"] as const).find((x) => ok[x]) ?? pag);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pixPronto, LOJA.aceita_pix, LOJA.aceita_cartao, LOJA.aceita_dinheiro]);
   const [cashback, setCashback] = useState(true);
   const [pago, setPago] = useState(false);
   const [copiado, setCopiado] = useState(false);
@@ -271,8 +284,10 @@ export function Loja() {
   const qtdTotal = itens.reduce((s, i) => s + i.qtd, 0);
   const taxa = modo === "retirada" || !atende ? 0 : entrega?.gratis_acima && sub >= entrega.gratis_acima ? 0 : entrega?.taxa ?? 0;
   const desconto = cashback ? Math.min(saldo, sub) : 0;
-  const total = sub + taxa - desconto;
+  const embalagem = itens.length ? LOJA.taxa_embalagem ?? 0 : 0;
+  const total = sub + taxa + embalagem - desconto;
   const abaixoMinimo = modo === "entrega" && atende && sub < (entrega?.pedido_minimo ?? 0);
+  const minimoLoja = LOJA.pedido_minimo_geral ?? 0;
   const extra = LOJA.extra_min ?? 0;
   const tempo = modo === "entrega" && atende ? `${(entrega?.tempo_min ?? 0) + extra}–${(entrega?.tempo_max ?? 0) + extra} min` : `cerca de ${20 + extra} min`;
 
@@ -361,6 +376,7 @@ export function Loja() {
       endereco: modo === "entrega" ? { rua: endCep ? [rua, endCep.bairro, endCep.cidade].filter(Boolean).join(", ") : rua, numero: num, complemento: ref, ...(endCep ? { cep: endCep.cep } : {}) } : undefined,
       pagamento: pag === "dinheiro" ? "dinheiro" : pag,
       usar_cashback: cashback,
+      ...(pag === "dinheiro" && Number(troco.replace(",", ".")) > 0 ? { troco_para: Number(troco.replace(",", ".")) } : {}),
     });
     setEnviando(false);
     if (r.erro) return setErroPedido(r.erro);
@@ -438,7 +454,9 @@ export function Loja() {
                   ["entrega", "Entrega", <Bike key="b" className="h-4 w-4" />],
                   ["retirada", "Retirar", <Store key="s" className="h-4 w-4" />],
                 ] as const
-              ).map(([v, r, i]) => (
+              )
+                .filter(([v]) => (v === "entrega" ? temEntrega : temRetirada))
+                .map(([v, r, i]) => (
                 <button key={v} role="tab" aria-selected={modo === v} onClick={() => setModo(v)} className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 ${modo === v ? "bg-papel text-carvao" : "text-papel"}`}>
                   {i} {r}
                 </button>
@@ -719,7 +737,7 @@ export function Loja() {
                       ["dinheiro", "Dinheiro", modo === "entrega" ? "Pague ao receber" : "Pague ao retirar", <Bike key="b" className="h-5 w-5" />],
                     ] as const
                   )
-                    .filter(([v]) => v !== "pix" || pixPronto)
+                    .filter(([v]) => (v === "pix" ? pixPronto && LOJA.aceita_pix !== false : v === "maquininha" ? LOJA.aceita_cartao !== false : LOJA.aceita_dinheiro !== false))
                     .map(([v, t, ds, i]) => (
                     <label key={v} className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 ${pag === v ? "border-carvao bg-white" : "border-[#eadccb]"}`}>
                       <span className="text-brasa-escura">{i}</span>
@@ -730,6 +748,12 @@ export function Loja() {
                       <input type="radio" name="pag" checked={pag === v} onChange={() => setPag(v)} className="h-5 w-5 accent-[#c2410c]" />
                     </label>
                   ))}
+                  {pag === "dinheiro" && (
+                    <label className="block text-[13px] font-semibold">
+                      Troco para quanto? <span className="font-normal text-[#5a4c41]">(deixe vazio se não precisar)</span>
+                      <input value={troco} onChange={(e) => setTroco(e.target.value)} inputMode="decimal" placeholder="Ex.: 100" className="mt-1 w-full rounded-xl border border-[#eadccb] bg-white px-3 py-3 text-[15px] font-normal" />
+                    </label>
+                  )}
                   <div className="rounded-2xl bg-[#f3e8d8] p-4 text-[14px]">
                     <p className="font-semibold">{modo === "entrega" ? `Entrega em ${entrega?.bairro ?? ""}${num ? `, nº ${num}` : ""}` : `Retirada em ${LOJA.bairro}`}</p>
                     <p className="text-[#5a4c41]">Chega em {tempo}</p>
@@ -828,6 +852,12 @@ export function Loja() {
                       <dd className="tabular">{atende ? (taxa === 0 ? "Grátis" : brl(taxa)) : "a calcular"}</dd>
                     </div>
                   )}
+                  {embalagem > 0 && (
+                    <div className="flex justify-between">
+                      <dt className="text-[#5a4c41]">Embalagem</dt>
+                      <dd className="tabular">{brl(embalagem)}</dd>
+                    </div>
+                  )}
                   {desconto > 0 && etapa === "pagamento" && (
                     <div className="flex justify-between text-[#1e6b42]">
                       <dt>Cashback</dt>
@@ -836,12 +866,15 @@ export function Loja() {
                   )}
                   <div className="flex justify-between pt-1 text-[17px] font-bold">
                     <dt>Total</dt>
-                    <dd className="tabular">{brl(etapa === "pagamento" ? total : sub + (etapa === "entrega" ? taxa : 0))}</dd>
+                    <dd className="tabular">{brl(etapa === "pagamento" ? total : sub + embalagem + (etapa === "entrega" ? taxa : 0))}</dd>
                   </div>
                 </dl>
+                {etapa === "sacola" && itens.length > 0 && sub < minimoLoja && (
+                  <p className="mt-2 text-[13px] font-semibold text-[#b42318]">Pedido mínimo da loja: {brl(minimoLoja)}. Faltam {brl(minimoLoja - sub)}.</p>
+                )}
                 <button
                   disabled={itens.length === 0 || enviando}
-                  onClick={() => (etapa === "sacola" ? setEtapa(modo === "entrega" ? "entrega" : "pagamento") : etapa === "entrega" ? avancarEntrega() : finalizar())}
+                  onClick={() => (etapa === "sacola" ? (sub < minimoLoja ? null : setEtapa(modo === "entrega" ? "entrega" : "pagamento")) : etapa === "entrega" ? avancarEntrega() : finalizar())}
                   className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-carvao py-4 font-semibold text-papel disabled:opacity-40"
                 >
                   {enviando ? "Enviando pedido…" : etapa === "sacola" ? "Continuar" : etapa === "entrega" ? "Confirmar endereço" : pag === "pix" ? "Fazer pedido e gerar Pix" : "Fazer pedido"}

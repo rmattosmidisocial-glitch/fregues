@@ -27,7 +27,7 @@ export const supabase: SupabaseClient | null = URL && KEY ? createClient(URL, KE
 export const supabaseAdmin: SupabaseClient | null = URL && KEY ? createClient(URL, KEY, { auth: { storageKey: "fregues-admin-auth" } }) : null;
 export const MODO: "real" | "demo" = supabase ? "real" : "demo";
 
-export type Loja = typeof M.LOJA & { id?: string; publicada?: boolean; demonstracao?: boolean; pix_chave?: string | null; pix_nome?: string | null; pix_cidade?: string | null; descricao?: string | null; whatsapp?: string | null; instagram?: string | null; logo_url?: string | null; capa_url?: string | null; rua?: string | null; numero?: string | null; cep?: string | null; lon?: number | null; lat?: number | null; ligada?: boolean; horarios?: Horarios | null; pausa_ate?: string | null; extra_min?: number; extra_ate?: string | null };
+export type Loja = typeof M.LOJA & { id?: string; publicada?: boolean; demonstracao?: boolean; pix_chave?: string | null; pix_nome?: string | null; pix_cidade?: string | null; descricao?: string | null; whatsapp?: string | null; instagram?: string | null; logo_url?: string | null; capa_url?: string | null; rua?: string | null; numero?: string | null; cep?: string | null; lon?: number | null; lat?: number | null; ligada?: boolean; horarios?: Horarios | null; pausa_ate?: string | null; extra_min?: number; extra_ate?: string | null; aceita_pix?: boolean; aceita_cartao?: boolean; aceita_dinheiro?: boolean; entrega_ativa?: boolean; retirada_ativa?: boolean; pedido_minimo_geral?: number; taxa_embalagem?: number };
 export type Pulso = { risco: number; recuperado: number; voltaram: number; ritmo: number; atrasado: number; sumindo: number; total: number; comissao: number };
 export type DiaSemana = { dia: string; propria: number; marketplace: number };
 export type Entrega = {
@@ -50,6 +50,7 @@ export type NovoPedido = {
   pagamento: "pix" | "cartao" | "dinheiro" | "maquininha";
   usar_cashback: boolean;
   avisar_quando_atender?: boolean;
+  troco_para?: number;
 };
 export type NovoFregues = { nome: string; telefone: string; aniversario?: string; tags?: string[]; obs?: string; aceitaMarketing?: boolean };
 export type ZonaCampos = Partial<{ nome: string; cor: string; taxa: number; tempoMin: number; tempoMax: number; minimo: number; gratisAcima: number | null; raioKm: number | null }>;
@@ -112,7 +113,7 @@ type Dados = {
     entrar: (email: string, senha: string) => Promise<string | null>;
     sair: () => Promise<void>;
     /** Grava campos da loja (configurações do dono). */
-    salvarLoja: (c: Partial<Pick<Loja, "nome" | "pix_chave" | "pix_nome" | "pix_cidade" | "descricao" | "whatsapp" | "instagram" | "logo_url" | "capa_url" | "cidade" | "bairro" | "rua" | "numero" | "cep" | "lon" | "lat" | "horarios" | "pausa_ate" | "extra_min" | "extra_ate">>) => Promise<string | null>;
+    salvarLoja: (c: Partial<Pick<Loja, "nome" | "pix_chave" | "pix_nome" | "pix_cidade" | "descricao" | "whatsapp" | "instagram" | "logo_url" | "capa_url" | "cidade" | "bairro" | "rua" | "numero" | "cep" | "lon" | "lat" | "horarios" | "pausa_ate" | "extra_min" | "extra_ate" | "aceita_pix" | "aceita_cartao" | "aceita_dinheiro" | "entrega_ativa" | "retirada_ativa" | "pedido_minimo_geral" | "taxa_embalagem">>) => Promise<string | null>;
     /** Coloca a loja no ar (ou tira). Devolve o erro, ou null. */
     publicarLoja: (noAr: boolean) => Promise<string | null>;
     /** Minha conta: troca a senha (e tira o aviso de senha provisória). */
@@ -198,13 +199,13 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   // ---------- leitura pública: loja, zonas, cardápio ----------
   const carregarPublico = useCallback(async () => {
     if (!supabase) return;
-    const { data: s, error } = await supabase.from("stores").select("id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate").eq("slug", SLUG).single();
+    const { data: s, error } = await supabase.from("stores").select("id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem").eq("slug", SLUG).single();
     if (error || !s) {
       setErro("Não foi possível abrir a loja agora.");
       return;
     }
     const coord: [number, number] = s.lon != null && s.lat != null ? [Number(s.lon), Number(s.lat)] : M.LOJA.coord;
-    setLoja({ ...M.LOJA, ...s, cidade: s.cidade || M.LOJA.cidade, coord, nota: Number(s.nota), ligada: s.aberta, aberto: s.aberta } as Loja);
+    setLoja({ ...M.LOJA, ...s, cidade: s.cidade || M.LOJA.cidade, coord, nota: Number(s.nota), ligada: s.aberta, aberto: s.aberta, pedido_minimo_geral: Number(s.pedido_minimo_geral ?? 0), taxa_embalagem: Number(s.taxa_embalagem ?? 0) } as Loja);
     const [{ data: zs }, { data: zb }, { data: zm }, { data: cats }, { data: prods }] = await Promise.all([
       supabase.from("delivery_zones").select("*").eq("store_id", s.id).order("ordem"),
       supabase.from("zone_bairros").select("zone_id, bairro_id, taxa, cor").eq("store_id", s.id),
@@ -262,7 +263,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       supabase.rpc("pulse_summary", { p_store: storeId }),
       supabase
         .from("orders")
-        .select("id,numero,status,modo,mesa,total,pagamento,pago,motoboy,observacao,created_at,endereco,customers(nome,telefone),order_items(nome,qtd,escolhas)")
+        .select("id,numero,status,modo,mesa,total,pagamento,pago,motoboy,observacao,created_at,endereco,troco_para,customers(nome,telefone),order_items(nome,qtd,escolhas)")
         .eq("store_id", storeId)
         .gte("created_at", desde)
         .order("created_at", { ascending: false })
@@ -319,7 +320,8 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
           ...(i.escolhas?.length ? [`+ ${i.escolhas.join(", ")}`] : []),
         ]),
         total: Number(o.total),
-        pag: o.pagamento === "pix" && !o.pago ? ("Pix pendente" as Pedido["pag"]) : PAG[o.pagamento],
+        pag: o.pagamento === "pix" && !o.pago ? ("Pix pendente" as Pedido["pag"]) : o.pagamento === "dinheiro" ? ((o.troco_para ? `Dinheiro (troco p/ ${Number(o.troco_para)})` : "Dinheiro") as Pedido["pag"]) : PAG[o.pagamento],
+        troco: o.troco_para ? Number(o.troco_para) : undefined,
         modo: o.modo === "entrega" ? "Entrega" : o.modo === "retirada" ? "Retirada" : o.modo === "balcao" ? "Balcão" : (`Mesa ${o.mesa ?? ""}` as Pedido["modo"]),
         min: Math.max(0, Math.round((Date.now() - new Date(o.created_at).getTime()) / 60000)),
         status: o.status,

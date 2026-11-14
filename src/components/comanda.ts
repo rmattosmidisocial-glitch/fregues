@@ -72,6 +72,7 @@ function via(p: Pedido, loja: string, cfg: ImpressoraCfg, tipo: "unica" | "cozin
     ${p.nota ? `<hr><div class="g">OBS: ${esc(p.nota)}</div>` : ""}
     ${semPreco ? "" : `<hr><div class="g">TOTAL ${esc(brl(p.total))}</div>
     <div>${p.pago ? "PAGO" : "A RECEBER"}${p.forma ? ` · ${esc(NOME_FORMA[p.forma] ?? p.forma)}` : p.pago ? ` · ${esc(p.pag)}` : ""}</div>`}
+    ${p.troco && !semPreco ? `<div class="g">TROCO PARA ${esc(brl(p.troco))} (levar ${esc(brl(Math.max(0, p.troco - p.total)))})</div>` : ""}
     ${p.motoboy && tipo !== "cozinha" ? `<div>Entregador: ${esc(p.motoboy)}</div>` : ""}
     <hr>${cfg.rodape && tipo !== "cozinha" ? `<div class="c">${esc(cfg.rodape)}</div>` : ""}<div class="c peq">Freguês</div>
   </section>`;

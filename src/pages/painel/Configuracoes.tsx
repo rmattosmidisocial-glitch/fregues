@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle2, Clock, ImagePlus, MapPin, Store, Wallet } from "lucide-react";
+import { CheckCircle2, Clock, ImagePlus, MapPin, ShoppingBag, Store, Wallet } from "lucide-react";
 import { DIAS, linhaDoDia, type Faixa, type Horarios } from "../../lib/horario";
 import { EnderecoLoja, type Endereco as End } from "../admin/EnderecoLoja";
 import { useDados } from "../../data/dados";
@@ -20,6 +20,7 @@ export function Configuracoes() {
         <DadosLoja key={"dados" + d.loja.id} />
         <Funcionamento key={"hor" + d.loja.id} />
         <Endereco key={"end" + d.loja.id} />
+        <Regras key={"reg" + d.loja.id} />
         <Pagamentos key={d.loja.id} />
       </div>
     </div>
@@ -323,6 +324,81 @@ function Funcionamento() {
       </div>
       {msg && <p className={`mt-3 text-[14px] ${msg.ok ? "text-manjericao" : "text-[#e8846f]"}`}>{msg.t}</p>}
       <p className="mt-3 text-[12px] text-areia">Resumo: {ORDEM.map((i) => `${DIAS[i].slice(0, 3)} ${linhaDoDia(h[String(i)] ?? [])}`).join(" · ")}</p>
+    </Secao>
+  );
+}
+
+function Regras() {
+  const d = useDados();
+  const L = d.loja;
+  const [f, setF] = useState({
+    entrega_ativa: L.entrega_ativa !== false,
+    retirada_ativa: L.retirada_ativa !== false,
+    aceita_pix: L.aceita_pix !== false,
+    aceita_cartao: L.aceita_cartao !== false,
+    aceita_dinheiro: L.aceita_dinheiro !== false,
+    minimo: L.pedido_minimo_geral ? String(L.pedido_minimo_geral).replace(".", ",") : "",
+    embalagem: L.taxa_embalagem ? String(L.taxa_embalagem).replace(".", ",") : "",
+  });
+  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+  const semChave = !L.pix_chave;
+  const valor = (t: string) => (t.trim() === "" ? 0 : Number(t.replace(",", ".")));
+
+  async function salvar() {
+    if (!f.entrega_ativa && !f.retirada_ativa) return setMsg({ ok: false, t: "Deixe pelo menos entrega ou retirada ligada." });
+    if (!f.aceita_pix && !f.aceita_cartao && !f.aceita_dinheiro) return setMsg({ ok: false, t: "Deixe pelo menos uma forma de pagamento ligada." });
+    const minimo = valor(f.minimo), embalagem = valor(f.embalagem);
+    if (!Number.isFinite(minimo) || minimo < 0 || !Number.isFinite(embalagem) || embalagem < 0) return setMsg({ ok: false, t: "Use só números nos valores (ex.: 25,00)." });
+    const r = await d.acoes.salvarLoja({
+      entrega_ativa: f.entrega_ativa,
+      retirada_ativa: f.retirada_ativa,
+      aceita_pix: f.aceita_pix,
+      aceita_cartao: f.aceita_cartao,
+      aceita_dinheiro: f.aceita_dinheiro,
+      pedido_minimo_geral: minimo,
+      taxa_embalagem: embalagem,
+    });
+    setMsg(r ? { ok: false, t: r } : { ok: true, t: "Regras salvas. A loja já segue essas escolhas." });
+  }
+
+  const chave = (k: keyof typeof f, rotulo: string, dica?: string) => (
+    <label className="flex items-start gap-3 rounded-xl bg-grafite px-3 py-2.5">
+      <input type="checkbox" checked={f[k] as boolean} onChange={(e) => (setF({ ...f, [k]: e.target.checked }), setMsg(null))} className="mt-0.5 h-4 w-4 accent-[#ff5b1f]" />
+      <span>
+        <b>{rotulo}</b>
+        {dica && <span className="block text-[12px] text-areia">{dica}</span>}
+      </span>
+    </label>
+  );
+
+  return (
+    <Secao icone={<ShoppingBag className="h-5 w-5 text-brasa" />} titulo="Pedidos e pagamentos" sub="Como o cliente pode receber o pedido e como pode pagar na loja online.">
+      <div className="grid gap-2 text-[14px] sm:grid-cols-2">
+        {chave("entrega_ativa", "Entrega", "Usa as zonas e taxas do Território")}
+        {chave("retirada_ativa", "Retirada no balcão", "O cliente busca na loja")}
+      </div>
+      <p className="mt-4 text-[13px] font-semibold text-areia">Formas de pagamento</p>
+      <div className="mt-2 grid gap-2 text-[14px] sm:grid-cols-3">
+        {chave("aceita_pix", "Pix pelo site", semChave ? "Cadastre a chave em \"Pix da loja\" abaixo" : "Cai direto na sua conta")}
+        {chave("aceita_cartao", "Cartão na entrega", "Maquininha na entrega ou retirada")}
+        {chave("aceita_dinheiro", "Dinheiro", "O cliente informa o troco")}
+      </div>
+      <div className="mt-4 grid gap-3 text-[14px] sm:grid-cols-2">
+        <label className="block font-semibold">
+          Pedido mínimo da loja (R$)
+          <input value={f.minimo} onChange={(e) => setF({ ...f, minimo: e.target.value })} inputMode="decimal" placeholder="0,00 = sem mínimo" className={campo} />
+          <span className="mt-1 block text-[12px] font-normal text-areia">Vale para entrega e retirada. Cada zona também pode ter o seu.</span>
+        </label>
+        <label className="block font-semibold">
+          Taxa de embalagem (R$)
+          <input value={f.embalagem} onChange={(e) => setF({ ...f, embalagem: e.target.value })} inputMode="decimal" placeholder="0,00 = sem taxa" className={campo} />
+          <span className="mt-1 block text-[12px] font-normal text-areia">Somada uma vez por pedido.</span>
+        </label>
+      </div>
+      {msg && <p className={`mt-3 text-[14px] ${msg.ok ? "text-manjericao" : "text-[#e8846f]"}`}>{msg.t}</p>}
+      <button onClick={salvar} className="mt-3 w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda">
+        Salvar regras
+      </button>
     </Secao>
   );
 }

@@ -281,6 +281,8 @@ export type Pedido = {
   pago?: boolean;
   forma?: "pix" | "cartao" | "dinheiro" | "maquininha";
   criadoEm?: string;
+  /** dinheiro: troco para quanto */
+  troco?: number;
 };
 
 export const PEDIDOS: Pedido[] = [
