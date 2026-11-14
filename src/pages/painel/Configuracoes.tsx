@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { CheckCircle2, Clock, ImagePlus, MapPin, ShoppingBag, Store, Wallet } from "lucide-react";
+import { CheckCircle2, Clock, Gift, ImagePlus, MapPin, ShoppingBag, Store, Trash2, Wallet } from "lucide-react";
+import { useEffect } from "react";
+import type { Cupom } from "../../data/dados";
 import { DIAS, linhaDoDia, type Faixa, type Horarios } from "../../lib/horario";
 import { EnderecoLoja, type Endereco as End } from "../admin/EnderecoLoja";
 import { useDados } from "../../data/dados";
@@ -22,6 +24,7 @@ export function Configuracoes() {
         <Endereco key={"end" + d.loja.id} />
         <Regras key={"reg" + d.loja.id} />
         <Pagamentos key={d.loja.id} />
+        <Fidelidade key={"fid" + d.loja.id} />
       </div>
     </div>
   );
@@ -400,5 +403,217 @@ function Regras() {
         Salvar regras
       </button>
     </Secao>
+  );
+}
+
+const num = (t: string) => (t.trim() === "" ? 0 : Number(t.replace(",", ".")));
+
+function Fidelidade() {
+  const d = useDados();
+  const L = d.loja;
+  const [cb, setCb] = useState({
+    ativo: !!L.cashback_ativo,
+    pct: L.cashback_percentual ? String(Math.round(L.cashback_percentual * 1000) / 10).replace(".", ",") : "5",
+    minimo: L.cashback_minimo_uso ? String(L.cashback_minimo_uso).replace(".", ",") : "",
+    validade: L.cashback_validade_dias ? String(L.cashback_validade_dias) : "",
+  });
+  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+
+  async function salvarCashback() {
+    const pct = num(cb.pct), minimo = num(cb.minimo), validade = cb.validade.trim() ? Math.round(num(cb.validade)) : null;
+    if (cb.ativo && (!Number.isFinite(pct) || pct <= 0 || pct > 50)) return setMsg({ ok: false, t: "A porcentagem vai de 0,5% a 50%." });
+    if (!Number.isFinite(minimo) || minimo < 0 || (validade !== null && (!Number.isFinite(validade) || validade < 1))) return setMsg({ ok: false, t: "Confira os valores." });
+    const r = await d.acoes.salvarLoja({ cashback_ativo: cb.ativo, cashback_percentual: pct / 100, cashback_minimo_uso: minimo, cashback_validade_dias: validade });
+    setMsg(r ? { ok: false, t: r } : { ok: true, t: cb.ativo ? `Cashback ligado: ${cb.pct}% de volta em cada pedido entregue.` : "Cashback desligado." });
+  }
+
+  return (
+    <Secao icone={<Gift className="h-5 w-5 text-brasa" />} titulo="Fidelidade" sub="Cashback e cupons são opcionais. Ligue só o que fizer sentido para a sua loja.">
+      <div className="rounded-2xl border border-linha p-4 text-[14px]">
+        <label className="flex items-center gap-3">
+          <input type="checkbox" checked={cb.ativo} onChange={(e) => (setCb({ ...cb, ativo: e.target.checked }), setMsg(null))} className="h-5 w-5 accent-[#ff5b1f]" />
+          <span>
+            <b>Cashback</b>
+            <span className="block text-[12px] text-areia">O cliente ganha uma parte do que gastou como saldo para o próximo pedido. Conta quando o pedido é entregue.</span>
+          </span>
+        </label>
+        {cb.ativo && (
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <label className="block font-semibold">
+              % de volta
+              <input value={cb.pct} onChange={(e) => setCb({ ...cb, pct: e.target.value })} inputMode="decimal" className={campo} />
+            </label>
+            <label className="block font-semibold">
+              Usar a partir de (R$)
+              <input value={cb.minimo} onChange={(e) => setCb({ ...cb, minimo: e.target.value })} inputMode="decimal" placeholder="sem mínimo" className={campo} />
+            </label>
+            <label className="block font-semibold">
+              Vence em (dias)
+              <input value={cb.validade} onChange={(e) => setCb({ ...cb, validade: e.target.value })} inputMode="numeric" placeholder="não vence" className={campo} />
+            </label>
+          </div>
+        )}
+        {cb.ativo && num(cb.pct) > 0 && <p className="mt-2 text-[12px] text-areia">Exemplo: pedido de R$ 80,00 devolve {brlSimples((80 * num(cb.pct)) / 100)} de saldo.</p>}
+        {msg && <p className={`mt-2 ${msg.ok ? "text-manjericao" : "text-[#e8846f]"}`}>{msg.t}</p>}
+        <button onClick={salvarCashback} className="mt-3 w-full rounded-xl bg-brasa py-2.5 font-semibold text-carvao hover:bg-mostarda">
+          Salvar cashback
+        </button>
+      </div>
+      <Cupons />
+    </Secao>
+  );
+}
+const brlSimples = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const CUPOM_VAZIO = { codigo: "", tipo: "percentual" as Cupom["tipo"], valor: "10", minimo: "", validade: "", limite: "", uma_por_cliente: true, primeiro_pedido: false };
+
+function Cupons() {
+  const d = useDados();
+  const [lista, setLista] = useState<Cupom[] | null>(null);
+  const [novo, setNovo] = useState<typeof CUPOM_VAZIO | null>(null);
+  const [erro, setErro] = useState("");
+  const carregar = () => d.acoes.listarCupons().then(setLista);
+  useEffect(() => {
+    carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function criar() {
+    if (!novo) return;
+    const r = await d.acoes.salvarCupom({
+      codigo: novo.codigo,
+      tipo: novo.tipo,
+      valor: num(novo.valor),
+      minimo: num(novo.minimo),
+      validade: novo.validade || null,
+      limite_total: novo.limite.trim() ? Math.round(num(novo.limite)) : null,
+      uma_por_cliente: novo.uma_por_cliente,
+      primeiro_pedido: novo.primeiro_pedido,
+      ativo: true,
+    });
+    if (r) return setErro(r);
+    setNovo(null);
+    setErro("");
+    carregar();
+  }
+  const descricao = (c: Cupom) =>
+    [
+      c.tipo === "percentual" ? `${c.valor}% de desconto` : c.tipo === "valor" ? `${brlSimples(c.valor)} de desconto` : "Entrega grátis",
+      c.minimo > 0 && `a partir de ${brlSimples(c.minimo)}`,
+      c.primeiro_pedido && "só 1º pedido",
+      c.uma_por_cliente && "1 por cliente",
+      c.limite_total && `até ${c.limite_total} usos`,
+      c.validade && `até ${new Date(c.validade + "T12:00").toLocaleDateString("pt-BR")}`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+  return (
+    <div className="mt-4 rounded-2xl border border-linha p-4 text-[14px]">
+      <div className="flex items-center justify-between">
+        <span>
+          <b>Cupons de desconto</b>
+          <span className="block text-[12px] text-areia">O cliente digita o código na hora de pagar. Não soma com o cashback.</span>
+        </span>
+        {!novo && (
+          <button onClick={() => setNovo({ ...CUPOM_VAZIO })} className="shrink-0 rounded-full bg-brasa px-3 py-1.5 font-semibold text-carvao">
+            + Cupom
+          </button>
+        )}
+      </div>
+
+      {novo && (
+        <div className="mt-3 space-y-3 rounded-xl bg-grafite p-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block font-semibold">
+              Código
+              <input value={novo.codigo} onChange={(e) => setNovo({ ...novo, codigo: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })} placeholder="BEMVINDO10" className={campo} />
+            </label>
+            <label className="block font-semibold">
+              Tipo
+              <select value={novo.tipo} onChange={(e) => setNovo({ ...novo, tipo: e.target.value as Cupom["tipo"] })} className={campo}>
+                <option value="percentual">% de desconto</option>
+                <option value="valor">Valor fixo (R$)</option>
+                <option value="entrega">Entrega grátis</option>
+              </select>
+            </label>
+            {novo.tipo !== "entrega" && (
+              <label className="block font-semibold">
+                {novo.tipo === "percentual" ? "Desconto (%)" : "Desconto (R$)"}
+                <input value={novo.valor} onChange={(e) => setNovo({ ...novo, valor: e.target.value })} inputMode="decimal" className={campo} />
+              </label>
+            )}
+            <label className="block font-semibold">
+              Pedido mínimo (R$)
+              <input value={novo.minimo} onChange={(e) => setNovo({ ...novo, minimo: e.target.value })} inputMode="decimal" placeholder="sem mínimo" className={campo} />
+            </label>
+            <label className="block font-semibold">
+              Válido até
+              <input type="date" value={novo.validade} onChange={(e) => setNovo({ ...novo, validade: e.target.value })} className={campo} />
+            </label>
+            <label className="block font-semibold">
+              Limite de usos no total
+              <input value={novo.limite} onChange={(e) => setNovo({ ...novo, limite: e.target.value })} inputMode="numeric" placeholder="sem limite" className={campo} />
+            </label>
+          </div>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={novo.uma_por_cliente} onChange={(e) => setNovo({ ...novo, uma_por_cliente: e.target.checked })} className="h-4 w-4 accent-[#ff5b1f]" /> Uma vez por cliente
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={novo.primeiro_pedido} onChange={(e) => setNovo({ ...novo, primeiro_pedido: e.target.checked })} className="h-4 w-4 accent-[#ff5b1f]" /> Só no primeiro pedido do cliente
+          </label>
+          {erro && <p className="text-[#e8846f]">{erro}</p>}
+          <div className="flex gap-2">
+            <button onClick={criar} className="flex-1 rounded-xl bg-brasa py-2.5 font-semibold text-carvao">
+              Criar cupom
+            </button>
+            <button onClick={() => (setNovo(null), setErro(""))} className="rounded-xl border border-linha px-4 font-semibold">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      <ul className="mt-3 space-y-2">
+        {lista === null && <li className="text-areia">Carregando…</li>}
+        {lista?.length === 0 && !novo && <li className="text-areia">Nenhum cupom ainda. Que tal um BEMVINDO10 só para o primeiro pedido?</li>}
+        {lista?.map((c) => (
+          <li key={c.id} className={`rounded-xl bg-grafite p-3 ${c.ativo ? "" : "opacity-60"}`}>
+            <div className="flex items-start justify-between gap-2">
+              <span>
+                <b className="font-mono text-[15px]">{c.codigo}</b> {!c.ativo && <span className="text-[12px] text-areia">(pausado)</span>}
+                <span className="block text-[12px] text-areia">{descricao(c)}</span>
+                <span className="mt-1 block text-[12px]">
+                  {c.usos ?? 0} {c.usos === 1 ? "uso" : "usos"} · {brlSimples(c.vendas ?? 0)} em pedidos · {brlSimples(c.desconto ?? 0)} de desconto dado
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-1">
+                <button
+                  onClick={async () => {
+                    const r = await d.acoes.salvarCupom({ ...c, ativo: !c.ativo });
+                    if (r) setErro(r);
+                    carregar();
+                  }}
+                  className="rounded-full border border-linha px-2.5 py-1 text-[12px] font-semibold"
+                >
+                  {c.ativo ? "Pausar" : "Ativar"}
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Apagar o cupom ${c.codigo}?`)) return;
+                    await d.acoes.removerCupom(c.id);
+                    carregar();
+                  }}
+                  aria-label={`Apagar ${c.codigo}`}
+                  className="rounded-full p-1.5 text-areia hover:text-[#ff8b80]"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

@@ -27,7 +27,7 @@ export const supabase: SupabaseClient | null = URL && KEY ? createClient(URL, KE
 export const supabaseAdmin: SupabaseClient | null = URL && KEY ? createClient(URL, KEY, { auth: { storageKey: "fregues-admin-auth" } }) : null;
 export const MODO: "real" | "demo" = supabase ? "real" : "demo";
 
-export type Loja = typeof M.LOJA & { id?: string; publicada?: boolean; demonstracao?: boolean; pix_chave?: string | null; pix_nome?: string | null; pix_cidade?: string | null; descricao?: string | null; whatsapp?: string | null; instagram?: string | null; logo_url?: string | null; capa_url?: string | null; rua?: string | null; numero?: string | null; cep?: string | null; lon?: number | null; lat?: number | null; ligada?: boolean; horarios?: Horarios | null; pausa_ate?: string | null; extra_min?: number; extra_ate?: string | null; aceita_pix?: boolean; aceita_cartao?: boolean; aceita_dinheiro?: boolean; entrega_ativa?: boolean; retirada_ativa?: boolean; pedido_minimo_geral?: number; taxa_embalagem?: number };
+export type Loja = typeof M.LOJA & { id?: string; publicada?: boolean; demonstracao?: boolean; pix_chave?: string | null; pix_nome?: string | null; pix_cidade?: string | null; descricao?: string | null; whatsapp?: string | null; instagram?: string | null; logo_url?: string | null; capa_url?: string | null; rua?: string | null; numero?: string | null; cep?: string | null; lon?: number | null; lat?: number | null; ligada?: boolean; horarios?: Horarios | null; pausa_ate?: string | null; extra_min?: number; extra_ate?: string | null; aceita_pix?: boolean; aceita_cartao?: boolean; aceita_dinheiro?: boolean; entrega_ativa?: boolean; retirada_ativa?: boolean; pedido_minimo_geral?: number; taxa_embalagem?: number; cashback_ativo?: boolean; cashback_percentual?: number; cashback_minimo_uso?: number; cashback_validade_dias?: number | null };
 export type Pulso = { risco: number; recuperado: number; voltaram: number; ritmo: number; atrasado: number; sumindo: number; total: number; comissao: number };
 export type DiaSemana = { dia: string; propria: number; marketplace: number };
 export type Entrega = {
@@ -51,7 +51,9 @@ export type NovoPedido = {
   usar_cashback: boolean;
   avisar_quando_atender?: boolean;
   troco_para?: number;
+  cupom?: string;
 };
+export type Cupom = { id: string; codigo: string; tipo: "percentual" | "valor" | "entrega"; valor: number; minimo: number; validade: string | null; limite_total: number | null; uma_por_cliente: boolean; primeiro_pedido: boolean; ativo: boolean; usos?: number; desconto?: number; vendas?: number };
 export type NovoFregues = { nome: string; telefone: string; aniversario?: string; tags?: string[]; obs?: string; aceitaMarketing?: boolean };
 export type ZonaCampos = Partial<{ nome: string; cor: string; taxa: number; tempoMin: number; tempoMax: number; minimo: number; gratisAcima: number | null; raioKm: number | null }>;
 export type Lead = { id: string; telefone: string; nome: string | null; quando: string; avisadoEm: string | null };
@@ -113,7 +115,7 @@ type Dados = {
     entrar: (email: string, senha: string) => Promise<string | null>;
     sair: () => Promise<void>;
     /** Grava campos da loja (configurações do dono). */
-    salvarLoja: (c: Partial<Pick<Loja, "nome" | "pix_chave" | "pix_nome" | "pix_cidade" | "descricao" | "whatsapp" | "instagram" | "logo_url" | "capa_url" | "cidade" | "bairro" | "rua" | "numero" | "cep" | "lon" | "lat" | "horarios" | "pausa_ate" | "extra_min" | "extra_ate" | "aceita_pix" | "aceita_cartao" | "aceita_dinheiro" | "entrega_ativa" | "retirada_ativa" | "pedido_minimo_geral" | "taxa_embalagem">>) => Promise<string | null>;
+    salvarLoja: (c: Partial<Pick<Loja, "nome" | "pix_chave" | "pix_nome" | "pix_cidade" | "descricao" | "whatsapp" | "instagram" | "logo_url" | "capa_url" | "cidade" | "bairro" | "rua" | "numero" | "cep" | "lon" | "lat" | "horarios" | "pausa_ate" | "extra_min" | "extra_ate" | "aceita_pix" | "aceita_cartao" | "aceita_dinheiro" | "entrega_ativa" | "retirada_ativa" | "pedido_minimo_geral" | "taxa_embalagem" | "cashback_ativo" | "cashback_percentual" | "cashback_minimo_uso" | "cashback_validade_dias">>) => Promise<string | null>;
     /** Coloca a loja no ar (ou tira). Devolve o erro, ou null. */
     publicarLoja: (noAr: boolean) => Promise<string | null>;
     /** Minha conta: troca a senha (e tira o aviso de senha provisória). */
@@ -158,6 +160,12 @@ type Dados = {
     statusPedido: (id: string) => Promise<{ status: StatusPedido; pago: boolean } | null>;
     confirmarPixDemo: (id: string) => Promise<void>;
     saldoCashback: (tel: string) => Promise<number>;
+    /** Loja: confere o cupom e devolve o desconto (ou o motivo de não valer). */
+    conferirCupom: (codigo: string, tel: string, subtotal: number) => Promise<{ tipo?: Cupom["tipo"]; desconto?: number; codigo?: string; erro?: string }>;
+    /** Painel: cupons da loja com uso e vendas. */
+    listarCupons: () => Promise<Cupom[]>;
+    salvarCupom: (c: Omit<Cupom, "id" | "usos" | "desconto" | "vendas"> & { id?: string }) => Promise<string | null>;
+    removerCupom: (id: string) => Promise<string | null>;
     recarregar: () => Promise<void>;
     /** Demonstração: coloca um pedido no quadro da cozinha (o modo real recebe pelo banco). */
     pedidoLocal: (p: Pedido) => void;
@@ -199,13 +207,13 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   // ---------- leitura pública: loja, zonas, cardápio ----------
   const carregarPublico = useCallback(async () => {
     if (!supabase) return;
-    const { data: s, error } = await supabase.from("stores").select("id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem").eq("slug", SLUG).single();
+    const { data: s, error } = await supabase.from("stores").select("id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem,cashback_ativo,cashback_percentual,cashback_minimo_uso,cashback_validade_dias").eq("slug", SLUG).single();
     if (error || !s) {
       setErro("Não foi possível abrir a loja agora.");
       return;
     }
     const coord: [number, number] = s.lon != null && s.lat != null ? [Number(s.lon), Number(s.lat)] : M.LOJA.coord;
-    setLoja({ ...M.LOJA, ...s, cidade: s.cidade || M.LOJA.cidade, coord, nota: Number(s.nota), ligada: s.aberta, aberto: s.aberta, pedido_minimo_geral: Number(s.pedido_minimo_geral ?? 0), taxa_embalagem: Number(s.taxa_embalagem ?? 0) } as Loja);
+    setLoja({ ...M.LOJA, ...s, cidade: s.cidade || M.LOJA.cidade, coord, nota: Number(s.nota), ligada: s.aberta, aberto: s.aberta, pedido_minimo_geral: Number(s.pedido_minimo_geral ?? 0), taxa_embalagem: Number(s.taxa_embalagem ?? 0), cashback_percentual: Number(s.cashback_percentual ?? 0), cashback_minimo_uso: Number(s.cashback_minimo_uso ?? 0) } as Loja);
     const [{ data: zs }, { data: zb }, { data: zm }, { data: cats }, { data: prods }] = await Promise.all([
       supabase.from("delivery_zones").select("*").eq("store_id", s.id).order("ordem"),
       supabase.from("zone_bairros").select("zone_id, bairro_id, taxa, cor").eq("store_id", s.id),
@@ -877,6 +885,40 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       },
       async confirmarPixDemo(id) {
         if (supabase && !id.startsWith("demo")) await supabase.rpc("confirmar_pix_demo", { p_id: id });
+      },
+      async conferirCupom(codigo, tel, subtotal) {
+        const c = codigo.trim().toUpperCase();
+        if (!c) return { erro: "Digite o código do cupom" };
+        if (!supabase) return c === "BEMVINDO10" ? { tipo: "percentual", desconto: Math.round(subtotal * 10) / 100, codigo: c } : { erro: "Cupom não encontrado" };
+        const { data, error } = await supabase.rpc("cupom_conferir", { p_slug: SLUG, p_codigo: c, p_telefone: tel, p_subtotal: subtotal });
+        if (error) return { erro: "Não consegui conferir o cupom agora" };
+        const r = data as { tipo?: Cupom["tipo"]; desconto?: number; codigo?: string; erro?: string };
+        return r.erro ? { erro: r.erro } : { ...r, desconto: Number(r.desconto ?? 0) };
+      },
+      async listarCupons() {
+        if (!supabase || !loja.id) return [];
+        const [{ data: cs }, { data: rs }] = await Promise.all([
+          supabase.from("cupons").select("*").eq("store_id", loja.id).order("criado_em", { ascending: false }),
+          supabase.rpc("cupons_resumo", { p_store: loja.id }),
+        ]);
+        const res = new Map(((rs as { id: string; usos: number; desconto: number; vendas: number }[]) ?? []).map((r) => [r.id, r]));
+        return ((cs as Cupom[]) ?? []).map((c) => ({ ...c, valor: Number(c.valor), minimo: Number(c.minimo), usos: Number(res.get(c.id)?.usos ?? 0), desconto: Number(res.get(c.id)?.desconto ?? 0), vendas: Number(res.get(c.id)?.vendas ?? 0) }));
+      },
+      async salvarCupom(c) {
+        const codigo = c.codigo.trim().toUpperCase();
+        if (!/^[A-Z0-9]{3,20}$/.test(codigo)) return "Código com 3 a 20 letras ou números, sem espaço (ex.: BEMVINDO10)";
+        if (c.tipo === "percentual" && (c.valor <= 0 || c.valor > 100)) return "A porcentagem vai de 1 a 100";
+        if (c.tipo === "valor" && c.valor <= 0) return "Informe o valor do desconto";
+        if (!supabase || !loja.id) return null;
+        const linha = { store_id: loja.id, codigo, tipo: c.tipo, valor: c.tipo === "entrega" ? 0 : c.valor, minimo: c.minimo, validade: c.validade || null, limite_total: c.limite_total || null, uma_por_cliente: c.uma_por_cliente, primeiro_pedido: c.primeiro_pedido, ativo: c.ativo };
+        const { error } = c.id ? await supabase.from("cupons").update(linha).eq("id", c.id) : await supabase.from("cupons").insert(linha);
+        if (error) return /duplicate|unique/i.test(error.message) ? "Já existe um cupom com esse código" : error.message;
+        return null;
+      },
+      async removerCupom(id) {
+        if (!supabase) return null;
+        const { error } = await supabase.from("cupons").delete().eq("id", id);
+        return error ? error.message : null;
       },
       async saldoCashback(tel) {
         if (!supabase) return 12.4;

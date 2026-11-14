@@ -200,6 +200,12 @@ export function Loja() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pixPronto, LOJA.aceita_pix, LOJA.aceita_cartao, LOJA.aceita_dinheiro]);
   const [cashback, setCashback] = useState(true);
+  const [cupomTxt, setCupomTxt] = useState("");
+  const [cupom, setCupom] = useState<{ codigo: string; tipo: string; desconto: number } | null>(null);
+  const [erroCupom, setErroCupom] = useState("");
+  const [conferindo, setConferindo] = useState(false);
+  const subAtual = itens.reduce((t, i) => t + i.unit * i.qtd, 0);
+  useEffect(() => setCupom(null), [subAtual]); // mudou a sacola: confere o cupom de novo
   const [pago, setPago] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [passo, setPasso] = useState(1);
@@ -282,8 +288,12 @@ export function Loja() {
   const atende = !!entrega?.atende;
   const sub = itens.reduce((s, i) => s + i.unit * i.qtd, 0);
   const qtdTotal = itens.reduce((s, i) => s + i.qtd, 0);
-  const taxa = modo === "retirada" || !atende ? 0 : entrega?.gratis_acima && sub >= entrega.gratis_acima ? 0 : entrega?.taxa ?? 0;
-  const desconto = cashback ? Math.min(saldo, sub) : 0;
+  const taxaZona = modo === "retirada" || !atende ? 0 : entrega?.gratis_acima && sub >= entrega.gratis_acima ? 0 : entrega?.taxa ?? 0;
+  const taxa = cupom?.tipo === "entrega" ? 0 : taxaZona;
+  // cashback só se a loja ligou; cupom e cashback não somam
+  const cashbackLoja = d.modo === "demo" || !!LOJA.cashback_ativo;
+  const podeCashback = cashbackLoja && !cupom && saldo > 0 && sub >= (LOJA.cashback_minimo_uso ?? 0);
+  const desconto = cupom ? Math.min(cupom.desconto, sub) : podeCashback && cashback ? Math.min(saldo, sub) : 0;
   const embalagem = itens.length ? LOJA.taxa_embalagem ?? 0 : 0;
   const total = sub + taxa + embalagem - desconto;
   const abaixoMinimo = modo === "entrega" && atende && sub < (entrega?.pedido_minimo ?? 0);
@@ -375,7 +385,8 @@ export function Loja() {
       ponto: modo === "entrega" ? { lon: ponto[0], lat: ponto[1] } : undefined,
       endereco: modo === "entrega" ? { rua: endCep ? [rua, endCep.bairro, endCep.cidade].filter(Boolean).join(", ") : rua, numero: num, complemento: ref, ...(endCep ? { cep: endCep.cep } : {}) } : undefined,
       pagamento: pag === "dinheiro" ? "dinheiro" : pag,
-      usar_cashback: cashback,
+      usar_cashback: !cupom && podeCashback && cashback,
+      ...(cupom ? { cupom: cupom.codigo } : {}),
       ...(pag === "dinheiro" && Number(troco.replace(",", ".")) > 0 ? { troco_para: Number(troco.replace(",", ".")) } : {}),
     });
     setEnviando(false);
@@ -720,15 +731,53 @@ export function Loja() {
                       .
                     </p>
                   </div>
-                  {saldo > 0 && (
-                    <label className="flex items-center justify-between rounded-2xl border border-[#eadccb] p-4">
+                  {cashbackLoja && saldo > 0 && !cupom && (
+                    <label className={`flex items-center justify-between rounded-2xl border border-[#eadccb] p-4 ${podeCashback ? "" : "opacity-60"}`}>
                       <span>
                         <span className="block font-semibold">Usar cashback</span>
-                        <span className="text-[13px] text-[#5a4c41]">Você tem {brl(saldo)} de saldo</span>
+                        <span className="text-[13px] text-[#5a4c41]">
+                          {podeCashback ? `Você tem ${brl(saldo)} de saldo` : `Você tem ${brl(saldo)}. Use em pedidos a partir de ${brl(LOJA.cashback_minimo_uso ?? 0)}`}
+                        </span>
                       </span>
-                      <input type="checkbox" checked={cashback} onChange={() => setCashback(!cashback)} className="h-5 w-5 accent-[#c2410c]" />
+                      <input type="checkbox" disabled={!podeCashback} checked={podeCashback && cashback} onChange={() => setCashback(!cashback)} className="h-5 w-5 accent-[#c2410c]" />
                     </label>
                   )}
+                  <div className="rounded-2xl border border-[#eadccb] p-4">
+                    {cupom ? (
+                      <div className="flex items-center justify-between gap-3">
+                        <span>
+                          <span className="block font-semibold text-[#1e6b42]">Cupom {cupom.codigo} aplicado</span>
+                          <span className="text-[13px] text-[#5a4c41]">{cupom.tipo === "entrega" ? "Entrega grátis" : `− ${brl(cupom.desconto)}`}</span>
+                        </span>
+                        <button type="button" onClick={() => (setCupom(null), setCupomTxt(""))} className="text-[13px] font-semibold underline">
+                          Tirar
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="block text-[13px] font-semibold">Tem cupom?</span>
+                        <div className="mt-1 flex gap-2">
+                          <input value={cupomTxt} onChange={(e) => (setCupomTxt(e.target.value.toUpperCase()), setErroCupom(""))} placeholder="CÓDIGO" autoCapitalize="characters" className="min-w-0 flex-1 rounded-xl border border-[#eadccb] bg-white px-3 py-2.5 text-[15px] uppercase" />
+                          <button
+                            type="button"
+                            disabled={!cupomTxt.trim() || conferindo}
+                            onClick={async () => {
+                              setConferindo(true);
+                              const r = await d.acoes.conferirCupom(cupomTxt, telDigitos, sub);
+                              setConferindo(false);
+                              if (r.erro) return setErroCupom(r.erro);
+                              setCupom({ codigo: r.codigo ?? cupomTxt.trim().toUpperCase(), tipo: r.tipo ?? "valor", desconto: r.desconto ?? 0 });
+                            }}
+                            className="rounded-xl bg-carvao px-4 text-[14px] font-semibold text-papel disabled:opacity-40"
+                          >
+                            {conferindo ? "…" : "Aplicar"}
+                          </button>
+                        </div>
+                        {erroCupom && <span className="mt-1 block text-[13px] font-semibold text-[#b42318]">{erroCupom}</span>}
+                        {cashbackLoja && saldo > 0 && <span className="mt-1 block text-[12px] text-[#5a4c41]">Cupom e cashback não somam: usando cupom, o saldo fica guardado.</span>}
+                      </>
+                    )}
+                  </div>
                   <p className="pt-2 text-[13px] font-semibold">Como você quer pagar?</p>
                   {(
                     [
@@ -860,7 +909,7 @@ export function Loja() {
                   )}
                   {desconto > 0 && etapa === "pagamento" && (
                     <div className="flex justify-between text-[#1e6b42]">
-                      <dt>Cashback</dt>
+                      <dt>{cupom ? `Cupom ${cupom.codigo}` : "Cashback"}</dt>
                       <dd className="tabular">− {brl(desconto)}</dd>
                     </div>
                   )}
