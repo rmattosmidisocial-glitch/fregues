@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { ArrowUpRight, Bike, Map, MessageCircle, Sparkles, Store, Check } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowUpRight, Bell, Bike, BarChart3, Calculator, ChefHat, ChevronDown, Clock, CreditCard, FileText, Gift, Map, MessageCircle, MessagesSquare, Palette, Printer, QrCode, Smartphone, Sparkles, Store, Check, Users, Workflow, Link2 } from "lucide-react";
 import { Logo } from "../components/Logo";
 import { BotaoTema } from "../tema";
 import { Comanda } from "../components/Comanda";
@@ -7,7 +7,11 @@ import { GeoMap, BAIRROS, nomeBairro, vizinhos, type Layer } from "../components
 import { Foto } from "../components/Foto";
 import { LOJA, ZONAS, CARDAPIO, brl, chamarHoje } from "../data/mock";
 
-const WHATS = "https://wa.me/5521967640607?text=Quero%20saber%20mais%20sobre%20o%20Fregu%C3%AAs";
+// Todo contato de venda vai para o WhatsApp da MMATTOS
+const NUMERO = "5521967640607";
+const wa = (msg = "Olá! Quero saber mais sobre o Freguês para a minha casa.") => `https://wa.me/${NUMERO}?text=${encodeURIComponent(msg)}`;
+const WHATS = wa();
+const DEMO = "https://fregues-tau.vercel.app/brasa-burger";
 
 function HeroMapa() {
   const { layers, fit } = useMemo(() => {
@@ -54,13 +58,14 @@ function Nav() {
       </a>
       <nav className="hidden items-center gap-8 text-[15px] font-semibold text-areia md:flex">
         <a href="#como" className="hover:text-papel">Como funciona</a>
-        <a href="#pilares" className="hover:text-papel">O que muda na sua casa</a>
-        <a href="#fundador" className="hover:text-papel">Fundadores</a>
+        <a href="#recursos" className="hover:text-papel">Recursos</a>
+        <a href="#planos" className="hover:text-papel">Planos</a>
+        <a href="#duvidas" className="hover:text-papel">Dúvidas</a>
       </nav>
       <span className="flex items-center gap-2">
         <BotaoTema />
         <a href={WHATS} target="_blank" rel="noreferrer" className="rounded-full bg-papel px-4 py-2 text-[14px] font-semibold text-carvao transition hover:bg-brasa">
-          Falar com a gente
+          Falar no WhatsApp
         </a>
       </span>
     </header>
@@ -84,8 +89,8 @@ function Hero() {
             <a href={WHATS} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-full bg-brasa px-6 py-3.5 text-[16px] font-bold text-carvao transition hover:bg-mostarda">
               Veja o Freguês na sua casa <ArrowUpRight className="h-5 w-5" />
             </a>
-            <a href="#como" className="rounded-full border border-linha px-6 py-3.5 text-[16px] font-semibold text-papel transition hover:border-areia">
-              Como funciona
+            <a href={DEMO} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-full border border-linha px-6 py-3.5 text-[16px] font-semibold text-papel transition hover:border-areia">
+              Ver loja de demonstração <Store className="h-5 w-5" />
             </a>
           </div>
           <p className="mt-5 text-[14px] text-fumo">Para restaurantes, hamburguerias, pizzarias, bares e muito mais.</p>
@@ -113,7 +118,7 @@ function Hero() {
       </div>
       <div className="mx-auto max-w-[1240px] px-5 md:px-8">
         <div className="flex flex-wrap items-center gap-x-8 gap-y-2 border-t border-linha pt-5 text-[15px] text-areia">
-          {["Sem comissão por pedido", "Loja própria com cardápio digital", "Entrega por bairro em todo o RJ", "Delivery, salão e balcão juntos", "Sem app para o cliente"].map((t) => (
+          {["Sem comissão por pedido", "Pix que confirma sozinho", "Entrega por bairro em todo o RJ", "Delivery, salão e balcão juntos", "Sem app para o cliente"].map((t) => (
             <span key={t} className="flex items-center gap-2">
               <Check className="h-4 w-4 text-brasa" /> {t}
             </span>
@@ -296,6 +301,181 @@ const PILARES: [string, string, string][] = [
   ["Atendimento", "Responda com contexto e encaminhe conflitos à equipe.", "A casa atende. A equipe assume quando precisa."],
 ];
 
+const GRUPOS: { titulo: string; itens: [React.ReactNode, string, string][] }[] = [
+  {
+    titulo: "Vender",
+    itens: [
+      [<Store key="a" className="h-5 w-5" />, "Loja própria", "Cardápio com a cor da sua marca e link só seu, sem comissão."],
+      [<CreditCard key="b" className="h-5 w-5" />, "Pix automático", "O cliente paga e o pedido se confirma sozinho. O dinheiro cai na sua conta."],
+      [<Gift key="c" className="h-5 w-5" />, "Cupons e cashback", "Primeira compra, frete grátis, desconto: você escolhe as regras."],
+      [<Clock key="d" className="h-5 w-5" />, "Abre e fecha sozinha", "Horários, pausa rápida, pedido mínimo e taxa de embalagem."],
+    ],
+  },
+  {
+    titulo: "Operar",
+    itens: [
+      [<ChefHat key="a" className="h-5 w-5" />, "Tela da cozinha", "Pedido novo com som e aviso no celular, do preparo à entrega."],
+      [<Printer key="b" className="h-5 w-5" />, "Impressão automática", "A comanda sai na impressora térmica assim que o pedido chega."],
+      [<QrCode key="c" className="h-5 w-5" />, "Salão e QR Code", "Mesas, comandas, conta dividida, serviço e couvert."],
+      [<Calculator key="d" className="h-5 w-5" />, "Caixa e balcão", "Venda no balcão, retiradas e fechamento conferido."],
+      [<Users key="e" className="h-5 w-5" />, "Equipe por função", "Caixa, cozinha, garçom e entregador veem só a parte deles."],
+      [<Smartphone key="f" className="h-5 w-5" />, "App no celular", "O painel vira app, com aviso de cada pedido novo."],
+    ],
+  },
+  {
+    titulo: "Trazer de volta",
+    itens: [
+      [<Sparkles key="a" className="h-5 w-5" />, "Ritmo e Pulso", "Quem está sumindo, o que costuma pedir e quanto está em jogo."],
+      [<MessagesSquare key="b" className="h-5 w-5" />, "Atendimento com IA", "Responde dúvidas na hora e passa para a equipe quando precisa."],
+      [<Bell key="c" className="h-5 w-5" />, "Pedido acompanhado", "O cliente vê cada etapa, fala com a loja e recebe aviso no celular."],
+      [<Workflow key="d" className="h-5 w-5" />, "Automações", "Aniversário, cliente sumido, pós-venda: mensagens prontas para enviar."],
+      [<Link2 key="e" className="h-5 w-5" />, "Links da bio e formulários", "Página de links para o Instagram e pesquisas de satisfação."],
+      [<Map key="f" className="h-5 w-5" />, "Território", "Bairros por km, taxa por bairro e demanda fora da área."],
+    ],
+  },
+];
+const OPCIONAIS: [React.ReactNode, string, string][] = [
+  [<BarChart3 key="a" className="h-5 w-5" />, "Relatórios e contador", "Vendas por período e planilha pronta para o contador."],
+  [<FileText key="b" className="h-5 w-5" />, "Nota fiscal (NFC-e)", "Emissão pelo sistema, se a sua casa quiser."],
+  [<MessageCircle key="c" className="h-5 w-5" />, "WhatsApp oficial", "Avisos do pedido no WhatsApp, pelo número da casa."],
+  [<Palette key="d" className="h-5 w-5" />, "Sua cara", "Logo, capa e cor da marca na loja."],
+];
+
+function Recursos() {
+  return (
+    <section id="recursos" className="mx-auto max-w-[1240px] px-5 py-24 md:px-8">
+      <p className="text-[15px] font-semibold text-brasa">Recursos</p>
+      <h2 className="mt-2 max-w-[48rem] font-display text-[clamp(2rem,4.4vw,3.4rem)] font-extrabold leading-[0.98] tracking-[-0.015em]">Tudo o que a sua casa precisa, num lugar só.</h2>
+      <div className="mt-10 space-y-10">
+        {GRUPOS.map((g) => (
+          <div key={g.titulo}>
+            <p className="font-display text-[22px] font-extrabold">{g.titulo}</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {g.itens.map(([ic, t, d]) => (
+                <div key={t} className="rounded-2xl border border-linha bg-forno p-5">
+                  <span className="text-brasa">{ic}</span>
+                  <p className="mt-2 font-display text-[19px] font-bold">{t}</p>
+                  <p className="mt-1 text-[15px] leading-relaxed text-areia">{d}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        <div className="rounded-3xl border border-dashed border-linha p-6">
+          <p className="font-display text-[22px] font-extrabold">Opcionais</p>
+          <p className="mt-1 text-[15px] text-areia">Vêm desligados. A casa liga só o que fizer sentido.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {OPCIONAIS.map(([ic, t, d]) => (
+              <div key={t} className="rounded-2xl bg-grafite p-4">
+                <span className="text-brasa">{ic}</span>
+                <p className="mt-2 font-semibold">{t}</p>
+                <p className="mt-1 text-[14px] text-areia">{d}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ComoComecar() {
+  const passos: [string, string][] = [
+    ["Chame no WhatsApp", "Conte como funciona a sua casa. Mostramos o Freguês com o seu cardápio em 20 minutos."],
+    ["A gente configura", "Cardápio, fotos, bairros e taxas de entrega, horários, Pix e a cor da sua marca."],
+    ["Divulgue o seu link", "Coloque na bio, no Google e no WhatsApp. Os pedidos chegam na tela da cozinha."],
+  ];
+  return (
+    <section className="bg-[#2B211D] text-[#FFF6EB]">
+      <div className="mx-auto max-w-[1240px] px-5 py-20 md:px-8">
+        <h2 className="font-display text-[clamp(2rem,4.4vw,3.4rem)] font-extrabold leading-[0.98]">Comece em 3 passos.</h2>
+        <ol className="mt-10 grid gap-4 md:grid-cols-3">
+          {passos.map(([t, d], i) => (
+            <li key={t} className="rounded-3xl bg-[#34291f] p-6">
+              <span className="font-display text-[40px] font-extrabold leading-none text-[#f45b26]">{i + 1}</span>
+              <p className="mt-3 font-display text-[22px] font-extrabold">{t}</p>
+              <p className="mt-2 text-[16px] text-[#dccdc0]">{d}</p>
+            </li>
+          ))}
+        </ol>
+        <a href={WHATS} target="_blank" rel="noreferrer" className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#f45b26] px-6 py-3.5 text-[16px] font-bold text-[#2B211D] transition hover:bg-[#f2a93b]">
+          Começar pelo WhatsApp <ArrowUpRight className="h-5 w-5" />
+        </a>
+      </div>
+    </section>
+  );
+}
+
+// os mesmos planos e recursos cadastrados no Admin (aba Planos)
+// os mesmos planos e recursos cadastrados no Admin (aba Planos)
+const PLANOS: { nome: string; frase: string; itens: string[]; destaque?: boolean }[] = [
+  { nome: "Essencial", frase: "Loja própria e CRM para começar.", itens: ["Loja e cardápio digital", "Mapa de atuação", "Fregueses e Pulso", "1 usuário"] },
+  { nome: "Completo", frase: "Tudo para vender mais sem marketplace.", itens: ["Tudo do Essencial", "Atendimento com IA", "Automações", "Formulários e links da bio", "5 usuários"], destaque: true },
+  { nome: "Rede", frase: "Para quem tem mais de uma loja.", itens: ["Tudo do Completo", "Até 5 lojas", "Usuários ilimitados", "Suporte prioritário"] },
+];
+
+function Planos() {
+  return (
+    <section id="planos" className="mx-auto max-w-[1240px] px-5 py-24 md:px-8">
+      <p className="text-[15px] font-semibold text-brasa">Planos</p>
+      <h2 className="mt-2 max-w-[44rem] font-display text-[clamp(2rem,4.4vw,3.4rem)] font-extrabold leading-[0.98] tracking-[-0.015em]">Mensalidade fixa. Zero comissão por pedido.</h2>
+      <p className="mt-4 max-w-[40rem] text-[18px] text-areia">Em todos os planos: loja própria, Pix, tela da cozinha, salão e caixa, sem comissão. Valores e condição de casa fundadora pelo WhatsApp, com teste grátis antes de pagar.</p>
+      <div className="mt-10 grid gap-4 md:grid-cols-3">
+        {PLANOS.map((p) => (
+          <div key={p.nome} className={`flex flex-col rounded-3xl p-6 ${p.destaque ? "tema-escuro bg-carvao text-papel ring-2 ring-brasa" : "border border-linha bg-forno"}`}>
+            {p.destaque && <span className="mb-2 w-fit rounded-full bg-brasa px-3 py-1 text-[12px] font-bold text-carvao">Mais escolhido</span>}
+            <p className="font-display text-[28px] font-extrabold">{p.nome}</p>
+            <p className="text-[15px] text-areia">{p.frase}</p>
+            <ul className="mt-5 flex-1 space-y-2 text-[15px]">
+              {p.itens.map((t) => (
+                <li key={t} className="flex gap-2">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-manjericao" /> {t}
+                </li>
+              ))}
+            </ul>
+            <a href={wa(`Olá! Quero saber o valor do plano ${p.nome} do Freguês para a minha casa.`)} target="_blank" rel="noreferrer" className={`mt-6 flex items-center justify-center gap-2 rounded-full py-3.5 font-bold transition ${p.destaque ? "bg-brasa text-carvao hover:bg-mostarda" : "border-2 border-papel text-papel hover:bg-papel hover:text-carvao"}`}>
+              Quero o {p.nome} <ArrowUpRight className="h-5 w-5" />
+            </a>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const PERGUNTAS: [string, string][] = [
+  ["O Freguês cobra comissão por pedido?", "Não. É uma mensalidade fixa. Tudo o que a sua loja vende é seu."],
+  ["O meu cliente precisa baixar aplicativo?", "Não. Ele pede pelo link da sua loja, no navegador do celular, e acompanha o pedido pela mesma tela."],
+  ["Como recebo o Pix?", "Direto na sua conta. Com o Pix automático, o pedido se confirma sozinho quando o cliente paga. Também dá para usar a sua chave Pix de sempre."],
+  ["Funciona para mesa e balcão também?", "Sim. Salão com mesas e QR Code, balcão e delivery entram no mesmo caixa."],
+  ["Preciso de nota fiscal?", "É opcional. Se a sua casa quiser emitir NFC-e pelo sistema, é só ligar. Se não, tudo funciona normalmente sem nota."],
+  ["Quem configura tudo?", "A nossa equipe: cardápio, fotos, bairros e taxas, horários e Pix. Você recebe a loja pronta para divulgar."],
+  ["Tem fidelidade ou multa?", "Fale com a gente no WhatsApp para ver as condições de casa fundadora."],
+];
+
+function Duvidas() {
+  const [aberta, setAberta] = useState<number | null>(0);
+  return (
+    <section id="duvidas" className="mx-auto max-w-[900px] px-5 pb-24 md:px-8">
+      <h2 className="font-display text-[clamp(2rem,4.4vw,3.2rem)] font-extrabold leading-[0.98] tracking-[-0.015em]">Dúvidas</h2>
+      <div className="mt-8 divide-y divide-linha rounded-3xl border border-linha bg-forno">
+        {PERGUNTAS.map(([q, r], i) => (
+          <div key={q}>
+            <button onClick={() => setAberta(aberta === i ? null : i)} aria-expanded={aberta === i} className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-[17px] font-semibold">
+              {q}
+              <ChevronDown className={`h-5 w-5 shrink-0 transition ${aberta === i ? "rotate-180" : ""}`} />
+            </button>
+            {aberta === i && <p className="px-5 pb-5 text-[16px] leading-relaxed text-areia">{r}</p>}
+          </div>
+        ))}
+      </div>
+      <a href={wa("Olá! Tenho uma dúvida sobre o Freguês.")} target="_blank" rel="noreferrer" className="mt-6 inline-flex items-center gap-2 font-semibold text-brasa">
+        Outra dúvida? Pergunte no WhatsApp <ArrowUpRight className="h-4 w-4" />
+      </a>
+    </section>
+  );
+}
+
 export function Site() {
   return (
     <div className="tema-claro min-h-screen bg-carvao text-papel">
@@ -330,8 +510,8 @@ export function Site() {
           n="Loja e pedidos"
           icone={<Store className="h-5 w-5" />}
           titulo="Sua loja, seu cliente, sem comissão."
-          texto="Cardápio digital com a cara da casa. O cliente pede pelo link, pelo QR Code da mesa ou no balcão, e o pedido aparece na hora na tela da cozinha."
-          pontos={["Cardápio com fotos, complementos e combos", "Pedido pelo link, pela mesa ou no balcão", "Tela de pedidos para a cozinha", "Cashback para quem volta"]}
+          texto="Cardápio digital com a cor da sua marca e um link só seu. O cliente pede pelo link, pelo QR Code da mesa ou no balcão, paga no Pix e acompanha o pedido pela própria tela, sem baixar nada."
+          pontos={["Cardápio com fotos, complementos e combos", "Pix com confirmação automática", "Cliente acompanha o pedido e fala com a loja pelo site", "Cupons e cashback para quem volta"]}
           visual={<MiniLoja />}
         />
         <Pilar
@@ -356,8 +536,8 @@ export function Site() {
           inverter
           icone={<Bike className="h-5 w-5" />}
           titulo="Delivery, mesa e balcão no mesmo caixa."
-          texto="Mapa de mesas, comanda com conta dividida, pedido pelo QR Code da mesa e um caixa que soma tudo e confere a gaveta no fechamento."
-          pontos={["Mesas, comandas e conta dividida", "Cliente pede pelo QR Code da mesa", "Abertura, retiradas e fechamento do caixa"]}
+          texto="Mapa de mesas, comanda com conta dividida, pedido pelo QR Code da mesa, comanda impressa na cozinha e um caixa que soma tudo e confere a gaveta no fechamento."
+          pontos={["Mesas, comandas, serviço e couvert", "Cliente pede pelo QR Code da mesa", "Impressão automática da comanda na cozinha", "Abertura, retiradas e fechamento do caixa"]}
           visual={<MiniSalao />}
         />
         <p className="pb-6 text-[14px] text-fumo">Imagens ilustrativas com dados fictícios.</p>
@@ -403,21 +583,9 @@ export function Site() {
         </div>
       </section>
 
-      <section className="border-y border-linha bg-forno">
-        <div className="mx-auto grid max-w-[1240px] gap-6 px-5 py-14 md:grid-cols-[1fr_1.4fr] md:px-8">
-          <div>
-            <p className="font-display text-[24px] font-extrabold">Em desenvolvimento</p>
-            <p className="mt-1 text-[15px] text-areia">Com transparência: o que ainda está chegando para as casas fundadoras.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {["WhatsApp oficial", "Pix com confirmação automática", "Atendimento com IA", "Automações de mensagens", "Nota fiscal (NFC-e)", "Impressão na cozinha"].map((t) => (
-              <span key={t} className="rounded-full border border-linha px-4 py-2 text-[14px] font-semibold">
-                {t} <span className="text-fumo">· em breve</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
+      <Recursos />
+      <ComoComecar />
+      <Planos />
 
       <section id="fundador" className="mx-auto max-w-[1240px] px-5 py-24 md:px-8">
         <div className="grid gap-10 md:grid-cols-[1.2fr_1fr]">
@@ -444,18 +612,29 @@ export function Site() {
             <a href={WHATS} target="_blank" rel="noreferrer" className="mt-6 flex items-center justify-center gap-2 rounded-full bg-brasa py-4 text-[17px] font-bold text-carvao transition hover:bg-mostarda">
               Chamar no WhatsApp <ArrowUpRight className="h-5 w-5" />
             </a>
-            <div className="mt-6 space-y-1 text-[16px]">
-              <p className="tabular font-semibold">(21) 96764-0607</p>
-              <p className="tabular font-semibold">(21) 99496-9943</p>
-            </div>
+            <p className="tabular mt-6 flex items-center gap-2 text-[18px] font-semibold">
+              <MessageCircle className="h-5 w-5 text-brasa" /> (21) 96764-0607
+            </p>
           </div>
         </div>
       </section>
 
+      <Duvidas />
+
+      <a href={WHATS} target="_blank" rel="noreferrer" aria-label="Falar no WhatsApp" className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-[#25d366] px-5 py-3.5 font-bold text-[#0b2e17] shadow-2xl transition hover:brightness-95">
+        <MessageCircle className="h-5 w-5" /> <span className="hidden sm:inline">Falar no WhatsApp</span>
+      </a>
+
       <footer className="border-t border-linha">
         <div className="mx-auto flex max-w-[1240px] flex-col gap-3 px-5 py-8 text-[14px] text-fumo md:flex-row md:items-center md:justify-between md:px-8">
           <Logo tamanho="sm" />
-          <p>Uma solução MMATTOS · Imagens do sistema são ilustrativas, com dados fictícios.</p>
+          <p>
+            Uma solução MMATTOS ·{" "}
+            <a href={WHATS} target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">
+              WhatsApp (21) 96764-0607
+            </a>{" "}
+            · Imagens do sistema são ilustrativas, com dados fictícios.
+          </p>
         </div>
       </footer>
     </div>
