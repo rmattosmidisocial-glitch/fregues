@@ -400,17 +400,33 @@ export function Loja() {
         </div>
 
         <header className="relative overflow-hidden bg-carvao px-5 pb-6 pt-28 text-papel">
-          <img src={FOTOS.grelha} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <img src={LOJA.capa_url || FOTOS.grelha} alt="" className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-carvao via-carvao/70 to-carvao/10" />
           <div className="relative">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-brasa px-2.5 py-1 text-[12px] font-bold text-carvao">{LOJA.aberto ? "Aberto agora" : "Fechado"}</span>
-            <h1 className="mt-2 font-display text-[42px] font-extrabold leading-none tracking-[-0.015em]" style={{ fontVariationSettings: '"wdth" 80' }}>
-              {LOJA.nome}
-            </h1>
+            <div className="mt-2 flex items-center gap-3">
+              {LOJA.logo_url && <img src={LOJA.logo_url} alt="" className="h-14 w-14 shrink-0 rounded-2xl border-2 border-papel/80 bg-papel object-cover" />}
+              <h1 className="font-display text-[42px] font-extrabold leading-none tracking-[-0.015em]" style={{ fontVariationSettings: '"wdth" 80' }}>
+                {LOJA.nome}
+              </h1>
+            </div>
+            {LOJA.descricao && <p className="mt-2 max-w-[380px] text-[14px] text-papel/85">{LOJA.descricao}</p>}
             <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px]">
-              <span className="flex items-center gap-1">
-                <Star className="h-4 w-4 fill-mostarda text-mostarda" /> {LOJA.nota} ({LOJA.avaliacoes.toLocaleString("pt-BR")})
-              </span>
+              {LOJA.avaliacoes > 0 && (
+                <span className="flex items-center gap-1">
+                  <Star className="h-4 w-4 fill-mostarda text-mostarda" /> {LOJA.nota} ({LOJA.avaliacoes.toLocaleString("pt-BR")})
+                </span>
+              )}
+              {LOJA.whatsapp && (
+                <a href={`https://wa.me/55${LOJA.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
+                  WhatsApp
+                </a>
+              )}
+              {LOJA.instagram && (
+                <a href={`https://instagram.com/${LOJA.instagram.replace(/^@/, "")}`} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
+                  @{LOJA.instagram.replace(/^@/, "")}
+                </a>
+              )}
               <span className="flex items-center gap-1">
                 <Clock className="h-4 w-4" /> {LOJA.aberto ? LOJA.horario : "Fechado agora"}
               </span>

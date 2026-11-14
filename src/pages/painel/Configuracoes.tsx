@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { CheckCircle2, Wallet } from "lucide-react";
+import { CheckCircle2, ImagePlus, MapPin, Store, Wallet } from "lucide-react";
+import { EnderecoLoja, type Endereco as End } from "../admin/EnderecoLoja";
 import { useDados } from "../../data/dados";
 import { codigoPix, normalizarChave, tipoChave } from "../../lib/pix";
 import { brl } from "../../data/mock";
@@ -15,6 +16,8 @@ export function Configuracoes() {
       <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Configurações</h1>
       <p className="text-[15px] text-areia">Tudo o que você ajusta aqui muda na hora na sua loja.</p>
       <div className="mt-6 space-y-5">
+        <DadosLoja key={"dados" + d.loja.id} />
+        <Endereco key={"end" + d.loja.id} />
         <Pagamentos key={d.loja.id} />
       </div>
     </div>
@@ -85,6 +88,98 @@ function Pagamentos() {
       <p className="mt-4 text-[13px] text-areia">
         Como funciona: cada pedido gera um Pix com o valor certo e o número do pedido (ex.: PED1234). O pedido chega em Pedidos como <b className="text-papel">Pix pendente</b>; confira no seu banco e toque em <b className="text-papel">Marcar como pago</b>. Cartão e dinheiro são pagos na entrega ou na retirada.
       </p>
+    </Secao>
+  );
+}
+
+function DadosLoja() {
+  const d = useDados();
+  const [f, setF] = useState({ nome: d.loja.nome ?? "", descricao: d.loja.descricao ?? "", whatsapp: d.loja.whatsapp ?? "", instagram: d.loja.instagram ?? "" });
+  const [logo, setLogo] = useState(d.loja.logo_url ?? "");
+  const [capa, setCapa] = useState(d.loja.capa_url ?? "");
+  const [enviando, setEnviando] = useState<"" | "logo" | "capa">("");
+  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+
+  async function foto(tipo: "logo" | "capa", arquivo?: File) {
+    if (!arquivo) return;
+    setEnviando(tipo);
+    const r = await d.acoes.enviarFoto(arquivo);
+    setEnviando("");
+    if (r.erro || !r.url) return setMsg({ ok: false, t: r.erro ?? "Não consegui enviar a imagem." });
+    if (tipo === "logo") setLogo(r.url);
+    else setCapa(r.url);
+    const e = await d.acoes.salvarLoja(tipo === "logo" ? { logo_url: r.url } : { capa_url: r.url });
+    setMsg(e ? { ok: false, t: e } : { ok: true, t: tipo === "logo" ? "Logo atualizada na loja." : "Capa atualizada na loja." });
+  }
+
+  async function salvar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!f.nome.trim()) return setMsg({ ok: false, t: "O nome da loja não pode ficar vazio." });
+    const zap = f.whatsapp.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
+    if (zap && zap.length < 10) return setMsg({ ok: false, t: "WhatsApp com DDD, ex.: (21) 99999-9999." });
+    const r = await d.acoes.salvarLoja({ nome: f.nome.trim(), descricao: f.descricao.trim() || null, whatsapp: zap || null, instagram: f.instagram.trim().replace(/^@/, "") || null });
+    setMsg(r ? { ok: false, t: r } : { ok: true, t: "Dados salvos. Já aparecem na loja." });
+  }
+
+  const botaoFoto = (tipo: "logo" | "capa", atual: string, rotulo: string, formato: string) => (
+    <label className="block cursor-pointer">
+      <span className="font-semibold">{rotulo}</span>
+      <span className={`mt-1 grid place-items-center overflow-hidden rounded-2xl border border-dashed border-linha bg-carvao text-areia hover:border-areia ${formato}`}>
+        {atual ? <img src={atual} alt="" className="h-full w-full object-cover" /> : <span className="flex flex-col items-center gap-1 p-3 text-center text-[12px]"><ImagePlus className="h-5 w-5" /> {enviando === tipo ? "Enviando…" : "Escolher imagem"}</span>}
+      </span>
+      <input type="file" accept="image/*" className="sr-only" onChange={(e) => foto(tipo, e.target.files?.[0])} />
+      {atual && <span className="mt-1 block text-[12px] text-areia">{enviando === tipo ? "Enviando…" : "Toque para trocar"}</span>}
+    </label>
+  );
+
+  return (
+    <Secao icone={<Store className="h-5 w-5 text-brasa" />} titulo="Dados da loja" sub="Nome, imagens e contatos que seus clientes veem na loja online.">
+      <div className="grid gap-4 text-[14px] sm:grid-cols-[120px_1fr]">
+        {botaoFoto("logo", logo, "Logo", "h-[120px] w-[120px]")}
+        {botaoFoto("capa", capa, "Foto de capa", "h-[120px] w-full")}
+      </div>
+      <form onSubmit={salvar} className="mt-4 space-y-3 text-[14px]">
+        <label className="block font-semibold">
+          Nome da loja
+          <input value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} maxLength={60} className={campo} />
+        </label>
+        <label className="block font-semibold">
+          Frase de apresentação <span className="font-normal text-areia">(aparece embaixo do nome)</span>
+          <input value={f.descricao} onChange={(e) => setF({ ...f, descricao: e.target.value })} maxLength={120} placeholder="Ex.: Hambúrguer artesanal na brasa desde 2018" className={campo} />
+        </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block font-semibold">
+            WhatsApp da loja
+            <input value={f.whatsapp} onChange={(e) => setF({ ...f, whatsapp: e.target.value })} inputMode="tel" placeholder="(21) 99999-9999" className={campo} />
+          </label>
+          <label className="block font-semibold">
+            Instagram
+            <input value={f.instagram} onChange={(e) => setF({ ...f, instagram: e.target.value })} placeholder="@sualoja" className={campo} />
+          </label>
+        </div>
+        {msg && <p className={`text-[14px] ${msg.ok ? "text-manjericao" : "text-[#e8846f]"}`}>{msg.t}</p>}
+        <button className="w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda">Salvar dados</button>
+      </form>
+    </Secao>
+  );
+}
+
+function Endereco() {
+  const d = useDados();
+  const [e, setE] = useState<End>({ cidade: d.loja.cidade || "Rio de Janeiro", bairro: d.loja.bairro ?? "", rua: d.loja.rua ?? "", numero: d.loja.numero ?? "", cep: d.loja.cep ?? "", lon: d.loja.lon ?? null, lat: d.loja.lat ?? null });
+  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+  async function salvar() {
+    if (e.lon == null || e.lat == null) return setMsg({ ok: false, t: "Marque o ponto do restaurante no mapa antes de salvar." });
+    const r = await d.acoes.salvarLoja({ cidade: e.cidade, bairro: e.bairro, rua: e.rua || null, numero: e.numero || null, cep: e.cep || null, lon: e.lon, lat: e.lat });
+    setMsg(r ? { ok: false, t: r } : { ok: true, t: "Endereço salvo. As distâncias de entrega já usam o ponto novo." });
+  }
+  return (
+    <Secao icone={<MapPin className="h-5 w-5 text-brasa" />} titulo="Endereço do restaurante" sub="De onde saem as entregas. As zonas por km contam a distância a partir deste ponto.">
+      <EnderecoLoja valor={e} mudar={(n) => (setE(n), setMsg(null))} />
+      {msg && <p className={`mt-3 text-[14px] ${msg.ok ? "text-manjericao" : "text-[#e8846f]"}`}>{msg.t}</p>}
+      <button onClick={salvar} className="mt-3 w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda">
+        Salvar endereço
+      </button>
     </Secao>
   );
 }
