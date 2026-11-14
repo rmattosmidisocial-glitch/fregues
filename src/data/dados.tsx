@@ -15,6 +15,12 @@ const lerSlug = () => {
   }
 };
 export const SLUG = lerSlug();
+// Quem chegou pela página de links (bio) leva essa origem até o pedido.
+try {
+  if (new URLSearchParams(window.location.search).get("o") === "bio") sessionStorage.setItem("fregues-origem", "bio");
+} catch {
+  /* sem sessionStorage */
+}
 export const supabase: SupabaseClient | null = URL && KEY ? createClient(URL, KEY) : null;
 export const MODO: "real" | "demo" = supabase ? "real" : "demo";
 
@@ -707,7 +713,13 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         if (supabase) {
           const { data, error } = await supabase.rpc("place_order", { p_slug: SLUG, p });
           if (error) return { erro: error.message.replace(/^.*?:\s*/, "") } as PedidoCriado;
-          return data as PedidoCriado;
+          const criado = data as PedidoCriado;
+          try {
+            if (criado?.id && !criado.erro && sessionStorage.getItem("fregues-origem") === "bio") supabase.rpc("pedido_origem", { p_id: criado.id, p_origem: "Link da bio" }).then(() => {});
+          } catch {
+            /* sem sessionStorage */
+          }
+          return criado;
         }
         // demonstração: calcula aqui mesmo
         await new Promise((r) => setTimeout(r, 600));

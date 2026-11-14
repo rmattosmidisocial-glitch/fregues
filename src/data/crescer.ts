@@ -531,6 +531,7 @@ export const persistir: {
   ajustes?: (a: Ajustes) => void;
   form?: (f: Formulario) => void;
   formApagar?: (id: string) => void;
+  links?: (p: PaginaLinks) => void;
 } = {};
 
 export const crescer = {
@@ -625,9 +626,16 @@ export const crescer = {
   // links
   setLinks(f: (p: PaginaLinks) => PaginaLinks) {
     store.set((s) => ({ ...s, links: f(s.links) }));
+    persistir.links?.(store.get().links);
+  },
+  carregarLinks(p: PaginaLinks) {
+    store.set((s) => ({ ...s, links: p }));
   },
   clique(id: string) {
-    crescer.setLinks((p) => ({ ...p, botoes: p.botoes.map((b) => (b.id === id ? { ...b, cliques: b.cliques + 1 } : b)), cliquesDia: [...p.cliquesDia.slice(0, -1), p.cliquesDia[p.cliquesDia.length - 1] + 1] }));
+    store.set((s) => {
+      const p = s.links;
+      return { ...s, links: { ...p, botoes: p.botoes.map((b) => (b.id === id ? { ...b, cliques: b.cliques + 1 } : b)), cliquesDia: [...p.cliquesDia.slice(0, -1), p.cliquesDia[p.cliquesDia.length - 1] + 1] } };
+    });
   },
   // kanban
   moverEtapa(clienteId: string, e: Etapa) {
