@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChatLoja } from "./ChatLoja";
-import { ArrowLeft, Bike, Check, ChevronRight, Clock, Copy, CreditCard, Minus, Plus, ShoppingBag, Star, Store, Wallet, X } from "lucide-react";
+import { avisar, avisosLigados, avisosSuportados, pedirAvisos } from "../../lib/avisos";
+import { ArrowLeft, Bell, Bike, Check, ChevronRight, Clock, Copy, CreditCard, Minus, Plus, ShoppingBag, Star, Store, Wallet, X } from "lucide-react";
 import { brl, type Grupo, type Produto } from "../../data/mock";
 import QRCode from "qrcode";
 import { codigoPix, tipoChave } from "../../lib/pix";
@@ -161,6 +162,25 @@ function QrFake() {
 
 
 const PASSO: Record<string, number> = { novo: 1, preparo: 2, pronto: 2, rota: 3, entregue: 4 };
+// pedido guardado no celular do cliente: ao voltar à loja, ele retoma o acompanhamento
+type PedidoSalvo = { id: string; numero: number; total: number; desconto: number; taxa: number; tempo_min: number; tempo_max: number; modo: "entrega" | "retirada"; quando: number };
+const chavePedido = () => `fregues-pedido:${new URLSearchParams(location.search).get("r") || location.pathname.split("/")[1] || "loja"}`;
+const lerPedidoSalvo = (): PedidoSalvo | null => {
+  try {
+    const p = JSON.parse(localStorage.getItem(chavePedido()) || "null") as PedidoSalvo | null;
+    return p && Date.now() - p.quando < 24 * 3600e3 ? p : null;
+  } catch {
+    return null;
+  }
+};
+const salvarPedido = (p: PedidoSalvo | null) => {
+  try {
+    if (p) localStorage.setItem(chavePedido(), JSON.stringify(p));
+    else localStorage.removeItem(chavePedido());
+  } catch {
+    /* sem armazenamento */
+  }
+};
 
 export function Loja() {
   const d = useDados();
@@ -229,6 +249,15 @@ export function Loja() {
   const [enviando, setEnviando] = useState(false);
   const [erroPedido, setErroPedido] = useState("");
   const [pedido, setPedido] = useState<{ id: string; numero: number; total: number; desconto: number; taxa: number; tempo_min: number; tempo_max: number } | null>(null);
+  const [salvo, setSalvo] = useState<PedidoSalvo | null>(() => (d.modo === "real" ? lerPedidoSalvo() : null));
+  const [avisosOk, setAvisosOk] = useState(avisosLigados());
+  function retomar() {
+    if (!salvo) return;
+    setModo(salvo.modo);
+    setPedido(salvo);
+    setPasso(1);
+    setEtapa("acompanhar");
+  }
 
   const categoriaAtual = cat || CATEGORIAS[0];
   const bairroF = useMemo(() => (geo ? geo.bairroNoPonto(ponto) : null), [geo, ponto]);
@@ -329,7 +358,16 @@ export function Loja() {
       const s = await d.acoes.statusPedido(pedido.id);
       if (!s) return;
       setPago(s.pago);
-      setPasso(PASSO[s.status] ?? 1);
+      const novo = s.status === "pronto" && modo === "retirada" ? 3 : (PASSO[s.status] ?? 1);
+      setPasso((antes) => {
+        // aviso no celular quando a etapa muda (se o cliente permitiu)
+        if (novo > antes && novo < 4) {
+          const txt = novo === 2 ? "Seu pedido está sendo preparado." : modo === "retirada" ? "Seu pedido está pronto para retirar!" : "Seu pedido saiu para entrega!";
+          avisar(`${LOJA.nome} · pedido nº ${pedido.numero}`, txt, location.href);
+        }
+        return novo;
+      });
+      if (s.status === "entregue" || (s.status as string) === "cancelado") salvarPedido(null);
     }, 3000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -410,7 +448,9 @@ export function Loja() {
     });
     setEnviando(false);
     if (r.erro) return setErroPedido(r.erro);
-    setPedido({ ...r, total: d.modo === "demo" ? total : Number(r.total), desconto: Number(r.desconto), taxa: Number(r.taxa) });
+    const criado = { ...r, total: d.modo === "demo" ? total : Number(r.total), desconto: Number(r.desconto), taxa: Number(r.taxa) };
+    setPedido(criado);
+    if (d.modo === "real") salvarPedido({ ...criado, modo, quando: Date.now() });
     setPago(false);
     setPasso(1);
     if (pag === "pix") {
@@ -566,6 +606,15 @@ export function Loja() {
         </nav>
 
         <main className="px-4">
+          {salvo && !pedido && (
+            <button onClick={retomar} className="mt-4 flex w-full items-center justify-between gap-3 rounded-2xl bg-carvao px-4 py-3 text-left text-papel">
+              <span>
+                <b className="block">Acompanhar seu pedido nº {salvo.numero}</b>
+                <span className="text-[13px] text-areia">Toque para ver em que etapa está ou falar com a loja</span>
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0" />
+            </button>
+          )}
           {d.erro && <p className="mt-4 rounded-2xl bg-[#fde7e4] p-4 text-[#9b2c1f]">{d.erro}</p>}
           {CATEGORIAS.map((c) => (
             <section key={c} id={`cat-${c}`} className="scroll-mt-16 pt-4">
@@ -617,6 +666,7 @@ export function Loja() {
       )}
 
       {!etapa && !aberto && <ChatLoja subir={qtdTotal > 0} />}
+      {(etapa === "acompanhar" || etapa === "pix") && pedido && <ChatLoja key={pedido.id} subir pedido={{ id: pedido.id, numero: pedido.numero }} />}
       {aberto && <SheetProduto p={aberto} fechar={() => setAberto(null)} adicionar={adicionar} />}
 
       {etapa && (
@@ -940,8 +990,17 @@ export function Loja() {
                     ))}
                   </ol>
                   <p className="mt-6 rounded-2xl bg-[#e3f5e9] p-4 text-[14px] text-[#1e6b42]">
-                    {d.modo === "real" ? "Esta tela atualiza sozinha quando a cozinha muda o status no painel." : "Na versão completa, cada etapa também chega no WhatsApp."}
+                    {d.modo === "real" ? "Esta tela atualiza sozinha. Se fechar, é só abrir a loja de novo para voltar ao seu pedido." : "Esta tela atualiza sozinha quando a cozinha muda o status no painel."}
                   </p>
+                  {avisosSuportados() && passo < 4 && (
+                    <button
+                      disabled={avisosOk}
+                      onClick={async () => setAvisosOk((await pedirAvisos()) === "granted")}
+                      className={`mt-3 flex w-full items-center justify-center gap-2 rounded-full border py-3 text-[14px] font-semibold ${avisosOk ? "border-[#bfe3cc] text-[#1e6b42]" : "border-carvao"}`}
+                    >
+                      <Bell className="h-4 w-4" /> {avisosOk ? "Você vai receber um aviso a cada etapa" : "Me avisar no celular a cada etapa"}
+                    </button>
+                  )}
                   {d.modo === "demo" && (
                     <button onClick={() => setPasso(Math.min(4, passo + 1))} className="mt-4 w-full rounded-full border border-[#eadccb] py-3 text-[14px] font-semibold">
                       Avançar etapa (demonstração)
@@ -1017,6 +1076,7 @@ export function Loja() {
                     setEtapa(null);
                     setItens([]);
                     setPedido(null);
+                    setSalvo(d.modo === "real" ? lerPedidoSalvo() : null);
                   }}
                   className="w-full rounded-full bg-carvao py-4 font-semibold text-papel"
                 >

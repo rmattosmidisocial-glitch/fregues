@@ -149,3 +149,16 @@ export async function falarNaLojaReal(texto: string, ctx: { zonas: Zona[]; carda
   }
   await sincronizar(r0.token);
 }
+
+/** Loja pública: liga a conversa do visitante ao pedido dele (a equipe responde pelo Atendimento). */
+export async function ligarPedidoNoChat(orderId: string) {
+  if (!supabase) return;
+  const { data, error } = await supabase.rpc("chat_pedido", { p_slug: SLUG, p_order: orderId, p_token: lerToken() });
+  if (error || !data) return;
+  try {
+    localStorage.setItem(CHAVE, (data as { token: string }).token);
+  } catch {
+    /* sem armazenamento */
+  }
+  await sincronizar((data as { token: string }).token);
+}

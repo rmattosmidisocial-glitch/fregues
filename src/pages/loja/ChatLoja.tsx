@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Bot, MessageCircle, Send, X } from "lucide-react";
 import { crescer, useCrescer } from "../../data/crescer";
 import { supabase, useDados } from "../../data/dados";
-import { falarNaLojaReal, useChatLojaReal } from "../../data/atendimento";
+import { falarNaLojaReal, ligarPedidoNoChat, useChatLojaReal } from "../../data/atendimento";
 
 const SUGESTOES = ["Qual o mais pedido?", "Entregam no meu bairro?", "Que horas fecha?", "Aceita Pix?"];
 
-export function ChatLoja({ subir }: { subir: boolean }) {
+/** Chat da loja. Com `pedido`, vira a conversa sobre aquele pedido (a equipe responde). */
+export function ChatLoja({ subir, pedido }: { subir: boolean; pedido?: { id: string; numero: number } }) {
   const [aberto, setAberto] = useState(false);
+  const [ligado, setLigado] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const d = useDados();
   const zonas = d.zonas;
@@ -21,6 +23,12 @@ export function ChatLoja({ subir }: { subir: boolean }) {
   useEffect(() => {
     fim.current?.scrollIntoView({ block: "end" });
   }, [msgs.length, aberto]);
+  // abriu o chat pela tela do pedido: liga a conversa ao pedido uma vez
+  useEffect(() => {
+    if (!aberto || !pedido || ligado === pedido.id || !supabase || pedido.id.startsWith("demo")) return;
+    setLigado(pedido.id);
+    ligarPedidoNoChat(pedido.id);
+  }, [aberto, pedido, ligado]);
 
   function enviar(t = texto) {
     if (!t.trim()) return;
@@ -34,9 +42,9 @@ export function ChatLoja({ subir }: { subir: boolean }) {
       {!aberto && (
         <button
           onClick={() => setAberto(true)}
-          className={`fixed right-4 z-30 flex items-center gap-2 rounded-full bg-brasa px-4 py-3 font-semibold text-carvao shadow-xl transition hover:bg-mostarda sm:right-[calc(50%-224px)] ${subir ? "bottom-24" : "bottom-5"}`}
+          className={`fixed right-4 ${pedido ? "z-50" : "z-30"} flex items-center gap-2 rounded-full bg-brasa px-4 py-3 font-semibold text-carvao shadow-xl transition hover:bg-mostarda sm:right-[calc(50%-224px)] ${subir ? "bottom-24" : "bottom-5"}`}
         >
-          <MessageCircle className="h-5 w-5" /> Dúvidas?
+          <MessageCircle className="h-5 w-5" /> {pedido ? "Falar com a loja" : "Dúvidas?"}
         </button>
       )}
       {aberto && (
@@ -46,8 +54,8 @@ export function ChatLoja({ subir }: { subir: boolean }) {
               <Bot className="h-5 w-5" />
             </span>
             <div className="flex-1">
-              <p className="font-semibold">{nome || "Atendimento"} · {d.loja.nome}</p>
-              <p className="text-[12px] text-areia">{conv?.status === "equipe" ? "Alguém da equipe vai te responder" : "Responde na hora"}</p>
+              <p className="font-semibold">{pedido ? `Pedido nº ${pedido.numero}` : `${nome || "Atendimento"}`} · {d.loja.nome}</p>
+              <p className="text-[12px] text-areia">{pedido || conv?.status === "equipe" ? "A equipe da loja responde por aqui" : "Responde na hora"}</p>
             </div>
             <button onClick={() => setAberto(false)} aria-label="Fechar conversa" className="rounded-full p-2 hover:bg-grafite">
               <X className="h-5 w-5" />
@@ -55,7 +63,7 @@ export function ChatLoja({ subir }: { subir: boolean }) {
           </div>
           <div className="scroll-thin flex-1 space-y-3 overflow-y-auto p-4">
             <p className="max-w-[85%] rounded-2xl rounded-tl-sm bg-[#efe3d3] px-4 py-2.5 text-[15px] leading-relaxed">
-              Oi! 😊 Sou a {nome || "atendente"}, da {d.loja.nome}. Pergunta o que quiser: cardápio, taxa do seu bairro, horário, pagamento.
+              {pedido ? `Oi! 😊 Fale aqui sobre o seu pedido nº ${pedido.numero}. Alguém da ${d.loja.nome} responde por esta conversa.` : `Oi! 😊 Sou a ${nome || "atendente"}, da ${d.loja.nome}. Pergunta o que quiser: cardápio, taxa do seu bairro, horário, pagamento.`}
             </p>
             {msgs.map((m) =>
               m.de === "sistema" ? (
@@ -71,7 +79,7 @@ export function ChatLoja({ subir }: { subir: boolean }) {
             {digitando && <p className="w-fit rounded-2xl bg-[#efe3d3] px-4 py-2.5 text-[15px] tracking-widest text-[#8f7b6c]">•••</p>}
             <div ref={fim} />
           </div>
-          {msgs.length === 0 && (
+          {msgs.length === 0 && !pedido && (
             <div className="flex gap-2 overflow-x-auto px-4 pb-2">
               {SUGESTOES.map((s) => (
                 <button key={s} onClick={() => enviar(s === "Entregam no meu bairro?" ? "vocês entregam na Penha?" : s)} className="shrink-0 rounded-full border border-[#e3d3bf] px-3 py-1.5 text-[13px] font-semibold">
@@ -81,7 +89,7 @@ export function ChatLoja({ subir }: { subir: boolean }) {
             </div>
           )}
           <div className="flex gap-2 border-t border-[#efe3d3] p-3">
-            <input value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => e.key === "Enter" && enviar()} placeholder="Escreva sua dúvida" aria-label="Sua mensagem" className="min-w-0 flex-1 rounded-full border border-[#e3d3bf] bg-white px-4 py-2.5 text-[15px]" />
+            <input value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => e.key === "Enter" && enviar()} placeholder={pedido ? "Escreva para a loja" : "Escreva sua dúvida"} aria-label="Sua mensagem" className="min-w-0 flex-1 rounded-full border border-[#e3d3bf] bg-white px-4 py-2.5 text-[15px]" />
             <button onClick={() => enviar()} aria-label="Enviar" className="grid h-11 w-11 place-items-center rounded-full bg-carvao text-papel">
               <Send className="h-4 w-4" />
             </button>

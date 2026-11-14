@@ -35,11 +35,11 @@ export async function pedirAvisos() {
 }
 
 /** Mostra o aviso do sistema (funciona com a tela de Pedidos aberta, mesmo em outra aba ou minimizada). */
-export async function avisar(titulo: string, corpo: string) {
+export async function avisar(titulo: string, corpo: string, url?: string) {
   if (!avisosLigados()) return;
   try {
     const reg = await navigator.serviceWorker?.getRegistration();
-    if (reg) await reg.showNotification(titulo, { body: corpo, icon: "/icones/icone-192.png", badge: "/icones/icone-192.png", tag: "pedido-" + Date.now() });
+    if (reg) await reg.showNotification(titulo, { body: corpo, icon: "/icones/icone-192.png", badge: "/icones/icone-192.png", tag: "pedido-" + Date.now(), data: { url } });
     else new Notification(titulo, { body: corpo, icon: "/icones/icone-192.png" });
   } catch {
     /* sem aviso */
