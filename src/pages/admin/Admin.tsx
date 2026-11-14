@@ -762,6 +762,7 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
                 <a href={linkLojaDe(c.slug)} target="_blank" rel="noreferrer" className="underline decoration-linha underline-offset-2 hover:text-brasa">
                   {linkLojaDe(c.slug).replace(/^https?:\/\//, "")}
                 </a>
+                <span className={`ml-1.5 rounded-full px-2 py-0.5 text-[12px] font-semibold ${c.publicada ? "bg-[#e4f3ea] text-[#1b6149]" : "bg-[#fcefd9] text-[#7a4600]"}`}>{c.publicada ? "No ar" : "Fora do ar"}</span>
               </dd>
               <dt className="text-areia">Endereço</dt>
               <dd>

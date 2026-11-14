@@ -22,6 +22,7 @@ import { Fregueses } from "./Fregueses";
 import { Cardapio } from "./Cardapio";
 import { Copiloto } from "./Copiloto";
 import { MinhaConta, PrimeiraSenha } from "./MinhaConta";
+import { LinkDaLoja } from "./LinkDaLoja";
 
 type Item = { rota: Rota; rotulo: string; curto: string; icone: React.ReactNode; grupo: "Operação" | "Crescer" };
 const ITENS: Item[] = [
@@ -157,6 +158,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
             </p>
           )}
           {d.erro && <p className="mb-4 rounded-2xl bg-[#fbe4e0] p-4 text-[#8e2f2a]">{d.erro}</p>}
+          {(rota === "painel" || rota === "cardapio" || rota === "links" || (d.modo === "real" && d.loja.publicada === false)) && <LinkDaLoja />}
           {rota === "painel" && <Pulso abrirCopiloto={() => setCopiloto(true)} />}
           {rota === "pedidos" && <Pedidos />}
           {rota === "mapa" && <MapaAtuacao />}
