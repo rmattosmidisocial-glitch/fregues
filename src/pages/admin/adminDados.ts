@@ -2,7 +2,7 @@
 // Modo real: funções admin_* do banco. Modo demonstração: carteira fictícia de restaurantes.
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { MODO, supabase } from "../../data/dados";
+import { MODO, supabaseAdmin as supabase } from "../../data/dados";
 import type { Endereco } from "./EnderecoLoja";
 
 const enderecoArgs = (org: string, e: Endereco) => ({ p_org: org, p_cidade: e.cidade, p_bairro: e.bairro, p_rua: e.rua, p_numero: e.numero, p_cep: e.cep, p_lon: e.lon ?? null, p_lat: e.lat ?? null });

@@ -65,6 +65,20 @@ export function PainelLayout({ rota }: { rota: Rota }) {
   if (d.modo === "real" && d.carregando) return <div className="tema-claro grid min-h-screen place-items-center bg-carvao text-areia">Abrindo o painel…</div>;
   if (d.modo === "real" && !d.sessao) return <Login />;
   if (d.modo === "real" && d.sessao?.user.user_metadata?.trocar_senha) return <PrimeiraSenha />;
+  if (d.modo === "real" && d.sessao && d.semAcesso)
+    return (
+      <div className="grid min-h-screen place-items-center bg-carvao p-4">
+        <div className="w-full max-w-[440px] rounded-3xl border border-linha bg-forno p-6">
+          <h1 className="font-display text-[26px] font-extrabold leading-tight">Este login não é desta loja</h1>
+          <p className="mt-2 text-[15px] text-areia">
+            Você entrou como <b className="text-papel">{d.sessao.user.email}</b>, que não tem acesso ao painel de {d.loja.nome || "esta loja"}. Saia e entre com o e-mail e a senha do dono da loja.
+          </p>
+          <button onClick={() => d.acoes.sair()} className="mt-5 w-full rounded-xl bg-brasa py-3.5 text-[17px] font-bold text-carvao hover:bg-mostarda">
+            Sair e entrar com outro login
+          </button>
+        </div>
+      </div>
+    );
   return (
     <div className="tema-claro min-h-screen bg-carvao text-papel md:grid md:grid-cols-[248px_1fr]">
       <aside className="tema-escuro sticky top-0 hidden h-screen flex-col bg-forno px-4 py-5 md:flex">

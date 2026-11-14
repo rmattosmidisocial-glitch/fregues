@@ -22,6 +22,8 @@ try {
   /* sem sessionStorage */
 }
 export const supabase: SupabaseClient | null = URL && KEY ? createClient(URL, KEY) : null;
+/** Cliente só do Admin, com a sessão guardada à parte: entrar no Admin não troca o login do painel do dono (e vice-versa). */
+export const supabaseAdmin: SupabaseClient | null = URL && KEY ? createClient(URL, KEY, { auth: { storageKey: "fregues-admin-auth" } }) : null;
 export const MODO: "real" | "demo" = supabase ? "real" : "demo";
 
 export type Loja = typeof M.LOJA & { id?: string; publicada?: boolean };
@@ -94,6 +96,8 @@ type Dados = {
   carregando: boolean;
   erro: string | null;
   sessao: Session | null;
+  /** Entrou com um login que não é desta loja (por exemplo, o do administrador). */
+  semAcesso: boolean;
   loja: Loja;
   zonas: Zona[];
   cardapio: Produto[];
@@ -171,6 +175,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   const [sessao, setSessao] = useState<Session | null>(null);
   const [carregando, setCarregando] = useState(MODO === "real");
   const [erro, setErro] = useState<string | null>(null);
+  const [semAcesso, setSemAcesso] = useState(false);
   const [loja, setLoja] = useState<Loja>(REAL ? LOJA_VAZIA : M.LOJA);
   const [zonas, setZonas] = useState<Zona[]>(() => (REAL ? [] : M.ZONAS).map((z) => ({ ...z, bairros: [...z.bairros] })));
   const [cardapio, setCardapio] = useState<Produto[]>(REAL ? [] : M.CARDAPIO);
@@ -348,17 +353,29 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       await supabase.rpc("aceitar_convites");
       const { data: ms } = await supabase.from("memberships").select("org_id").eq("user_id", sessao.user.id);
-      if (!ms?.length) return;
-      const { data: st } = await supabase.from("stores").select("slug").in("org_id", ms.map((m) => m.org_id)).order("created_at").limit(1);
-      const slug = st?.[0]?.slug;
-      if (slug && slug !== SLUG) {
-        try {
-          localStorage.setItem("fregues-loja", slug);
-        } catch {
-          /* sem armazenamento: segue pelo endereço */
-        }
-        window.location.search = `?r=${slug}`;
+      const orgs = (ms ?? []).map((m) => m.org_id as string);
+      // já está na loja dele: segue
+      const { data: atual } = await supabase.from("stores").select("org_id").eq("slug", SLUG).maybeSingle();
+      if (atual && orgs.includes(atual.org_id as string)) {
+        setSemAcesso(false);
+        return;
       }
+      // tem loja, mas o endereço é de outra: vai para a dele
+      if (orgs.length) {
+        const { data: st } = await supabase.from("stores").select("slug").in("org_id", orgs).order("created_at").limit(1);
+        const slug = st?.[0]?.slug;
+        if (slug && slug !== SLUG) {
+          try {
+            localStorage.setItem("fregues-loja", slug);
+          } catch {
+            /* sem armazenamento: segue pelo endereço */
+          }
+          window.location.search = `?r=${slug}`;
+          return;
+        }
+      }
+      // este login não é de nenhuma loja (ou não é desta)
+      setSemAcesso(true);
     })();
   }, [sessao]);
 
@@ -796,6 +813,6 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     [loja.id, zonas, cardapio, categorias, pedidos, demanda, recarregar],
   );
 
-  const valor: Dados = { modo: MODO, carregando, erro, sessao, loja, zonas, cardapio, categorias, fregueses, pedidos, pulso, semana, demanda, acoes };
+  const valor: Dados = { modo: MODO, carregando, erro, sessao, semAcesso, loja, zonas, cardapio, categorias, fregueses, pedidos, pulso, semana, demanda, acoes };
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
 }
