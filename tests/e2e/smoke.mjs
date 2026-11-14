@@ -24,6 +24,8 @@ const TELAS = [
   ["config", "Configurações"],
   ["admin", "Sua carteira"],
   ["termos", "Termos"],
+  ["relatorios", "Planilha de pedidos"],
+  ["/brasa-burger", "Voltar ao painel"], // endereço curto da loja
 ];
 
 const falhas = [];
@@ -33,7 +35,7 @@ try {
     const pg = await navegador.newPage({ viewport: { width: 1280, height: 860 } });
     const erros = [];
     pg.on("pageerror", (e) => erros.push(e.message));
-    await pg.goto(`${BASE}/#${rota}`);
+    await pg.goto(rota.startsWith("/") ? BASE + rota : `${BASE}/#${rota}`);
     try {
       await pg.getByText(texto, { exact: false }).first().waitFor({ timeout: 8000 });
     } catch {

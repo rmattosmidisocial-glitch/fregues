@@ -1,5 +1,5 @@
 // Busca na Asaas as cobranças de um cliente e atualiza as faturas (reserva caso um aviso se perca).
-import { asaas, aplicarCobranca, regrasAsaas, corpoJson, exigirAdmin, faltando, lerServidor, erroServidor } from "../_lib/base.js";
+import { asaas, aplicarCobranca, regrasAsaas, corpoJson, exigirAdmin, faltando, lerServidor, erroServidor } from "../../_lib/base.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ erro: "Use POST" });

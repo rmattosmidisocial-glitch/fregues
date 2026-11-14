@@ -1,3 +1,4 @@
+import { linkDaLoja } from "../../data/dados";
 // Peças comuns da administração: datas, telefones, senha provisória e o botão de mandar no WhatsApp.
 import { useState } from "react";
 import { Copy, MessageCircle } from "lucide-react";
@@ -25,7 +26,7 @@ export function senhaProvisoria(loja: string) {
 }
 
 export const linkPainelDe = (slug: string) => `${window.location.origin}/?r=${slug}#painel`;
-export const linkLojaDe = (slug: string) => `${window.location.origin}/?r=${slug}#loja`;
+export const linkLojaDe = (slug: string) => linkDaLoja(slug);
 export const telFmt = (t: string) => {
   const d = (t || "").replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
   return d.length === 11 ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}` : d.length === 10 ? `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}` : t;

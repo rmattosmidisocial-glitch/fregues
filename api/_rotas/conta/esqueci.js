@@ -1,7 +1,7 @@
 // "Esqueci minha senha": manda por e-mail um link de uso único (vale 1 hora).
 import crypto from "node:crypto";
-import { SUPA_URL, rpcServidor, erroServidor } from "../_lib/base.js";
-import { emailConfigurado, enviarEmail } from "../_lib/email.js";
+import { SUPA_URL, rpcServidor, erroServidor } from "../../_lib/base.js";
+import { emailConfigurado, enviarEmail } from "../../_lib/email.js";
 
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

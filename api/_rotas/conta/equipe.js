@@ -1,5 +1,5 @@
 // O dono cria o login de alguém da equipe (caixa, garçom, cozinha, entregador, gerente) com senha provisória.
-import { SUPA_URL, rpcServidor, erroServidor } from "../_lib/base.js";
+import { SUPA_URL, rpcServidor, erroServidor } from "../../_lib/base.js";
 
 const ANON = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;

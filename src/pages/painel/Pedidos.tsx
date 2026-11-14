@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, BellOff, Bike, ChevronDown, ChevronUp, MapPin, MessageCircle, Phone, Printer, Store, UserPlus, Users, UtensilsCrossed, X } from "lucide-react";
+import { Bell, BellOff, Bike, ChevronDown, ChevronUp, MapPin, MessageCircle, Phone, Printer, Store, UserPlus, Users, UtensilsCrossed, X, FileText } from "lucide-react";
 import { brl, type Pedido, type StatusPedido } from "../../data/mock";
 import { SLUG, supabase, useDados } from "../../data/dados";
 import { useToast } from "../../components/ui";
@@ -166,6 +166,42 @@ function Entregadores({ e, fechar }: { e: ReturnType<typeof useEntregadores>; fe
   );
 }
 
+/** Nota fiscal (opcional): emite pela Focus NFe e mostra o link da nota. */
+function BotaoNota({ id, show }: { id: string; show: (m: string) => void }) {
+  const d = useDados();
+  const [nota, setNota] = useState<{ status?: string; url_danfe?: string | null; numero?: string | null; mensagem?: string | null } | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  useEffect(() => {
+    d.acoes.notas([id]).then((l) => setNota(l[0] ?? null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+  if (nota?.status === "autorizada")
+    return (
+      <a href={nota.url_danfe ?? "#"} target="_blank" rel="noreferrer" className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#e2f2ea] py-2 font-semibold text-[#1b6149]">
+        <FileText className="h-4 w-4" /> Nota fiscal {nota.numero ? `nº ${nota.numero}` : "emitida"}
+      </a>
+    );
+  return (
+    <div>
+      <button
+        disabled={ocupado || nota?.status === "processando"}
+        onClick={async () => {
+          setOcupado(true);
+          const r = await d.acoes.emitirNota(id);
+          setOcupado(false);
+          if (r.erro) return show(r.erro);
+          setNota(r);
+          show(r.status === "autorizada" ? "Nota fiscal emitida" : r.mensagem || "A nota não foi autorizada");
+        }}
+        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-linha py-2 font-semibold hover:border-areia disabled:opacity-60"
+      >
+        <FileText className="h-4 w-4" /> {ocupado ? "Emitindo…" : nota?.status === "erro" ? "Tentar a nota de novo" : nota?.status === "processando" ? "Nota em processamento" : "Emitir nota fiscal"}
+      </button>
+      {nota?.status === "erro" && nota.mensagem && <p className="mt-1 text-[12px] text-[#e8846f]">{nota.mensagem}</p>}
+    </div>
+  );
+}
+
 function Cartao({ p, c, ent, abrir, aberto, show }: { p: Pedido; c: (typeof COLUNAS)[number]; ent: Entregador[]; abrir: () => void; aberto: boolean; show: (m: string) => void }) {
   const d = useDados();
   const [quem, setQuem] = useState("");
@@ -314,6 +350,7 @@ function Cartao({ p, c, ent, abrir, aberto, show }: { p: Pedido; c: (typeof COLU
           <button onClick={() => imprimirComanda(p, loja)} className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-linha py-2 font-semibold hover:border-areia">
             <Printer className="h-4 w-4" /> Imprimir comanda
           </button>
+          {d.loja.nfce_ativo && p.id && <BotaoNota id={p.id} show={show} />}
           {c.id !== "entregue" &&
             (cancelando ? (
               <div className="space-y-2">

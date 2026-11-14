@@ -1,6 +1,6 @@
 // Troca a senha pelo link de uso único do e-mail.
 import crypto from "node:crypto";
-import { SUPA_URL } from "../_lib/base.js";
+import { SUPA_URL } from "../../_lib/base.js";
 
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const h = { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, "Content-Type": "application/json" };

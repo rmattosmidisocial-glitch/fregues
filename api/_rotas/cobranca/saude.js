@@ -1,5 +1,5 @@
 // Diagnóstico da cobrança: diz se as chaves da Asaas e do Supabase funcionam. Não devolve nenhuma chave.
-import { ASAAS_URL, asaas, faltando, lerServidor } from "../_lib/base.js";
+import { ASAAS_URL, asaas, faltando, lerServidor } from "../../_lib/base.js";
 
 export default async function handler(req, res) {
   const r = { falta: faltando(), ambiente: ASAAS_URL.includes("sandbox") ? "teste (sandbox)" : "produção", asaas: "não testado", supabase: "não testado" };

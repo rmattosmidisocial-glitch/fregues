@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Activity, Armchair, Calculator, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, LogOut, Map as MapIcon, UserRound, MessagesSquare, Settings, Sparkles, Users, Workflow, X } from "lucide-react";
+import { Activity, Armchair, Calculator, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, LogOut, Map as MapIcon, UserRound, MessagesSquare, Settings, Sparkles, Users, Workflow, X, BarChart3 } from "lucide-react";
 import { useCrescer } from "../../data/crescer";
 import { useAtendimentoPainel } from "../../data/atendimento";
 import { useFormulariosPainel } from "../../data/formularios";
@@ -24,6 +24,7 @@ import { Copiloto } from "./Copiloto";
 import { MinhaConta, PrimeiraSenha } from "./MinhaConta";
 import { LinkDaLoja } from "./LinkDaLoja";
 import { Configuracoes } from "./Configuracoes";
+import { Relatorios } from "./Relatorios";
 import { AceiteTermos, VERSAO_TERMOS } from "../publico/Legal";
 
 type Item = { rota: Rota; rotulo: string; curto: string; icone: React.ReactNode; grupo: "Operação" | "Crescer" | "Loja" };
@@ -39,6 +40,7 @@ const ITENS: Item[] = [
   { rota: "automacoes", rotulo: "Automações", curto: "Automações", grupo: "Crescer", icone: <Workflow className="h-5 w-5" /> },
   { rota: "formularios", rotulo: "Formulários", curto: "Formulários", grupo: "Crescer", icone: <ClipboardList className="h-5 w-5" /> },
   { rota: "links", rotulo: "Links da bio", curto: "Links", grupo: "Crescer", icone: <Link2 className="h-5 w-5" /> },
+  { rota: "relatorios", rotulo: "Relatórios", curto: "Relatórios", grupo: "Loja", icone: <BarChart3 className="h-5 w-5" /> },
   { rota: "config", rotulo: "Configurações", curto: "Ajustes", grupo: "Loja", icone: <Settings className="h-5 w-5" /> },
 ];
 
@@ -55,7 +57,8 @@ export function PainelLayout({ rota }: { rota: Rota }) {
   const [conta, setConta] = useState(false);
   const d = useDados();
   const restrito = d.modo === "real" && d.papel ? POR_PAPEL[d.papel] : undefined;
-  const ITENS_VIS = restrito ? ITENS.filter((i) => restrito.includes(i.rota)) : ITENS;
+  // Relatórios é opcional: só aparece quando o dono liga em Configurações
+  const ITENS_VIS = (restrito ? ITENS.filter((i) => restrito.includes(i.rota)) : ITENS).filter((i) => i.rota !== "relatorios" || d.modo === "demo" || d.loja.relatorios_ativo);
   const chefe = !restrito; // dono e gerente
   useEffect(() => {
     if (restrito && !restrito.includes(rota)) window.location.hash = "#" + restrito[0];
@@ -232,6 +235,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
           {rota === "formularios" && <Formularios />}
           {rota === "links" && <Links />}
           {rota === "config" && <Configuracoes />}
+          {rota === "relatorios" && chefe && <Relatorios />}
         </main>
       </div>
 

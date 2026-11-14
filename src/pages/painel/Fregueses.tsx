@@ -1,3 +1,4 @@
+import { linkDaLoja } from "../../data/dados";
 import { useMemo, useState } from "react";
 import { Columns3, Download, List, MessageCircle, Search, Star, Upload, UserPlus, X } from "lucide-react";
 import { etapaAuto, type Etapa } from "../../data/crescer";
@@ -20,7 +21,7 @@ function Perfil({ id, fechar }: { id: string; fechar: () => void }) {
   const f = d.fregueses.find((x) => x.id === id);
   const { show, Toast } = useToast();
   const primeiro = (f?.nome ?? "").split(" ")[0];
-  const link = `${location.origin}/?r=${encodeURIComponent(SLUG)}#loja`;
+  const link = linkDaLoja(SLUG);
   const sugestao = !f
     ? ""
     : f.pedidos === 0

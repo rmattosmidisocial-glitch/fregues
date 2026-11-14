@@ -7,14 +7,35 @@ import { dentroDoHorario, textoHorario, type Horarios } from "../lib/horario";
 
 const URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-// Cada restaurante tem um endereço: ?r=slug. Sem isso, abre a loja de demonstração.
+// Cada restaurante tem um endereço: tobrocado.fregues.com.br (com domínio próprio), fregues.app/to-brocado
+// ou ?r=to-brocado. Sem nada disso, abre a última loja usada ou a de demonstração.
+export const DOMINIO = ((import.meta.env.VITE_DOMINIO as string | undefined) || "").replace(/^\.+|\/+$/g, "").toLowerCase();
+const RESERVADOS = new Set(["www", "app", "painel", "admin", "api", "assets", "icones", "loja"]);
+const SLUG_OK = /^[a-z0-9-]{3,60}$/;
+/** Slug que veio no endereço (subdomínio ou caminho), ou "" se não veio. */
+export const slugDoEndereco = (() => {
+  try {
+    const h = window.location.hostname.toLowerCase();
+    if (DOMINIO && h.endsWith("." + DOMINIO)) {
+      const sub = h.slice(0, -DOMINIO.length - 1);
+      if (SLUG_OK.test(sub) && !RESERVADOS.has(sub)) return sub;
+    }
+    const seg = decodeURIComponent(window.location.pathname.split("/")[1] || "").toLowerCase();
+    if (SLUG_OK.test(seg) && !RESERVADOS.has(seg)) return seg;
+  } catch {
+    /* segue */
+  }
+  return "";
+})();
 const lerSlug = () => {
   try {
-    return new URLSearchParams(window.location.search).get("r") || localStorage.getItem("fregues-loja") || "brasa-burger";
+    return new URLSearchParams(window.location.search).get("r") || slugDoEndereco || localStorage.getItem("fregues-loja") || "brasa-burger";
   } catch {
     return "brasa-burger";
   }
 };
+/** Endereço curto da loja para mandar aos clientes. */
+export const linkDaLoja = (slug: string) => (DOMINIO ? `https://${slug}.${DOMINIO}` : `${window.location.origin}/${slug}`);
 export const SLUG = lerSlug();
 // Quem chegou pela página de links (bio) leva essa origem até o pedido.
 try {
@@ -27,7 +48,10 @@ export const supabase: SupabaseClient | null = URL && KEY ? createClient(URL, KE
 export const supabaseAdmin: SupabaseClient | null = URL && KEY ? createClient(URL, KEY, { auth: { storageKey: "fregues-admin-auth" } }) : null;
 export const MODO: "real" | "demo" = supabase ? "real" : "demo";
 
-export type Loja = typeof M.LOJA & { id?: string; publicada?: boolean; demonstracao?: boolean; pix_chave?: string | null; pix_nome?: string | null; pix_cidade?: string | null; descricao?: string | null; whatsapp?: string | null; instagram?: string | null; logo_url?: string | null; capa_url?: string | null; rua?: string | null; numero?: string | null; cep?: string | null; lon?: number | null; lat?: number | null; ligada?: boolean; horarios?: Horarios | null; pausa_ate?: string | null; extra_min?: number; extra_ate?: string | null; aceita_pix?: boolean; aceita_cartao?: boolean; aceita_dinheiro?: boolean; entrega_ativa?: boolean; retirada_ativa?: boolean; pedido_minimo_geral?: number; taxa_embalagem?: number; cashback_ativo?: boolean; cashback_percentual?: number; cashback_minimo_uso?: number; cashback_validade_dias?: number | null; servico_padrao?: number; couvert_padrao?: number; org_id?: string };
+export type Loja = typeof M.LOJA & { id?: string; publicada?: boolean; demonstracao?: boolean; pix_chave?: string | null; pix_nome?: string | null; pix_cidade?: string | null; descricao?: string | null; whatsapp?: string | null; instagram?: string | null; logo_url?: string | null; capa_url?: string | null; rua?: string | null; numero?: string | null; cep?: string | null; lon?: number | null; lat?: number | null; ligada?: boolean; horarios?: Horarios | null; pausa_ate?: string | null; extra_min?: number; extra_ate?: string | null; aceita_pix?: boolean; aceita_cartao?: boolean; aceita_dinheiro?: boolean; entrega_ativa?: boolean; retirada_ativa?: boolean; pedido_minimo_geral?: number; taxa_embalagem?: number; cashback_ativo?: boolean; cashback_percentual?: number; cashback_minimo_uso?: number; cashback_validade_dias?: number | null; servico_padrao?: number; couvert_padrao?: number; org_id?: string; relatorios_ativo?: boolean; pagamento_online?: boolean; pagamento_online_ok?: boolean; whatsapp_ativo?: boolean; whatsapp_ok?: boolean; whatsapp_eventos?: Record<string, boolean>; nfce_ativo?: boolean; nfce_ok?: boolean; nfce_automatica?: boolean; nfce_cnpj?: string | null; nfce_producao?: boolean; nfce_ncm?: string };
+export type Integracoes = { mp: boolean; mp_final: string | null; wa: boolean; wa_phone_id: string | null; wa_modelos: Record<string, string>; focus: boolean; focus_final: string | null };
+export type Relatorio = { pedidos: number; cancelados: number; valor_cancelado: number; bruto: number; descontos: number; taxas_entrega: number; embalagens: number; total: number; recebido: number; a_receber: number; clientes: number; notas: number; por_forma: Record<string, number>; por_canal: Record<string, { pedidos: number; total: number }>; por_dia: { dia: string; pedidos: number; total: number }[]; produtos: { nome: string; qtd: number; total: number }[] };
+export type NotaFiscal = { order_id: string; status: "processando" | "autorizada" | "erro" | "cancelada"; numero: string | null; url_danfe: string | null; mensagem: string | null };
 export type Pulso = { risco: number; recuperado: number; voltaram: number; ritmo: number; atrasado: number; sumindo: number; total: number; comissao: number };
 export type DiaSemana = { dia: string; propria: number; marketplace: number };
 export type Entrega = {
@@ -117,7 +141,7 @@ type Dados = {
     entrar: (email: string, senha: string) => Promise<string | null>;
     sair: () => Promise<void>;
     /** Grava campos da loja (configurações do dono). */
-    salvarLoja: (c: Partial<Pick<Loja, "nome" | "pix_chave" | "pix_nome" | "pix_cidade" | "descricao" | "whatsapp" | "instagram" | "logo_url" | "capa_url" | "cidade" | "bairro" | "rua" | "numero" | "cep" | "lon" | "lat" | "horarios" | "pausa_ate" | "extra_min" | "extra_ate" | "aceita_pix" | "aceita_cartao" | "aceita_dinheiro" | "entrega_ativa" | "retirada_ativa" | "pedido_minimo_geral" | "taxa_embalagem" | "cashback_ativo" | "cashback_percentual" | "cashback_minimo_uso" | "cashback_validade_dias" | "servico_padrao" | "couvert_padrao">>) => Promise<string | null>;
+    salvarLoja: (c: Partial<Pick<Loja, "relatorios_ativo" | "pagamento_online" | "pagamento_online_ok" | "whatsapp_ativo" | "whatsapp_ok" | "whatsapp_eventos" | "nfce_ativo" | "nfce_ok" | "nfce_automatica" | "nfce_cnpj" | "nfce_producao" | "nfce_ncm" | "nome" | "pix_chave" | "pix_nome" | "pix_cidade" | "descricao" | "whatsapp" | "instagram" | "logo_url" | "capa_url" | "cidade" | "bairro" | "rua" | "numero" | "cep" | "lon" | "lat" | "horarios" | "pausa_ate" | "extra_min" | "extra_ate" | "aceita_pix" | "aceita_cartao" | "aceita_dinheiro" | "entrega_ativa" | "retirada_ativa" | "pedido_minimo_geral" | "taxa_embalagem" | "cashback_ativo" | "cashback_percentual" | "cashback_minimo_uso" | "cashback_validade_dias" | "servico_padrao" | "couvert_padrao">>) => Promise<string | null>;
     /** Coloca a loja no ar (ou tira). Devolve o erro, ou null. */
     publicarLoja: (noAr: boolean) => Promise<string | null>;
     /** Minha conta: troca a senha (e tira o aviso de senha provisória). */
@@ -169,10 +193,61 @@ type Dados = {
     salvarCupom: (c: Omit<Cupom, "id" | "usos" | "desconto" | "vendas"> & { id?: string }) => Promise<string | null>;
     removerCupom: (id: string) => Promise<string | null>;
     recarregar: () => Promise<void>;
+    /** Chama as integrações do servidor (/api/loja/...) com a sessão de quem está no painel. */
+    servidorLoja: <T = Record<string, unknown>>(acao: string, corpo: Record<string, unknown>) => Promise<T & { erro?: string }>;
+    integracoes: () => Promise<Integracoes | null>;
+    relatorio: (de: string, ate: string) => Promise<{ dados?: Relatorio; erro?: string }>;
+    relatorioPedidos: (de: string, ate: string) => Promise<Record<string, unknown>[]>;
+    notas: (orderIds: string[]) => Promise<NotaFiscal[]>;
+    emitirNota: (orderId: string) => Promise<{ erro?: string; status?: string; url_danfe?: string | null; mensagem?: string | null }>;
     /** Demonstração: coloca um pedido no quadro da cozinha (o modo real recebe pelo banco). */
     pedidoLocal: (p: Pedido) => void;
   };
 };
+
+/** Rotas de integração da loja no servidor. Leva a sessão de quem está logado (o servidor confere o papel). */
+async function chamarServidor<T = Record<string, unknown>>(acao: string, corpo: Record<string, unknown>): Promise<T & { erro?: string }> {
+  const { data } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+  const tok = data.session?.access_token;
+  try {
+    const r = await fetch(`/api/loja/${acao}`, { method: "POST", headers: { "Content-Type": "application/json", ...(tok ? { Authorization: `Bearer ${tok}` } : {}) }, body: JSON.stringify(corpo) });
+    const j = await r.json().catch(() => ({ erro: `Servidor respondeu ${r.status}` }));
+    return (r.ok ? j : { ...j, erro: j.erro || `Servidor respondeu ${r.status}` }) as T & { erro?: string };
+  } catch {
+    return { erro: "Não consegui falar com o servidor." } as T & { erro?: string };
+  }
+}
+
+/** Demonstração: relatório montado com os pedidos de exemplo. */
+function relatorioDemo(ps: Pedido[], de: string, ate: string): Relatorio {
+  const val = ps;
+  const soma = (f: (p: Pedido) => number, l = val) => Math.round(l.reduce((s, p) => s + f(p), 0) * 100) / 100;
+  const por_forma: Record<string, number> = {};
+  const por_canal: Record<string, { pedidos: number; total: number }> = {};
+  for (const p of val) {
+    const f = p.forma ?? "pix";
+    por_forma[f] = (por_forma[f] ?? 0) + p.total;
+    const c = String(p.modo).startsWith("Mesa") ? "Salão" : String(p.modo);
+    por_canal[c] = { pedidos: (por_canal[c]?.pedidos ?? 0) + 1, total: (por_canal[c]?.total ?? 0) + p.total };
+  }
+  const dias: { dia: string; pedidos: number; total: number }[] = [];
+  const ini = new Date(de + "T12:00:00"), fim = new Date(ate + "T12:00:00");
+  for (let d = new Date(ini), k = 0; d <= fim && k < 400; d.setDate(d.getDate() + 1), k++) {
+    const n = 8 + ((d.getDate() * 7) % 13);
+    dias.push({ dia: d.toISOString().slice(0, 10), pedidos: n, total: Math.round(n * 58.9 * 100) / 100 });
+  }
+  const total = dias.reduce((s, x) => s + x.total, 0), pedidosN = dias.reduce((s, x) => s + x.pedidos, 0);
+  const fator = soma((p) => p.total) ? total / soma((p) => p.total) : 1;
+  return {
+    pedidos: pedidosN, cancelados: Math.round(pedidosN * 0.02), valor_cancelado: Math.round(total * 0.02), bruto: Math.round(total * 0.93), descontos: Math.round(total * 0.03),
+    taxas_entrega: Math.round(total * 0.08), embalagens: Math.round(total * 0.02), total: Math.round(total * 100) / 100, recebido: Math.round(total * 0.97), a_receber: Math.round(total * 0.03),
+    clientes: Math.round(pedidosN * 0.6), notas: 0,
+    por_forma: Object.fromEntries(Object.entries(por_forma).map(([k, v]) => [k, Math.round(v * fator)])),
+    por_canal: Object.fromEntries(Object.entries(por_canal).map(([k, v]) => [k, { pedidos: Math.round(v.pedidos * fator / 60) || 1, total: Math.round(v.total * fator) }])),
+    por_dia: dias,
+    produtos: [["X-Bacon Duplo", 0.22], ["Smash Bacon", 0.17], ["Combo Casal", 0.14], ["Batata Rústica", 0.09], ["Milkshake", 0.06]].map(([n, f]) => ({ nome: n as string, qtd: Math.round(pedidosN * (f as number) * 1.4), total: Math.round(total * (f as number)) })),
+  };
+}
 
 const Ctx = createContext<Dados | null>(null);
 export const useDados = () => {
@@ -211,7 +286,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   // ---------- leitura pública: loja, zonas, cardápio ----------
   const carregarPublico = useCallback(async () => {
     if (!supabase) return;
-    const { data: s, error } = await supabase.from("stores").select("id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem,cashback_ativo,cashback_percentual,cashback_minimo_uso,cashback_validade_dias,servico_padrao,couvert_padrao,org_id").eq("slug", SLUG).single();
+    const { data: s, error } = await supabase.from("stores").select("id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem,cashback_ativo,cashback_percentual,cashback_minimo_uso,cashback_validade_dias,servico_padrao,couvert_padrao,org_id,relatorios_ativo,pagamento_online,pagamento_online_ok,whatsapp_ativo,whatsapp_ok,whatsapp_eventos,nfce_ativo,nfce_ok,nfce_automatica,nfce_cnpj,nfce_producao,nfce_ncm").eq("slug", SLUG).single();
     if (error || !s) {
       setErro("Não foi possível abrir a loja agora.");
       return;
@@ -820,7 +895,16 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       },
       async avancarPedido(num, status, motoboy) {
         setPedidos((l) => l.map((p) => (p.num === num ? { ...p, status, motoboy: motoboy ?? p.motoboy } : p)));
-        if (supabase && loja.id) await supabase.from("orders").update({ status, ...(motoboy ? { motoboy } : {}) }).eq("store_id", loja.id).eq("numero", num);
+        if (supabase && loja.id) {
+          const { error } = await supabase.from("orders").update({ status, ...(motoboy ? { motoboy } : {}) }).eq("store_id", loja.id).eq("numero", num);
+          const p = pedidos.find((x) => x.num === num);
+          if (error || !p?.id) return;
+          // WhatsApp oficial: avisa o cliente da nova etapa (só sai se o dono ligou esse aviso)
+          const evento = status === "preparo" ? "preparo" : status === "rota" ? "rota" : status === "pronto" && p.modo === "Retirada" ? "pronto" : null;
+          if (evento && loja.whatsapp_ativo) chamarServidor("whatsapp", { order_id: p.id, evento }).catch(() => {});
+          // nota fiscal automática ao entregar (opcional)
+          if (status === "entregue" && loja.nfce_ativo && loja.nfce_automatica) chamarServidor("nfce", { order_id: p.id }).catch(() => {});
+        }
       },
       async pagarPedido(num, forma) {
         const p = pedidos.find((x) => x.num === num);
@@ -859,6 +943,32 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
           ? { atende: true, bairro, zona: z.nome, taxa: (bairroLocalId ? z.taxasBairro?.[bairroLocalId] : undefined) ?? z.taxa, tempo_min: z.tempo[0], tempo_max: z.tempo[1], pedido_minimo: z.minimo, gratis_acima: z.gratisAcima ?? null }
           : { atende: false, bairro };
       },
+      servidorLoja: chamarServidor,
+      async integracoes() {
+        if (!supabase || !loja.id) return null;
+        const { data } = await supabase.rpc("loja_integracoes", { p_store: loja.id });
+        return (data as Integracoes) ?? null;
+      },
+      async relatorio(de, ate) {
+        if (!supabase || !loja.id) return { dados: relatorioDemo(pedidos, de, ate) };
+        const { data, error } = await supabase.rpc("relatorio_periodo", { p_store: loja.id, p_de: de, p_ate: ate });
+        if (error) return { erro: error.message.replace(/^.*?:\s*/, "") };
+        return { dados: data as Relatorio };
+      },
+      async relatorioPedidos(de, ate) {
+        if (!supabase || !loja.id) return pedidos.map((p) => ({ data: p.criadoEm, numero: p.num, canal: p.modo, status: p.status, forma: p.forma, pago: p.pago, total: p.total, cliente: p.cliente }));
+        const { data } = await supabase.rpc("relatorio_pedidos", { p_store: loja.id, p_de: de, p_ate: ate });
+        return (data as Record<string, unknown>[]) ?? [];
+      },
+      async notas(ids) {
+        if (!supabase || !ids.length) return [];
+        const { data } = await supabase.from("notas").select("order_id,status,numero,url_danfe,mensagem").in("order_id", ids).order("criado_em", { ascending: false });
+        return (data as NotaFiscal[]) ?? [];
+      },
+      async emitirNota(orderId) {
+        if (!supabase) return { erro: "A nota fiscal funciona na versão publicada, com a conta da Focus NFe ligada." };
+        return chamarServidor("nfce", { order_id: orderId });
+      },
       pedidoLocal(p) {
         if (!supabase) setPedidos((ps) => [p, ...ps]);
       },
@@ -867,6 +977,8 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
           const { data, error } = await supabase.rpc("place_order", { p_slug: SLUG, p });
           if (error) return { erro: error.message.replace(/^.*?:\s*/, "") } as PedidoCriado;
           const criado = data as PedidoCriado;
+          // WhatsApp oficial: confirma o pedido para o cliente (se a loja ligou)
+          if (criado?.id && !criado.erro && loja.whatsapp_ativo) chamarServidor("whatsapp", { order_id: criado.id, evento: "recebido" }).catch(() => {});
           try {
             if (criado?.id && !criado.erro && sessionStorage.getItem("fregues-origem") === "bio") supabase.rpc("pedido_origem", { p_id: criado.id, p_origem: "Link da bio" }).then(() => {});
           } catch {

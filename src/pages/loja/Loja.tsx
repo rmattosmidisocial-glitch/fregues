@@ -208,7 +208,7 @@ export function Loja() {
   const [aceita, setAceita] = useState(false); // LGPD: o cliente escolhe, não vem marcado
   const [saldo, setSaldo] = useState(0);
   // Pix só aparece quando a loja cadastrou a chave dela (na demonstração, sempre)
-  const pixPronto = d.modo === "demo" || !!(LOJA.pix_chave && tipoChave(LOJA.pix_chave));
+  const pixPronto = d.modo === "demo" || !!(LOJA.pix_chave && tipoChave(LOJA.pix_chave)) || !!(LOJA.pagamento_online && LOJA.pagamento_online_ok);
   const [pag, setPag] = useState<"pix" | "maquininha" | "dinheiro">(pixPronto ? "pix" : "maquininha");
   // forma escolhida deixou de existir (a loja mudou as configurações): pega a primeira que vale
   useEffect(() => {
@@ -422,11 +422,34 @@ export function Loja() {
     }
   }
 
+  // Pagamento online (Mercado Pago do restaurante): Pix com confirmação automática
+  const [pixOnline, setPixOnline] = useState<{ copia_cola?: string; qr?: string; erro?: string } | null>(null);
+  const usaOnline = d.modo === "real" && !!LOJA.pagamento_online;
+  useEffect(() => {
+    if (etapa !== "pix" || !pedido || !usaOnline || pixOnline) return;
+    d.acoes.servidorLoja<{ copia_cola?: string; qr?: string; online?: boolean; pago?: boolean }>("pix", { order_id: pedido.id }).then((r) => {
+      if (r.pago) setPago(true);
+      setPixOnline(r.erro || r.online === false || !r.copia_cola ? { erro: r.erro || "indisponível" } : r);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etapa, pedido, usaOnline]);
+  // confere o pagamento de tempos em tempos (reserva, caso o aviso do Mercado Pago atrase)
+  useEffect(() => {
+    if (etapa !== "pix" || !pedido || !pixOnline?.copia_cola || pago) return;
+    const t = setInterval(() => {
+      d.acoes.servidorLoja<{ pago?: boolean }>("conferir", { order_id: pedido.id }).then((r) => r.pago && setPago(true));
+    }, 8000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etapa, pedido, pixOnline, pago]);
+
   const totalFinal = pedido?.total ?? total;
-  const codigoDoPix =
+  const codigoEstatico =
     d.modo === "real" && LOJA.pix_chave && tipoChave(LOJA.pix_chave) && pedido
       ? codigoPix({ chave: LOJA.pix_chave, nome: LOJA.pix_nome || LOJA.nome, cidade: LOJA.pix_cidade || LOJA.cidade || "Rio de Janeiro", valor: totalFinal, txid: `PED${pedido.numero}` })
       : "";
+  const codigoDoPix = pixOnline?.copia_cola || (usaOnline && !pixOnline ? "" : codigoEstatico);
+  const aguardandoPix = usaOnline && !pixOnline;
 
   if (d.modo === "real" && d.carregando) return <div className="grid min-h-screen place-items-center bg-[#fffaf2] text-[#5a4c41]">Abrindo o cardápio…</div>;
 
@@ -843,8 +866,10 @@ export function Loja() {
                   <p className="text-[15px] text-[#5a4c41]">
                     Pedido #{pedido?.numero}. Pague {brl(totalFinal)} pelo app do seu banco.
                   </p>
-                  <div className="mt-4 rounded-2xl border border-[#eadccb] bg-white p-4">{codigoDoPix ? <QrPix codigo={codigoDoPix} /> : <QrFake />}</div>
-                  {codigoDoPix && <p className="mt-2 text-[13px] text-[#5a4c41]">Pix para {LOJA.pix_nome || LOJA.nome}</p>}
+                  <div className="mt-4 rounded-2xl border border-[#eadccb] bg-white p-4">
+                    {aguardandoPix ? <div className="grid h-52 w-52 place-items-center text-[14px] text-[#5a4c41]">Gerando o Pix…</div> : pixOnline?.qr ? <img src={`data:image/png;base64,${pixOnline.qr}`} alt="QR Code do Pix" className="h-52 w-52" /> : codigoDoPix ? <QrPix codigo={codigoDoPix} /> : <QrFake />}
+                  </div>
+                  {codigoDoPix && <p className="mt-2 text-[13px] text-[#5a4c41]">Pix para {pixOnline?.copia_cola ? LOJA.nome : LOJA.pix_nome || LOJA.nome}</p>}
                   <button
                     onClick={async () => {
                       try {
@@ -859,7 +884,7 @@ export function Loja() {
                     {copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copiado ? "Código copiado" : "Copiar código Pix"}
                   </button>
                   <div className={`mt-6 w-full rounded-2xl p-4 text-[15px] font-semibold ${pago ? "bg-[#e3f5e9] text-[#1e6b42]" : "bg-[#f3e8d8] text-[#5a4c41]"}`} aria-live="polite">
-                    {pago ? "Pagamento confirmado. Seu pedido já foi para a cozinha." : codigoDoPix ? "Depois de pagar, a loja confere e confirma aqui. Pode deixar esta tela aberta." : "Aguardando o pagamento…"}
+                    {pago ? "Pagamento confirmado. Seu pedido já foi para a cozinha." : pixOnline?.copia_cola ? "Assim que o banco confirmar, esta tela atualiza sozinha. O Pix vale por 30 minutos." : codigoDoPix ? "Depois de pagar, a loja confere e confirma aqui. Pode deixar esta tela aberta." : "Aguardando o pagamento…"}
                   </div>
                   {codigoDoPix && !pago && (
                     <button onClick={() => setEtapa("acompanhar")} className="mt-3 text-[14px] font-semibold text-brasa-escura underline-offset-4 hover:underline">

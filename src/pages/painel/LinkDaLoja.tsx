@@ -1,3 +1,4 @@
+import { linkDaLoja } from "../../data/dados";
 import { useState } from "react";
 import { Copy, ExternalLink, MessageCircle, Store } from "lucide-react";
 import { useDados } from "../../data/dados";
@@ -9,7 +10,7 @@ export function LinkDaLoja() {
   const [erro, setErro] = useState("");
   const [ocupado, setOcupado] = useState(false);
   if (!d.loja.slug) return null;
-  const link = `${window.location.origin}/?r=${d.loja.slug}#loja`;
+  const link = linkDaLoja(d.loja.slug);
   const noAr = d.modo === "demo" || d.loja.publicada !== false;
   const msg = `Peça direto pelo nosso cardápio online: ${link}`;
   const alternar = async (v: boolean) => {

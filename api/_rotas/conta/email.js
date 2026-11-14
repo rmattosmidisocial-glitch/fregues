@@ -1,6 +1,6 @@
 // O dono troca o e-mail de login dele (confirmando a senha atual). Não depende do e-mail do Supabase.
-import { SUPA_URL } from "../_lib/base.js";
-import { emailConfigurado, enviarEmail } from "../_lib/email.js";
+import { SUPA_URL } from "../../_lib/base.js";
+import { emailConfigurado, enviarEmail } from "../../_lib/email.js";
 
 const ANON = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;

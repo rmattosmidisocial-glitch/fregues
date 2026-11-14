@@ -1,3 +1,4 @@
+import { linkDaLoja } from "./dados";
 import { useCallback, useEffect, useState } from "react";
 import { SLUG, supabase, useDados } from "./dados";
 
@@ -35,7 +36,7 @@ export const INFO: Record<TipoAuto, { nome: string; quando: string; regra: strin
 export const TIPOS: TipoAuto[] = ["pos_entrega", "sumindo", "primeiro_pedido", "aniversario"];
 
 export function montarTexto(t: string, i: { nome: string; favorito: string | null }, loja: string) {
-  const link = `${location.origin}/?r=${encodeURIComponent(SLUG)}#loja`;
+  const link = linkDaLoja(SLUG);
   return t
     .split("{nome}").join(i.nome.split(" ")[0])
     .split("{loja}").join(loja)

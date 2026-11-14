@@ -1,3 +1,4 @@
+import { linkDaLoja } from "../../data/dados";
 import { CalendarDays, ChevronRight, Frown, MessageCircle, MessagesSquare, Sparkles, Star, TrendingUp } from "lucide-react";
 import { crescer, quandoTxt, useCrescer } from "../../data/crescer";
 import { AnelPulso, Numero, Painelzinho, StatusPill, useToast } from "../../components/ui";
@@ -87,7 +88,7 @@ export function linkChamar(f: Freguês, loja: string) {
   if (tel.length < 10) return null;
   const nome = f.nome.split(" ")[0];
   const prato = f.favorito && f.favorito !== "—" ? `seu ${f.favorito}` : "o de sempre";
-  const linkLoja = `${location.origin}${location.pathname}?r=${SLUG}#loja`;
+  const linkLoja = linkDaLoja(SLUG);
   const texto = `Oi, ${nome}! Aqui é da ${loja}. Faz um tempinho que você não aparece e ${prato} está te esperando. Quer pedir hoje? É só tocar aqui: ${linkLoja}`;
   return `https://wa.me/${tel.startsWith("55") ? tel : "55" + tel}?text=${encodeURIComponent(texto)}`;
 }

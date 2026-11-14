@@ -1,3 +1,4 @@
+import { linkDaLoja } from "../../data/dados";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { geoContains, type GeoPermissibleObjects } from "d3-geo";
 import { ArrowLeft, Check, ChevronRight, Flame, Layers, MapPin, Plus, Search, Trash2, Users } from "lucide-react";
@@ -619,7 +620,7 @@ function QuemPediu({ bairroId, bairro, atende }: { bairroId: string; bairro: str
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bairroId]);
   if (!lista || lista.length === 0) return null;
-  const link = `${location.origin}/?r=${encodeURIComponent(SLUG)}#loja`;
+  const link = linkDaLoja(SLUG);
   const msg = (l: Lead) =>
     `Oi${l.nome ? `, ${l.nome.split(" ")[0]}` : ""}! Aqui é da ${d.loja.nome}. Você pediu para avisar: agora entregamos em ${bairro}! 🎉 Faça seu pedido por aqui: ${link}`;
   const falta = lista.filter((l) => !l.avisadoEm).length;
