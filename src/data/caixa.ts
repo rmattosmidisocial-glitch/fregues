@@ -18,7 +18,7 @@ const hojeAs = (h: number, m: number) => {
 };
 
 type Estado = { sessao: Sessao | null; vendas: VendaDemo[]; movimentos: Movimento[]; historico: Sessao[]; proximoNumero: number };
-const resumoDe = (s: Sessao, vendas: VendaDemo[], movs: Movimento[]): Resumo => {
+export const resumoDe = (s: Sessao, vendas: VendaDemo[], movs: Movimento[]): Resumo => {
   const v = vendas.filter((x) => x.quando >= s.aberto_em && (!s.fechado_em || x.quando <= s.fechado_em));
   const por_forma: Resumo["por_forma"] = {};
   const por_canal: Record<string, number> = {};

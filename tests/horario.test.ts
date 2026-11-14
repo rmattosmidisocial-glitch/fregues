@@ -3,7 +3,13 @@ import { dentroDoHorario, textoHorario, type Horarios } from "../src/lib/horario
 
 // datas em horário de Brasília (UTC-3). 2026-11-13 é sexta (5), 2026-11-14 é sábado (6)
 const em = (iso: string) => new Date(iso + "-03:00");
-const h: Horarios = { "5": [["18:00", "02:00"]], "6": [["11:00", "15:00"], ["18:00", "23:30"]] };
+const h: Horarios = {
+  "5": [["18:00", "02:00"]],
+  "6": [
+    ["11:00", "15:00"],
+    ["18:00", "23:30"],
+  ],
+};
 
 describe("Horário de funcionamento", () => {
   it("sem horário cadastrado fica sempre aberto", () => {

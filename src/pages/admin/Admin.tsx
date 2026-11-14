@@ -612,12 +612,12 @@ function CobrancaAuto({ c, a }: { c: Cliente; a: ReturnType<typeof useAdmin> }) 
 }
 
 /** Configurações básicas: os seus dados (vão nas mensagens para os clientes e no botão de atendimento do painel deles) e a sua senha. */
-function Configuracoes({ a }: { a: ReturnType<typeof useAdmin> }) {
+function Configuracoes({ a, inicio = "dados" }: { a: ReturnType<typeof useAdmin>; inicio?: "dados" | "erros" }) {
   const [f, setF] = useState<Config>(a.config);
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
   const [senha, setSenha] = useState("");
   const [msgSenha, setMsgSenha] = useState<{ ok: boolean; t: string } | null>(null);
-  const [sec, setSec] = useState<"dados" | "cobranca" | "mensagens" | "admins" | "integracoes" | "erros">("dados");
+  const [sec, setSec] = useState<"dados" | "cobranca" | "mensagens" | "admins" | "integracoes" | "erros">(inicio);
   useEffect(() => setF(a.config), [a.config]);
   const inp = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
   const campo = (k: "empresa" | "responsavel" | "email" | "whatsapp" | "assinatura", rotulo: string, tipo = "text", dica?: string) => (
@@ -905,6 +905,15 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
 export function Admin() {
   const a = useAdmin();
   const [aba, setAba] = useState<Aba>("visao");
+  const [secConfig, setSecConfig] = useState<"dados" | "erros">("dados");
+  // alerta de erros: quantos tipos de erro apareceram nas últimas 24 horas
+  const [errosHoje, setErrosHoje] = useState(0);
+  const temVisao = !!a.visao;
+  useEffect(() => {
+    if (!temVisao || a.modo !== "real") return;
+    a.acoes.erros(1).then((l) => setErrosHoje(l.length));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [temVisao]);
   const [sel, setSel] = useState<string | null>(null);
   const [novo, setNovo] = useState(false);
   const [busca, setBusca] = useState("");
@@ -1020,9 +1029,22 @@ export function Admin() {
         </p>
         <nav className="mt-6 space-y-1">
           {ITENS.map((i) => (
-            <button key={i.id} onClick={() => setAba(i.id)} aria-current={aba === i.id ? "page" : undefined} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition ${aba === i.id ? "bg-papel font-semibold text-carvao" : "text-areia hover:bg-grafite hover:text-papel"}`}>
+            <button
+              key={i.id}
+              onClick={() => {
+                setSecConfig("dados");
+                setAba(i.id);
+              }}
+              aria-current={aba === i.id ? "page" : undefined}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition ${aba === i.id ? "bg-papel font-semibold text-carvao" : "text-areia hover:bg-grafite hover:text-papel"}`}
+            >
               {i.icone} {i.rotulo}
               {i.id === "financeiro" && atrasados.length > 0 && <span className="tabular ml-auto rounded-full bg-mostarda px-2 text-[12px] font-bold text-carvao">{atrasados.length}</span>}
+              {i.id === "config" && errosHoje > 0 && (
+                <span className="tabular ml-auto rounded-full bg-[#f0524a] px-2 text-[12px] font-bold text-white" title="Erros nas últimas 24 horas">
+                  {errosHoje}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -1079,6 +1101,23 @@ export function Admin() {
                 <Kpi rotulo="Vendas dos seus clientes (30 dias)" valor={brl(v.vendas_30d)} sub="Dinheiro que passou longe da comissão de marketplace" />
                 <Kpi rotulo="Fregueses cadastrados" valor={v.fregueses.toLocaleString("pt-BR")} />
               </div>
+              {errosHoje > 0 && (
+                <button
+                  onClick={() => {
+                    setSecConfig("erros");
+                    setAba("config");
+                  }}
+                  className="flex w-full items-center justify-between gap-3 rounded-3xl border-2 border-[#f0524a] bg-forno p-4 text-left"
+                >
+                  <span>
+                    <b className="block">
+                      {errosHoje} {errosHoje === 1 ? "tipo de erro apareceu" : "tipos de erro apareceram"} nas últimas 24 horas
+                    </b>
+                    <span className="text-[14px] text-areia">Algo quebrou na tela de alguém ou no servidor. Toque para ver.</span>
+                  </span>
+                  <ChevronRight className="h-5 w-5 shrink-0" />
+                </button>
+              )}
               <Lembretes a={a} abrir={setSel} />
               <div className="grid gap-4 lg:grid-cols-3">
                 <Alerta titulo="Teste acabando" cor="#2f7d77" itens={testesVencendo} texto={(x) => `termina ${dataBR(x.teste_ate)} · ${x.pedidos_30d} pedidos no teste`} />
@@ -1269,7 +1308,7 @@ export function Admin() {
 
           {aba === "relatorios" && <Relatorios a={a} />}
 
-          {aba === "config" && <Configuracoes a={a} />}
+          {aba === "config" && <Configuracoes key={secConfig} a={a} inicio={secConfig} />}
 
           {aba === "atividade" && (
             <div>
