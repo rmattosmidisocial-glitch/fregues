@@ -1,5 +1,5 @@
 // Admin ativa a cobrança automática de um cliente: cria cliente + assinatura na Asaas.
-import { asaas, aplicarCobranca, corpoJson, exigirAdmin, faltando, garantirWebhook, lerServidor, rpcServidor } from "../_lib/base.js";
+import { asaas, aplicarCobranca, regrasAsaas, corpoJson, exigirAdmin, faltando, garantirWebhook, lerServidor, rpcServidor } from "../_lib/base.js";
 
 const hoje = () => new Date().toISOString().slice(0, 10);
 
@@ -56,6 +56,7 @@ export default async function handler(req, res) {
           cycle: "MONTHLY",
           description: `Freguês · plano ${plano?.nome || s.plan_id}`,
           externalReference: org_id,
+          ...(await regrasAsaas()),
         }),
       });
       assinatura = a.id;
@@ -65,10 +66,22 @@ export default async function handler(req, res) {
     const primeiraCobranca = (pg.data || []).sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
     const link = primeiraCobranca?.invoiceUrl || null;
 
-    await rpcServidor("cobranca_salvar", { p_org: org_id, p_documento: doc, p_customer: customer, p_assinatura: assinatura, p_link: link });
+    await rpcServidor("cobranca_salvar", {
+      p_org: org_id,
+      p_documento: doc,
+      p_customer: customer,
+      p_assinatura: assinatura,
+      p_link: link,
+    });
     for (const p of pg.data || []) await aplicarCobranca({ ...p, subscription: assinatura });
 
-    return res.status(200).json({ ok: true, link, assinatura, vencimento: primeiraCobranca?.dueDate || primeira, aviso });
+    return res.status(200).json({
+      ok: true,
+      link,
+      assinatura,
+      vencimento: primeiraCobranca?.dueDate || primeira,
+      aviso,
+    });
   } catch (e) {
     return res.status(500).json({ erro: e.message || "Erro ao falar com a Asaas" });
   }

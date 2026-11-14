@@ -17,12 +17,21 @@ export function faltando() {
 }
 
 // senha que a Asaas manda em cada aviso, derivada da chave (não precisa de outra variável)
-export const tokenWebhook = () => crypto.createHash("sha256").update(`fregues-webhook:${ASAAS_KEY || ""}`).digest("hex");
+export const tokenWebhook = () =>
+  crypto
+    .createHash("sha256")
+    .update(`fregues-webhook:${ASAAS_KEY || ""}`)
+    .digest("hex");
 
 export async function asaas(caminho, opcoes = {}) {
   const r = await fetch(ASAAS_URL + caminho, {
     ...opcoes,
-    headers: { "Content-Type": "application/json", "User-Agent": "Fregues", access_token: ASAAS_KEY, ...(opcoes.headers || {}) },
+    headers: {
+      "Content-Type": "application/json",
+      "User-Agent": "Fregues",
+      access_token: ASAAS_KEY,
+      ...(opcoes.headers || {}),
+    },
   });
   const corpo = await r.json().catch(() => ({}));
   if (!r.ok) {
@@ -36,7 +45,11 @@ export async function asaas(caminho, opcoes = {}) {
 export async function rpcServidor(nome, args) {
   const r = await fetch(`${SUPA_URL}/rest/v1/rpc/${nome}`, {
     method: "POST",
-    headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, "Content-Type": "application/json" },
+    headers: {
+      apikey: SERVICE,
+      Authorization: `Bearer ${SERVICE}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(args),
   });
   const corpo = await r.json().catch(() => null);
@@ -45,7 +58,9 @@ export async function rpcServidor(nome, args) {
 }
 
 export async function lerServidor(tabela, filtro) {
-  const r = await fetch(`${SUPA_URL}/rest/v1/${tabela}?${filtro}`, { headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } });
+  const r = await fetch(`${SUPA_URL}/rest/v1/${tabela}?${filtro}`, {
+    headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` },
+  });
   if (!r.ok) throw new Error(`Supabase respondeu ${r.status}`);
   return r.json();
 }
@@ -55,10 +70,20 @@ export async function lerServidor(tabela, filtro) {
 export async function exigirAdmin(req) {
   const jwt = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
   if (!jwt) return null;
-  const h = { apikey: ANON, Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" };
-  const r = await fetch(`${SUPA_URL}/rest/v1/rpc/is_platform_admin`, { method: "POST", headers: h, body: "{}" });
+  const h = {
+    apikey: ANON,
+    Authorization: `Bearer ${jwt}`,
+    "Content-Type": "application/json",
+  };
+  const r = await fetch(`${SUPA_URL}/rest/v1/rpc/is_platform_admin`, {
+    method: "POST",
+    headers: h,
+    body: "{}",
+  });
   if (!(r.ok && (await r.json()) === true)) return null;
-  const u = await fetch(`${SUPA_URL}/auth/v1/user`, { headers: h }).then((x) => x.json()).catch(() => ({}));
+  const u = await fetch(`${SUPA_URL}/auth/v1/user`, { headers: h })
+    .then((x) => x.json())
+    .catch(() => ({}));
   return u?.email || "admin";
 }
 
@@ -99,5 +124,18 @@ export function corpoJson(req) {
     return JSON.parse(req.body || "{}");
   } catch {
     return {};
+  }
+}
+
+// multa e juros das regras de cobrança (Configurações do Admin), no formato da Asaas
+export async function regrasAsaas() {
+  try {
+    const [c] = await lerServidor("platform_config", "id=eq.1&select=multa_pct,juros_pct");
+    return {
+      fine: { value: Number(c?.multa_pct ?? 2), type: "PERCENTAGE" },
+      interest: { value: Number(c?.juros_pct ?? 1) },
+    };
+  } catch {
+    return { fine: { value: 2 }, interest: { value: 1 } };
   }
 }

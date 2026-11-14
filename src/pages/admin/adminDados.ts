@@ -5,10 +5,134 @@ import type { Session } from "@supabase/supabase-js";
 import { MODO, supabaseAdmin as supabase } from "../../data/dados";
 import type { Endereco } from "./EnderecoLoja";
 
-const enderecoArgs = (org: string, e: Endereco) => ({ p_org: org, p_cidade: e.cidade, p_bairro: e.bairro, p_rua: e.rua, p_numero: e.numero, p_cep: e.cep, p_lon: e.lon ?? null, p_lat: e.lat ?? null });
+const enderecoArgs = (org: string, e: Endereco) => ({
+  p_org: org,
+  p_cidade: e.cidade,
+  p_bairro: e.bairro,
+  p_rua: e.rua,
+  p_numero: e.numero,
+  p_cep: e.cep,
+  p_lon: e.lon ?? null,
+  p_lat: e.lat ?? null,
+});
 
-export type Config = { empresa: string; responsavel: string; email: string; whatsapp: string; assinatura: string };
-export const CONFIG_PADRAO: Config = { empresa: "MMATTOS Assessoria de MKT", responsavel: "", email: "", whatsapp: "21967640607", assinatura: "" };
+export type Regras = {
+  tolerancia_dias: number;
+  suspender_dias: number;
+  multa_pct: number;
+  juros_pct: number;
+  aviso_dias: number;
+  teste_dias: number;
+};
+export const REGRAS_PADRAO: Regras = {
+  tolerancia_dias: 3,
+  suspender_dias: 15,
+  multa_pct: 2,
+  juros_pct: 1,
+  aviso_dias: 3,
+  teste_dias: 14,
+};
+
+/** Modelos de mensagem do WhatsApp. Entre chaves, o que o sistema troca sozinho. */
+export type ChaveModelo = "acesso" | "link_painel" | "cobranca" | "lembrete" | "atraso" | "boas_vindas";
+export const MODELOS_INFO: {
+  id: ChaveModelo;
+  titulo: string;
+  quando: string;
+  campos: string[];
+}[] = [
+  {
+    id: "acesso",
+    titulo: "Acesso ao painel (com senha)",
+    quando: "Ao criar o login do dono ou gerar senha nova",
+    campos: ["nome", "loja", "link", "email", "senha", "assinatura"],
+  },
+  {
+    id: "link_painel",
+    titulo: "Link do painel (sem senha)",
+    quando: "Quando o dono já criou a senha dele",
+    campos: ["nome", "loja", "link", "email", "assinatura"],
+  },
+  {
+    id: "boas_vindas",
+    titulo: "Boas-vindas e link da loja",
+    quando: "Depois de cadastrar o cliente",
+    campos: ["nome", "loja", "link_loja", "assinatura"],
+  },
+  {
+    id: "cobranca",
+    titulo: "Forma de pagamento da mensalidade",
+    quando: "Ao ativar a cobrança automática",
+    campos: ["nome", "loja", "link", "valor", "assinatura"],
+  },
+  {
+    id: "lembrete",
+    titulo: "Lembrete de vencimento",
+    quando: "Mensalidade vencendo nos próximos dias",
+    campos: ["nome", "loja", "valor", "vencimento", "link", "assinatura"],
+  },
+  {
+    id: "atraso",
+    titulo: "Mensalidade em atraso",
+    quando: "Cliente com fatura atrasada",
+    campos: ["nome", "loja", "valor", "vencimento", "dias_suspensao", "link", "assinatura"],
+  },
+];
+export const MODELOS_PADRAO: Record<ChaveModelo, string> = {
+  acesso: "Olá {nome}! O painel do Freguês da {loja} está pronto.\n\nAcesse: {link}\nE-mail: {email}\nSenha provisória: {senha}\n\nNo primeiro acesso, o sistema pede para você criar a sua própria senha. Depois disso, só você sabe a senha.\n\nQualquer dúvida, fale comigo.\n{assinatura}",
+  link_painel: "Olá {nome}! Este é o link do painel do Freguês da {loja}:\n\n{link}\n\nEntre com o seu e-mail ({email}) e a sua senha.\n\n{assinatura}",
+  boas_vindas: "Olá {nome}! Seja bem-vindo ao Freguês. 🎉\n\nA loja da {loja} fica neste link, é só mandar para os seus clientes:\n{link_loja}\n\nQualquer dúvida, fale comigo.\n{assinatura}",
+  cobranca: "Olá {nome}! Para manter a {loja} no ar, cadastre a forma de pagamento da mensalidade de {valor} (Pix, boleto ou cartão) neste link:\n{link}\n\n{assinatura}",
+  lembrete: "Olá {nome}! Passando para lembrar que a mensalidade do Freguês da {loja}, de {valor}, vence em {vencimento}.\n{link}\n\nObrigado!\n{assinatura}",
+  atraso: "Olá {nome}! A mensalidade do Freguês da {loja}, de {valor}, venceu em {vencimento} e ainda não consta como paga. Para a loja não sair do ar, o pagamento precisa acontecer em até {dias_suspensao} dias do vencimento.\n{link}\n\nSe já pagou, desconsidere.\n{assinatura}",
+};
+/** Troca {campo} pelos valores; linhas que ficariam vazias (ex.: {link} sem link) somem. */
+export function preencher(modelo: string, v: Record<string, string | number | null | undefined>) {
+  return modelo
+    .split("\n")
+    .map((linha) => {
+      let vazio = false;
+      const r = linha.replace(/\{(\w+)\}/g, (_, k) => {
+        const x = v[k];
+        if (x === undefined || x === null || x === "") {
+          vazio = true;
+          return "";
+        }
+        return String(x);
+      });
+      return vazio && !r.trim() ? null : r.replace(/ {2,}/g, " ").replace(/\s+([!,.])/g, "$1");
+    })
+    .filter((l) => l !== null)
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export type Config = {
+  empresa: string;
+  responsavel: string;
+  email: string;
+  whatsapp: string;
+  assinatura: string;
+} & Regras & { modelos: Partial<Record<ChaveModelo, string>> };
+export const CONFIG_PADRAO: Config = {
+  empresa: "MMATTOS Assessoria de MKT",
+  responsavel: "",
+  email: "",
+  whatsapp: "21967640607",
+  assinatura: "",
+  ...REGRAS_PADRAO,
+  modelos: {},
+};
+/** Texto pronto de um modelo, com os seus dados. */
+export function mensagem(c: Config, chave: ChaveModelo, v: Record<string, string | number | null | undefined>) {
+  const m = c.modelos?.[chave]?.trim() || MODELOS_PADRAO[chave];
+  return preencher(m, {
+    assinatura: assinaturaDe(c),
+    dias_suspensao: c.suspender_dias,
+    ...v,
+  });
+}
 /** Linha que vai no fim das mensagens para os clientes. */
 export function assinaturaDe(c: Config) {
   if (c.assinatura.trim()) return c.assinatura.trim();
@@ -18,7 +142,15 @@ export function assinaturaDe(c: Config) {
 }
 
 export type StatusAssin = "teste" | "ativa" | "atrasada" | "suspensa" | "cancelada";
-export type Plano = { id: string; nome: string; preco: number; descricao: string; recursos: string[] };
+export type Plano = {
+  id: string;
+  nome: string;
+  preco: number;
+  descricao: string;
+  recursos: string[];
+  ordem?: number;
+  ativo?: boolean;
+};
 export type Cliente = {
   org_id: string;
   empresa: string;
@@ -46,16 +178,100 @@ export type Cliente = {
   /** Loja de demonstração: fica fora do financeiro. */
   demo?: boolean;
 };
-export type Fatura = { id: string; org_id: string; competencia: string; vencimento: string; valor: number; status: "aberta" | "paga" | "atrasada" | "cancelada"; pago_em: string | null; forma: string | null; link?: string | null };
-export type Cobranca = { ativa: boolean; link: string | null; documento: string | null; assinatura: string | null };
-export type Auditoria = { id: number; org_id: string | null; acao: string; criado_em: string };
-export type Visao = { mrr: number; clientes_ativos: number; em_teste: number; atrasados: number; suspensos: number; cancelados_30d: number; a_receber: number; recebido_mes: number; pedidos_30d: number; vendas_30d: number; fregueses: number };
-export type NovoCliente = { empresa: string; loja: string; slug: string; bairro: string; plano: string; responsavel: string; telefone: string; email: string; dias_teste: number; endereco?: Endereco };
+export type Fatura = {
+  id: string;
+  org_id: string;
+  competencia: string;
+  vencimento: string;
+  valor: number;
+  status: "aberta" | "paga" | "atrasada" | "cancelada";
+  pago_em: string | null;
+  forma: string | null;
+  link?: string | null;
+};
+export type Cobranca = {
+  ativa: boolean;
+  link: string | null;
+  documento: string | null;
+  assinatura: string | null;
+};
+export type Auditoria = {
+  id: number;
+  org_id: string | null;
+  acao: string;
+  criado_em: string;
+};
+export type Visao = {
+  mrr: number;
+  clientes_ativos: number;
+  em_teste: number;
+  atrasados: number;
+  suspensos: number;
+  cancelados_30d: number;
+  a_receber: number;
+  recebido_mes: number;
+  pedidos_30d: number;
+  vendas_30d: number;
+  fregueses: number;
+};
+export type AdminUser = {
+  user_id: string;
+  email: string;
+  criado_em: string;
+  ultimo_login: string | null;
+  provisoria: boolean;
+  eu: boolean;
+};
+export type ItemSaude = { nome: string; ok: boolean | null; detalhe: string };
+export type LinhaRelatorio = {
+  mes: string;
+  recebido: number;
+  faturado: number;
+  em_atraso: number;
+  novos: number;
+  cancelados: number;
+  clientes: number;
+};
+export type FichaExtra = {
+  cancelamento_em: string | null;
+  cancelamento_motivo: string | null;
+  termos: { email: string; versao: string; aceito_em: string }[];
+};
+export type NovoCliente = {
+  empresa: string;
+  loja: string;
+  slug: string;
+  bairro: string;
+  plano: string;
+  responsavel: string;
+  telefone: string;
+  email: string;
+  dias_teste: number;
+  endereco?: Endereco;
+};
 
 export const PLANOS_PADRAO: Plano[] = [
-  { id: "essencial", nome: "Essencial", preco: 149, descricao: "Loja própria e CRM para começar.", recursos: ["Loja e cardápio digital", "Mapa de atuação", "Fregueses e Pulso", "1 usuário"] },
-  { id: "completo", nome: "Completo", preco: 249, descricao: "Tudo para vender mais sem marketplace.", recursos: ["Tudo do Essencial", "Atendimento com IA", "Automações", "Formulários e links da bio", "5 usuários"] },
-  { id: "rede", nome: "Rede", preco: 499, descricao: "Para quem tem mais de uma loja.", recursos: ["Tudo do Completo", "Até 5 lojas", "Usuários ilimitados", "Suporte prioritário"] },
+  {
+    id: "essencial",
+    nome: "Essencial",
+    preco: 149,
+    descricao: "Loja própria e CRM para começar.",
+    recursos: ["Loja e cardápio digital", "Mapa de atuação", "Fregueses e Pulso", "1 usuário"],
+  },
+  {
+    id: "completo",
+    nome: "Completo",
+    preco: 249,
+    descricao: "Tudo para vender mais sem marketplace.",
+    recursos: ["Tudo do Essencial", "Atendimento com IA", "Automações", "Formulários e links da bio", "5 usuários"],
+  },
+  {
+    id: "rede",
+    nome: "Rede",
+    preco: 499,
+    descricao: "Para quem tem mais de uma loja.",
+    recursos: ["Tudo do Completo", "Até 5 lojas", "Usuários ilimitados", "Suporte prioritário"],
+  },
 ];
 
 // ---------------- carteira de demonstração ----------------
@@ -95,7 +311,11 @@ const NOMES: [string, string, string][] = [
 ];
 const RESP = ["Carlos", "Juliana", "Ricardo", "Fernanda", "Marcos", "Patrícia", "Anderson", "Luciana", "Roberto", "Camila", "Diego", "Tatiane"];
 
-function carteira(): { clientes: Cliente[]; faturas: Fatura[]; auditoria: Auditoria[] } {
+function carteira(): {
+  clientes: Cliente[];
+  faturas: Fatura[];
+  auditoria: Auditoria[];
+} {
   const clientes: Cliente[] = NOMES.map(([loja, bairro, nicho], i) => {
     const r = rnd();
     const status: StatusAssin = i === 0 ? "ativa" : r < 0.62 ? "ativa" : r < 0.75 ? "teste" : r < 0.86 ? "atrasada" : r < 0.94 ? "suspensa" : "cancelada";
@@ -106,7 +326,12 @@ function carteira(): { clientes: Cliente[]; faturas: Fatura[]; auditoria: Audito
     const pedidos = i === 0 ? 437 : ativo ? Math.round((status === "teste" ? 20 : 60) + rnd() * (plano === "rede" ? 900 : 380)) : Math.round(rnd() * 12);
     const ticket = 38 + rnd() * 50;
     const resp = RESP[i % RESP.length];
-    const slug = loja.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const slug = loja
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
     const semPedido = status === "ativa" && i % 9 === 4;
     return {
       org_id: `org${i + 1}`,
@@ -142,14 +367,43 @@ function carteira(): { clientes: Cliente[]; faturas: Fatura[]; auditoria: Audito
       if (new Date(c.criado_em) > venc || c.status === "teste") continue;
       const adiantou = rnd() < 0.55;
       const st: Fatura["status"] = m === 0 && (c.status === "atrasada" || c.status === "suspensa") ? "atrasada" : m === 0 && venc > hoje && !adiantou ? "aberta" : c.status === "suspensa" && m === 1 ? "atrasada" : "paga";
-      faturas.push({ id: `${c.org_id}-${m}`, org_id: c.org_id, competencia: comp.toISOString().slice(0, 10), vencimento: venc.toISOString().slice(0, 10), valor: c.valor, status: st, pago_em: st === "paga" ? new Date(Math.min(hoje.getTime() - 3600_000, venc.getTime() - 86400000 * Math.round(rnd() * 3))).toISOString() : null, forma: st === "paga" ? (rnd() < 0.7 ? "Pix" : "Boleto") : null });
+      faturas.push({
+        id: `${c.org_id}-${m}`,
+        org_id: c.org_id,
+        competencia: comp.toISOString().slice(0, 10),
+        vencimento: venc.toISOString().slice(0, 10),
+        valor: c.valor,
+        status: st,
+        pago_em: st === "paga" ? new Date(Math.min(hoje.getTime() - 3600_000, venc.getTime() - 86400000 * Math.round(rnd() * 3))).toISOString() : null,
+        forma: st === "paga" ? (rnd() < 0.7 ? "Pix" : "Boleto") : null,
+      });
     }
   });
   const auditoria: Auditoria[] = [
-    { id: 5, org_id: "org2", acao: "registrou pagamento", criado_em: new Date(hoje.getTime() - 3600_000 * 3).toISOString() },
-    { id: 4, org_id: clientes.find((c) => c.status === "suspensa")?.org_id ?? "org3", acao: "mudou status para suspensa", criado_em: new Date(hoje.getTime() - 86400_000).toISOString() },
-    { id: 3, org_id: clientes.find((c) => c.status === "teste")?.org_id ?? "org4", acao: "criou cliente", criado_em: new Date(hoje.getTime() - 86400_000 * 2).toISOString() },
-    { id: 2, org_id: "org8", acao: "mudou plano para completo", criado_em: new Date(hoje.getTime() - 86400_000 * 5).toISOString() },
+    {
+      id: 5,
+      org_id: "org2",
+      acao: "registrou pagamento",
+      criado_em: new Date(hoje.getTime() - 3600_000 * 3).toISOString(),
+    },
+    {
+      id: 4,
+      org_id: clientes.find((c) => c.status === "suspensa")?.org_id ?? "org3",
+      acao: "mudou status para suspensa",
+      criado_em: new Date(hoje.getTime() - 86400_000).toISOString(),
+    },
+    {
+      id: 3,
+      org_id: clientes.find((c) => c.status === "teste")?.org_id ?? "org4",
+      acao: "criou cliente",
+      criado_em: new Date(hoje.getTime() - 86400_000 * 2).toISOString(),
+    },
+    {
+      id: 2,
+      org_id: "org8",
+      acao: "mudou plano para completo",
+      criado_em: new Date(hoje.getTime() - 86400_000 * 5).toISOString(),
+    },
   ];
   return { clientes, faturas, auditoria };
 }
@@ -169,6 +423,32 @@ function visaoDe(cs: Cliente[], fs: Fatura[]): Visao {
     vendas_30d: cs.reduce((s, c) => s + c.vendas_30d, 0),
     fregueses: cs.reduce((s, c) => s + c.fregueses, 0),
   };
+}
+
+/** Relatório mês a mês montado com a carteira de demonstração. */
+function relatorioDemo(cs: Cliente[], fs: Fatura[], meses: number): LinhaRelatorio[] {
+  const reais = cs.filter((c) => !c.demo);
+  const ids = new Set(reais.map((c) => c.org_id));
+  const linhas: LinhaRelatorio[] = [];
+  for (let i = meses - 1; i >= 0; i--) {
+    const ini = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+    const fim = new Date(hoje.getFullYear(), hoje.getMonth() - i + 1, 1);
+    const mes = ini.toISOString().slice(0, 10);
+    const no = (d?: string | null) => !!d && new Date(d) >= ini && new Date(d) < fim;
+    const ff = fs.filter((f) => ids.has(f.org_id));
+    // carteira fictícia: cresce até hoje, com uma saída de vez em quando
+    const ativos = reais.filter((c) => new Date(c.criado_em) < fim).length;
+    linhas.push({
+      mes,
+      recebido: ff.filter((f) => f.status === "paga" && no(f.pago_em)).reduce((s, f) => s + f.valor, 0),
+      faturado: ff.filter((f) => f.status !== "cancelada" && f.competencia.slice(0, 7) === mes.slice(0, 7)).reduce((s, f) => s + f.valor, 0),
+      em_atraso: ff.filter((f) => f.status === "atrasada" && f.competencia.slice(0, 7) === mes.slice(0, 7)).reduce((s, f) => s + f.valor, 0),
+      novos: reais.filter((c) => no(c.criado_em)).length,
+      cancelados: i === 2 ? 1 : 0,
+      clientes: ativos,
+    });
+  }
+  return linhas;
 }
 
 export function useAdmin() {
@@ -199,14 +479,43 @@ export function useAdmin() {
     }
     const [v, c, f, a, p] = await Promise.all([supabase.rpc("admin_visao_geral"), supabase.rpc("admin_clientes"), supabase.rpc("admin_faturas"), supabase.rpc("admin_auditoria"), supabase.from("plans").select("*").order("ordem")]);
     const { data: cf } = await supabase.from("platform_config").select("*").eq("id", 1).maybeSingle();
-    if (cf) setConfig({ ...CONFIG_PADRAO, ...(cf as Config) });
+    if (cf) {
+      const x = cf as Config;
+      setConfig({
+        ...CONFIG_PADRAO,
+        ...x,
+        multa_pct: Number(x.multa_pct),
+        juros_pct: Number(x.juros_pct),
+        modelos: (x.modelos as Config["modelos"]) ?? {},
+      });
+    }
     const e = v.error ?? c.error ?? f.error;
     if (e) setErro(e.message);
     if (v.data) setVisao(v.data as Visao);
-    setClientes(((c.data ?? []) as Cliente[]).map((x) => ({ ...x, valor: Number(x.valor ?? 0), vendas_30d: Number(x.vendas_30d), pedidos_30d: Number(x.pedidos_30d), fregueses: Number(x.fregueses) })));
-    setFaturas(((f.data ?? []) as Fatura[]).map((x) => ({ ...x, valor: Number(x.valor) })));
+    setClientes(
+      ((c.data ?? []) as Cliente[]).map((x) => ({
+        ...x,
+        valor: Number(x.valor ?? 0),
+        vendas_30d: Number(x.vendas_30d),
+        pedidos_30d: Number(x.pedidos_30d),
+        fregueses: Number(x.fregueses),
+      })),
+    );
+    setFaturas(
+      ((f.data ?? []) as Fatura[]).map((x) => ({
+        ...x,
+        valor: Number(x.valor),
+      })),
+    );
     setAuditoria((a.data ?? []) as Auditoria[]);
-    if (p.data?.length) setPlanos(p.data.map((x) => ({ ...x, preco: Number(x.preco) })) as Plano[]);
+    if (p.data?.length)
+      setPlanos(
+        p.data.map((x) => ({
+          ...x,
+          preco: Number(x.preco),
+          recursos: Array.isArray(x.recursos) ? x.recursos : [],
+        })) as Plano[],
+      );
     jaCarregou.current = true;
     setCarregando(false);
   }, []);
@@ -239,7 +548,10 @@ export function useAdmin() {
   const acoes = {
     async entrar(email: string, senha: string) {
       if (!supabase) return null;
-      const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password: senha,
+      });
       return error ? "E-mail ou senha incorretos." : null;
     },
     async criarConta(email: string, senha: string) {
@@ -252,7 +564,17 @@ export function useAdmin() {
     },
     async criarCliente(n: NovoCliente): Promise<{ erro?: string; id?: string }> {
       if (supabase) {
-        const { data, error } = await supabase.rpc("admin_criar_cliente", { p_empresa: n.empresa, p_loja: n.loja, p_slug: n.slug, p_bairro: n.bairro, p_plano: n.plano, p_responsavel: n.responsavel, p_telefone: n.telefone, p_email: n.email, p_dias_teste: n.dias_teste });
+        const { data, error } = await supabase.rpc("admin_criar_cliente", {
+          p_empresa: n.empresa,
+          p_loja: n.loja,
+          p_slug: n.slug,
+          p_bairro: n.bairro,
+          p_plano: n.plano,
+          p_responsavel: n.responsavel,
+          p_telefone: n.telefone,
+          p_email: n.email,
+          p_dias_teste: n.dias_teste,
+        });
         if (error) return { erro: error.message };
         if (n.endereco) await supabase.rpc("admin_endereco_salvar", enderecoArgs(data as string, n.endereco));
         await recarregar();
@@ -262,17 +584,60 @@ export function useAdmin() {
       const p = planos.find((x) => x.id === n.plano)!;
       const id = `org${Date.now()}`;
       setClientes((cs) => [
-        { org_id: id, empresa: n.empresa, loja: n.loja, slug: n.slug, bairro: n.bairro, publicada: false, plano: n.plano, status: n.dias_teste > 0 ? "teste" : "ativa", valor: p.preco, proximo_vencimento: dia(n.dias_teste), teste_ate: n.dias_teste > 0 ? dia(n.dias_teste) : null, responsavel: n.responsavel, telefone: n.telefone, email: n.email, observacao: "", criado_em: dia(0), pedidos_30d: 0, vendas_30d: 0, fregueses: 0, ultimo_pedido: null, usuarios: 0, convites_pendentes: n.email ? 1 : 0 },
+        {
+          org_id: id,
+          empresa: n.empresa,
+          loja: n.loja,
+          slug: n.slug,
+          bairro: n.bairro,
+          publicada: false,
+          plano: n.plano,
+          status: n.dias_teste > 0 ? "teste" : "ativa",
+          valor: p.preco,
+          proximo_vencimento: dia(n.dias_teste),
+          teste_ate: n.dias_teste > 0 ? dia(n.dias_teste) : null,
+          responsavel: n.responsavel,
+          telefone: n.telefone,
+          email: n.email,
+          observacao: "",
+          criado_em: dia(0),
+          pedidos_30d: 0,
+          vendas_30d: 0,
+          fregueses: 0,
+          ultimo_pedido: null,
+          usuarios: 0,
+          convites_pendentes: n.email ? 1 : 0,
+        },
         ...cs,
       ]);
       log(id, "criou cliente");
       return { id };
     },
-    async editarCliente(org_id: string, f: { empresa: string; loja: string; slug: string; bairro: string; responsavel: string; telefone: string; email: string }): Promise<string | null> {
+    async editarCliente(
+      org_id: string,
+      f: {
+        empresa: string;
+        loja: string;
+        slug: string;
+        bairro: string;
+        responsavel: string;
+        telefone: string;
+        email: string;
+      },
+    ): Promise<string | null> {
       if (!f.empresa.trim() || !f.loja.trim()) return "Preencha empresa e nome da loja";
       if (!/^[a-z0-9-]{3,60}$/.test(f.slug)) return "Endereço inválido: use letras minúsculas, números e hífen";
       if (supabase) {
-        const { error } = await supabase.rpc("admin_editar_cliente", { p_org: org_id, p_empresa: f.empresa, p_loja: f.loja, p_slug: f.slug, p_bairro: f.bairro, p_responsavel: f.responsavel, p_telefone: f.telefone, p_email: f.email });
+        const { error } = await supabase.rpc("admin_editar_cliente", {
+          p_org: org_id,
+          p_empresa: f.empresa,
+          p_loja: f.loja,
+          p_slug: f.slug,
+          p_bairro: f.bairro,
+          p_responsavel: f.responsavel,
+          p_telefone: f.telefone,
+          p_email: f.email,
+        });
         if (error) return error.message;
         await recarregar();
         return null;
@@ -285,21 +650,166 @@ export function useAdmin() {
     async salvarConfig(c: Config): Promise<string | null> {
       setConfig(c);
       if (!supabase) return null;
-      const { error } = await supabase.from("platform_config").update({ empresa: c.empresa.trim(), responsavel: c.responsavel.trim(), email: c.email.trim().toLowerCase(), whatsapp: c.whatsapp.replace(/\D/g, ""), assinatura: c.assinatura.trim(), atualizado_em: new Date().toISOString() }).eq("id", 1);
+      const { error } = await supabase
+        .from("platform_config")
+        .update({
+          empresa: c.empresa.trim(),
+          responsavel: c.responsavel.trim(),
+          email: c.email.trim().toLowerCase(),
+          whatsapp: c.whatsapp.replace(/\D/g, ""),
+          assinatura: c.assinatura.trim(),
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("id", 1);
       return error ? error.message : null;
+    },
+    async salvarRegras(r: Regras): Promise<string | null> {
+      if (r.suspender_dias <= r.tolerancia_dias) return "Os dias para tirar do ar precisam ser maiores que a tolerância.";
+      if (r.multa_pct > 2) return "A multa pode ser de no máximo 2% (Código de Defesa do Consumidor).";
+      if (r.juros_pct > 1) return "Os juros podem ser de no máximo 1% ao mês.";
+      setConfig((c) => ({ ...c, ...r }));
+      if (!supabase) return null;
+      const { error } = await supabase
+        .from("platform_config")
+        .update({ ...r, atualizado_em: new Date().toISOString() })
+        .eq("id", 1);
+      return error ? (/config_regras_ok/.test(error.message) ? "Confira os números: algum está fora do limite." : error.message) : null;
+    },
+    async salvarModelos(m: Config["modelos"]): Promise<string | null> {
+      const limpo = Object.fromEntries(Object.entries(m).filter(([k, v]) => v && v.trim() && v.trim() !== MODELOS_PADRAO[k as ChaveModelo]));
+      setConfig((c) => ({ ...c, modelos: limpo }));
+      if (!supabase) return null;
+      const { error } = await supabase.from("platform_config").update({ modelos: limpo, atualizado_em: new Date().toISOString() }).eq("id", 1);
+      return error ? error.message : null;
+    },
+    async salvarPlano(p: Plano): Promise<string | null> {
+      if (!supabase) {
+        setPlanos((ps) => (ps.some((x) => x.id === p.id) ? ps.map((x) => (x.id === p.id ? p : x)) : [...ps, p]));
+        return null;
+      }
+      const { error } = await supabase.rpc("admin_plano_salvar", {
+        p_id: p.id,
+        p_nome: p.nome,
+        p_preco: p.preco,
+        p_descricao: p.descricao,
+        p_recursos: p.recursos,
+        p_ordem: p.ordem ?? 0,
+        p_ativo: p.ativo !== false,
+      });
+      if (error) return error.message;
+      await recarregar();
+      return null;
+    },
+    async excluirPlano(id: string): Promise<string | null> {
+      if (!supabase) {
+        if (clientes.some((c) => c.plano === id)) return "Esse plano tem clientes. Desative em vez de excluir.";
+        setPlanos((ps) => ps.filter((x) => x.id !== id));
+        return null;
+      }
+      const { error } = await supabase.rpc("admin_plano_excluir", { p_id: id });
+      if (error) return error.message;
+      await recarregar();
+      return null;
+    },
+    /** Chama /api/admin/geral (servidor). */
+    async geral<T>(corpo: Record<string, unknown>): Promise<T & { erro?: string }> {
+      if (!supabase)
+        return { erro: "Funciona na versão publicada." } as T & {
+          erro?: string;
+        };
+      const { data } = await supabase.auth.getSession();
+      const r = await fetch("/api/admin/geral", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${data.session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify(corpo),
+      }).catch(() => null);
+      const c = r ? await r.json().catch(() => ({})) : {};
+      if (!r || !r.ok)
+        return { erro: c.erro || "Não consegui falar com o servidor." } as T & {
+          erro?: string;
+        };
+      return c as T & { erro?: string };
+    },
+    async admins(): Promise<AdminUser[]> {
+      if (!supabase)
+        return [
+          {
+            user_id: "eu",
+            email: "voce@fregues.app",
+            criado_em: dia(-90),
+            ultimo_login: new Date().toISOString(),
+            provisoria: false,
+            eu: true,
+          },
+        ];
+      const { data } = await supabase.rpc("admin_listar_admins");
+      return (data as AdminUser[]) ?? [];
+    },
+    async removerAdmin(user_id: string): Promise<string | null> {
+      if (!supabase) return null;
+      const { error } = await supabase.rpc("admin_remover_admin", {
+        p_user: user_id,
+      });
+      return error ? error.message : null;
+    },
+    async relatorio(meses: number): Promise<LinhaRelatorio[]> {
+      if (!supabase) return relatorioDemo(clientes, faturas, meses);
+      const { data } = await supabase.rpc("admin_relatorio", {
+        p_meses: meses,
+      });
+      return ((data as LinhaRelatorio[]) ?? []).map((l) => ({
+        ...l,
+        recebido: Number(l.recebido),
+        faturado: Number(l.faturado),
+        em_atraso: Number(l.em_atraso),
+      }));
+    },
+    async fichaExtra(org_id: string): Promise<FichaExtra | null> {
+      if (!supabase) return null;
+      const { data } = await supabase.rpc("admin_ficha_extra", {
+        p_org: org_id,
+      });
+      return (data as FichaExtra) ?? null;
+    },
+    async resolverCancelamento(org_id: string): Promise<string | null> {
+      if (!supabase) return null;
+      const { error } = await supabase.rpc("admin_cancelamento_resolver", {
+        p_org: org_id,
+      });
+      if (error) return error.message;
+      await recarregar();
+      return null;
     },
     async trocarMinhaSenha(nova: string): Promise<string | null> {
       if (!supabase) return null;
       if (nova.length < 8) return "A senha precisa ter pelo menos 8 caracteres.";
-      const { error } = await supabase.auth.updateUser({ password: nova });
+      const { error } = await supabase.auth.updateUser({
+        password: nova,
+        data: { trocar_senha: false },
+      });
       if (!error) return null;
       return /different from the old/i.test(error.message) ? "A nova senha precisa ser diferente da atual." : error.message;
     },
     async enderecoLer(org_id: string): Promise<Endereco | null> {
       if (!supabase) return null;
-      const { data } = await supabase.rpc("admin_endereco_ler", { p_org: org_id });
+      const { data } = await supabase.rpc("admin_endereco_ler", {
+        p_org: org_id,
+      });
       const e = (data as Endereco[] | null)?.[0];
-      return e ? { cidade: e.cidade ?? "Rio de Janeiro", bairro: e.bairro ?? "", rua: e.rua ?? "", numero: e.numero ?? "", cep: e.cep ?? "", lon: e.lon, lat: e.lat } : null;
+      return e
+        ? {
+            cidade: e.cidade ?? "Rio de Janeiro",
+            bairro: e.bairro ?? "",
+            rua: e.rua ?? "",
+            numero: e.numero ?? "",
+            cep: e.cep ?? "",
+            lon: e.lon,
+            lat: e.lat,
+          }
+        : null;
     },
     async enderecoSalvar(org_id: string, e: Endereco): Promise<string | null> {
       if (!supabase) return null;
@@ -317,7 +827,10 @@ export function useAdmin() {
       const { data } = await supabase.auth.getSession();
       const r = await fetch("/api/admin/excluir", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${data.session?.access_token ?? ""}`,
+        },
         body: JSON.stringify({ org_id }),
       }).catch(() => null);
       const c = r ? await r.json().catch(() => ({})) : {};
@@ -326,50 +839,103 @@ export function useAdmin() {
       return { aviso: c.aviso };
     },
     /** Logins ligados ao cliente (e-mail, último acesso, se ainda está com a senha provisória). */
-    async logins(org_id: string): Promise<{ email: string; papel: string; ultimo_login: string | null; provisoria: boolean }[]> {
+    async logins(org_id: string): Promise<
+      {
+        email: string;
+        papel: string;
+        ultimo_login: string | null;
+        provisoria: boolean;
+      }[]
+    > {
       if (!supabase) return [];
       const { data } = await supabase.rpc("admin_logins", { p_org: org_id });
-      return (data as { email: string; papel: string; ultimo_login: string | null; provisoria: boolean }[]) ?? [];
+      return (
+        (data as {
+          email: string;
+          papel: string;
+          ultimo_login: string | null;
+          provisoria: boolean;
+        }[]) ?? []
+      );
     },
     /** Cria o login do dono com senha provisória (ou vincula um login que já existe). */
-    async criarAcesso(org_id: string, email: string, senha: string, redefinir = false): Promise<{ erro?: string; ja_existia?: boolean; senha_trocada?: boolean; enviado?: boolean; aviso?: string; link?: string }> {
-      if (!supabase) return { senha_trocada: true, link: `${window.location.origin}/?r=demo#painel` };
+    async criarAcesso(
+      org_id: string,
+      email: string,
+      senha: string,
+      redefinir = false,
+    ): Promise<{
+      erro?: string;
+      ja_existia?: boolean;
+      senha_trocada?: boolean;
+      enviado?: boolean;
+      aviso?: string;
+      link?: string;
+    }> {
+      if (!supabase)
+        return {
+          senha_trocada: true,
+          link: `${window.location.origin}/?r=demo#painel`,
+        };
       const { data } = await supabase.auth.getSession();
       const r = await fetch("/api/admin/acesso", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${data.session?.access_token ?? ""}`,
+        },
         body: JSON.stringify({ org_id, email, senha, redefinir }),
       }).catch(() => null);
       const c = r ? await r.json().catch(() => ({})) : {};
-      if (!r || !r.ok) return { erro: c.erro || "Não consegui criar o acesso agora. Tente de novo." };
+      if (!r || !r.ok)
+        return {
+          erro: c.erro || "Não consegui criar o acesso agora. Tente de novo.",
+        };
       await recarregar();
       return c;
     },
     async mudarStatus(id: string, status: StatusAssin, motivo = "") {
       if (supabase) {
-        const { error } = await supabase.rpc("admin_mudar_status", { p_org: id, p_status: status, p_motivo: motivo });
+        const { error } = await supabase.rpc("admin_mudar_status", {
+          p_org: id,
+          p_status: status,
+          p_motivo: motivo,
+        });
         if (error) return error.message;
         await recarregar();
         return null;
       }
-      setC(id, { status, publicada: ["teste", "ativa", "atrasada"].includes(status), ...(motivo ? { observacao: motivo } : {}) });
+      setC(id, {
+        status,
+        publicada: ["teste", "ativa", "atrasada"].includes(status),
+        ...(motivo ? { observacao: motivo } : {}),
+      });
       log(id, `mudou status para ${status}`);
       return null;
     },
     async mudarPlano(id: string, plano: string, valor?: number) {
       if (supabase) {
-        const { error } = await supabase.rpc("admin_mudar_plano", { p_org: id, p_plano: plano, p_valor: valor ?? null });
+        const { error } = await supabase.rpc("admin_mudar_plano", {
+          p_org: id,
+          p_plano: plano,
+          p_valor: valor ?? null,
+        });
         if (error) return error.message;
         await recarregar();
         return null;
       }
-      setC(id, { plano, valor: valor ?? planos.find((p) => p.id === plano)!.preco });
+      setC(id, {
+        plano,
+        valor: valor ?? planos.find((p) => p.id === plano)!.preco,
+      });
       log(id, `mudou plano para ${plano}`);
       return null;
     },
     async gerarFatura(id: string) {
       if (supabase) {
-        const { error } = await supabase.rpc("admin_gerar_fatura", { p_org: id });
+        const { error } = await supabase.rpc("admin_gerar_fatura", {
+          p_org: id,
+        });
         if (error) return error.message;
         await recarregar();
         return null;
@@ -377,13 +943,28 @@ export function useAdmin() {
       const c = clientes.find((x) => x.org_id === id)!;
       const comp = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
       if (faturas.some((f) => f.org_id === id && f.competencia === comp)) return "A fatura deste mês já existe";
-      setFaturas((fs) => [{ id: `${id}-${Date.now()}`, org_id: id, competencia: comp, vencimento: new Date(hoje.getFullYear(), hoje.getMonth(), 10).toISOString().slice(0, 10), valor: c.valor, status: "aberta", pago_em: null, forma: null }, ...fs]);
+      setFaturas((fs) => [
+        {
+          id: `${id}-${Date.now()}`,
+          org_id: id,
+          competencia: comp,
+          vencimento: new Date(hoje.getFullYear(), hoje.getMonth(), 10).toISOString().slice(0, 10),
+          valor: c.valor,
+          status: "aberta",
+          pago_em: null,
+          forma: null,
+        },
+        ...fs,
+      ]);
       log(id, "gerou fatura");
       return null;
     },
     async registrarPagamento(faturaId: string, forma = "Pix") {
       if (supabase) {
-        const { error } = await supabase.rpc("admin_registrar_pagamento", { p_fatura: faturaId, p_forma: forma });
+        const { error } = await supabase.rpc("admin_registrar_pagamento", {
+          p_fatura: faturaId,
+          p_forma: forma,
+        });
         if (error) return error.message;
         await recarregar();
         return null;
@@ -392,7 +973,11 @@ export function useAdmin() {
       setFaturas((fs) => fs.map((x) => (x.id === faturaId ? { ...x, status: "paga", pago_em: new Date().toISOString(), forma } : x)));
       const prox = new Date(f.vencimento);
       prox.setMonth(prox.getMonth() + 1);
-      setC(f.org_id, { status: "ativa", publicada: true, proximo_vencimento: prox.toISOString().slice(0, 10) });
+      setC(f.org_id, {
+        status: "ativa",
+        publicada: true,
+        proximo_vencimento: prox.toISOString().slice(0, 10),
+      });
       log(f.org_id, "registrou pagamento");
       return null;
     },
@@ -402,13 +987,28 @@ export function useAdmin() {
       return (data as Cobranca) ?? null;
     },
     // chama o servidor (pasta /api), que fala com a Asaas
-    async servidor(rota: "ativar" | "atualizar", corpo: Record<string, unknown>): Promise<{ erro?: string; link?: string; vencimento?: string; aviso?: string; cobrancas?: unknown[] }> {
-      if (!supabase) return { erro: "A cobrança automática funciona na versão publicada, com a conta Asaas ligada." };
+    async servidor(
+      rota: "ativar" | "atualizar",
+      corpo: Record<string, unknown>,
+    ): Promise<{
+      erro?: string;
+      link?: string;
+      vencimento?: string;
+      aviso?: string;
+      cobrancas?: unknown[];
+    }> {
+      if (!supabase)
+        return {
+          erro: "A cobrança automática funciona na versão publicada, com a conta Asaas ligada.",
+        };
       const { data } = await supabase.auth.getSession();
       try {
         const r = await fetch(`/api/cobranca/${rota}`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${data.session?.access_token ?? ""}`,
+          },
           body: JSON.stringify(corpo),
         });
         const j = await r.json().catch(() => ({ erro: `Servidor respondeu ${r.status}` }));
@@ -421,5 +1021,18 @@ export function useAdmin() {
     recarregar,
   };
 
-  return { modo: MODO, sessao, admin, carregando, erro, clientes, faturas, auditoria, planos, visao: v, config, acoes };
+  return {
+    modo: MODO,
+    sessao,
+    admin,
+    carregando,
+    erro,
+    clientes,
+    faturas,
+    auditoria,
+    planos,
+    visao: v,
+    config,
+    acoes,
+  };
 }

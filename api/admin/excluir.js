@@ -17,18 +17,38 @@ export default async function handler(req, res) {
     let avisoAsaas = "";
     if (sub?.asaas_subscription_id && process.env.ASAAS_API_KEY) {
       try {
-        await asaas(`/subscriptions/${sub.asaas_subscription_id}`, { method: "DELETE" });
+        await asaas(`/subscriptions/${sub.asaas_subscription_id}`, {
+          method: "DELETE",
+        });
       } catch (e) {
         avisoAsaas = `Confira na Asaas se a assinatura foi cancelada (${e.message}).`;
       }
     }
+    // guarda no histórico (entra no relatório de cancelamentos)
+    const [org] = await lerServidor("organizations", `select=nome&id=eq.${encodeURIComponent(org_id)}&limit=1`).catch(() => []);
     // 2) apaga a loja e tudo dela
     const users = (await rpcServidor("excluir_cliente_srv", { p_org: org_id })) || [];
     // 3) apaga os logins que eram só desta loja
     for (const u of users) {
       const id = u.user_id || u;
-      await fetch(`${SUPA_URL}/auth/v1/admin/users/${id}`, { method: "DELETE", headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } }).catch(() => null);
+      await fetch(`${SUPA_URL}/auth/v1/admin/users/${id}`, {
+        method: "DELETE",
+        headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` },
+      }).catch(() => null);
     }
+    await fetch(`${SUPA_URL}/rest/v1/admin_audit`, {
+      method: "POST",
+      headers: {
+        apikey: SERVICE,
+        Authorization: `Bearer ${SERVICE}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        org_id,
+        acao: `excluiu o cliente ${org?.nome || ""}`.trim(),
+      }),
+    }).catch(() => null);
     return res.status(200).json({ ok: true, logins_apagados: users.length, aviso: avisoAsaas });
   } catch (e) {
     return res.status(500).json({ erro: e.message });

@@ -1,27 +1,42 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, MessageCircle, Pencil, Settings, Trash2, Building2, Check, ChevronRight, CircleDollarSign, Clock, Copy, CreditCard, ExternalLink, History, LayoutDashboard, Layers, LogOut, Pause, Play, Plus, Search, ShieldCheck, Store, TrendingUp, X } from "lucide-react";
+import { BarChart3, Pencil, Settings, Trash2, Building2, Check, ChevronRight, CircleDollarSign, Clock, CreditCard, ExternalLink, History, LayoutDashboard, Layers, LogOut, Pause, Play, Plus, Search, ShieldCheck, TrendingUp, X } from "lucide-react";
 import { Logo } from "../../components/Logo";
 import { brl } from "../../data/mock";
 import { BotaoTema } from "../../tema";
 import { EnderecoLoja, ENDERECO_VAZIO, type Endereco } from "./EnderecoLoja";
-import { assinaturaDe, useAdmin, type Cliente, type Config, type Cobranca, type NovoCliente, type StatusAssin } from "./adminDados";
+import { Enviar, dataBR, desde, diasAte, linkLojaDe, linkPainelDe, senhaProvisoria, telFmt } from "./comum";
+import { Administradores, FichaExtras, Lembretes, ModelosMensagem, PlanosAdmin, PrimeiraSenhaAdmin, RegrasCobranca, Relatorios, SaudeIntegracoes } from "./AdminExtra";
+import { assinaturaDe, mensagem, useAdmin, type Cliente, type Config, type Cobranca, type NovoCliente, type StatusAssin } from "./adminDados";
 
 const STATUS: Record<StatusAssin, { rotulo: string; cls: string; cor: string }> = {
-  ativa: { rotulo: "Ativa", cls: "bg-[#e2f2ea] text-[#1b6149]", cor: "#49c27e" },
-  teste: { rotulo: "Em teste", cls: "bg-[#dff1ee] text-[#1f5f59]", cor: "#2f7d77" },
-  atrasada: { rotulo: "Atrasada", cls: "bg-[#fcefd9] text-[#7a4600]", cor: "#ffc03a" },
-  suspensa: { rotulo: "Suspensa", cls: "bg-[#fbe4e0] text-[#9b3530]", cor: "#f0524a" },
-  cancelada: { rotulo: "Cancelada", cls: "bg-grafite text-fumo", cor: "#8f7b6c" },
-};
-const dataBR = (s?: string | null) => (s ? new Date(s.length === 10 ? s + "T12:00:00" : s).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "—");
-const diasAte = (s?: string | null) => (s ? Math.round((new Date(s + "T12:00:00").getTime() - Date.now()) / 86400000) : null);
-const desde = (s?: string | null) => {
-  if (!s) return "nunca";
-  const d = Math.floor((Date.now() - new Date(s).getTime()) / 86400000);
-  return d <= 0 ? "hoje" : d === 1 ? "ontem" : `há ${d} dias`;
+  ativa: {
+    rotulo: "Ativa",
+    cls: "bg-[#e2f2ea] text-[#1b6149]",
+    cor: "#49c27e",
+  },
+  teste: {
+    rotulo: "Em teste",
+    cls: "bg-[#dff1ee] text-[#1f5f59]",
+    cor: "#2f7d77",
+  },
+  atrasada: {
+    rotulo: "Atrasada",
+    cls: "bg-[#fcefd9] text-[#7a4600]",
+    cor: "#ffc03a",
+  },
+  suspensa: {
+    rotulo: "Suspensa",
+    cls: "bg-[#fbe4e0] text-[#9b3530]",
+    cor: "#f0524a",
+  },
+  cancelada: {
+    rotulo: "Cancelada",
+    cls: "bg-grafite text-fumo",
+    cor: "#8f7b6c",
+  },
 };
 
-type Aba = "visao" | "clientes" | "financeiro" | "planos" | "atividade" | "config";
+type Aba = "visao" | "clientes" | "financeiro" | "planos" | "relatorios" | "atividade" | "config";
 
 function Pill({ s }: { s: StatusAssin }) {
   return (
@@ -69,14 +84,30 @@ function LoginAdmin({ a }: { a: ReturnType<typeof useAdmin> }) {
         </label>
         <label className="mt-4 block text-[15px] font-semibold text-papel">
           Senha {criar && <span className="font-normal text-areia">(mínimo 8 caracteres)</span>}
-          <input type="password" required minLength={8} autoComplete={criar ? "new-password" : "current-password"} placeholder="••••••••" value={senha} onChange={(e) => setSenha(e.target.value)} className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-carvao outline-none placeholder:text-[#8f7b6c] focus:border-brasa" />
+          <input
+            type="password"
+            required
+            minLength={8}
+            autoComplete={criar ? "new-password" : "current-password"}
+            placeholder="••••••••"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-carvao outline-none placeholder:text-[#8f7b6c] focus:border-brasa"
+          />
         </label>
         {msg && <p className="mt-4 rounded-xl bg-[#fde9df] p-3 text-[15px] text-[#8e2f2a]">{msg}</p>}
         <button className="mt-6 w-full rounded-xl bg-brasa py-3.5 text-[17px] font-bold text-carvao hover:bg-mostarda">{criar ? "Criar meu acesso" : "Entrar"}</button>
         <div className="my-5 flex items-center gap-3 text-[13px] text-areia">
           <span className="h-px flex-1 bg-linha" /> {criar ? "já tem acesso?" : "ainda não tem acesso?"} <span className="h-px flex-1 bg-linha" />
         </div>
-        <button type="button" onClick={() => { setCriar(!criar); setMsg(null); }} className="w-full rounded-xl border-2 border-papel py-3 text-[16px] font-semibold text-papel hover:bg-papel hover:text-carvao">
+        <button
+          type="button"
+          onClick={() => {
+            setCriar(!criar);
+            setMsg(null);
+          }}
+          className="w-full rounded-xl border-2 border-papel py-3 text-[16px] font-semibold text-papel hover:bg-papel hover:text-carvao"
+        >
           {criar ? "Voltar para Entrar" : "Primeiro acesso: criar conta"}
         </button>
       </form>
@@ -84,53 +115,12 @@ function LoginAdmin({ a }: { a: ReturnType<typeof useAdmin> }) {
   );
 }
 
-// senha provisória: nome da loja + 4 números (fácil de digitar, difícil de adivinhar)
-function senhaProvisoria(loja: string) {
-  const base = loja.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").slice(0, 12) || "fregues";
-  const n = new Uint32Array(1);
-  crypto.getRandomValues(n);
-  return base + String(1000 + (n[0] % 9000));
-}
-
-const linkPainelDe = (slug: string) => `${window.location.origin}/?r=${slug}#painel`;
-const linkLojaDe = (slug: string) => `${window.location.origin}/?r=${slug}#loja`;
-const telFmt = (t: string) => {
-  const d = (t || "").replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
-  return d.length === 11 ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}` : d.length === 10 ? `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}` : t;
+type Login = {
+  email: string;
+  papel: string;
+  ultimo_login: string | null;
+  provisoria: boolean;
 };
-const zapDe = (t: string) => {
-  const d = (t || "").replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
-  return d.length >= 10 ? "55" + d : "";
-};
-
-/** Botões de envio: WhatsApp (abre a conversa com a mensagem pronta) e copiar. */
-function Enviar({ msg, telefone }: { msg: string; telefone: string }) {
-  const [copiado, setCopiado] = useState(false);
-  const zap = zapDe(telefone);
-  return (
-    <div className="mt-3 flex flex-wrap gap-2">
-      <a
-        href={zap ? `https://wa.me/${zap}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`}
-        target="_blank"
-        rel="noreferrer"
-        className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#25d366] px-4 py-3 text-[15px] font-bold text-[#0b2e17] hover:brightness-95"
-      >
-        <MessageCircle className="h-5 w-5" /> Enviar no WhatsApp{zap ? ` · ${telFmt(telefone)}` : ""}
-      </a>
-      <button
-        onClick={() => {
-          navigator.clipboard?.writeText(msg).catch(() => {});
-          setCopiado(true);
-        }}
-        className="flex items-center gap-1.5 rounded-xl border border-linha px-4 py-3 text-[14px] font-semibold hover:border-areia"
-      >
-        <Copy className="h-4 w-4" /> {copiado ? "Copiado" : "Copiar"}
-      </button>
-    </div>
-  );
-}
-
-type Login = { email: string; papel: string; ultimo_login: string | null; provisoria: boolean };
 
 /** Login do dono: cria (ou renova) e-mail + senha provisória e manda no WhatsApp dele. No primeiro acesso ele é obrigado a criar a senha dele. */
 function AcessoDono({ a, org_id, loja, slug, email, responsavel, telefone }: { a: ReturnType<typeof useAdmin>; org_id: string; loja: string; slug: string; email: string; responsavel: string; telefone: string }) {
@@ -159,7 +149,7 @@ function AcessoDono({ a, org_id, loja, slug, email, responsavel, telefone }: { a
     setEnviando(false);
     if (r.erro) return setErro(r.erro);
     if (r.ja_existia && !r.senha_trocada) {
-      setErro("Esse e-mail já tem login. Use \"Gerar nova senha provisória\".");
+      setErro('Esse e-mail já tem login. Use "Gerar nova senha provisória".');
       return carregar();
     }
     setPronto({ email: login.trim().toLowerCase(), senha });
@@ -171,7 +161,13 @@ function AcessoDono({ a, org_id, loja, slug, email, responsavel, telefone }: { a
 
   // acabou de criar ou renovar: mensagem com a senha, pronta para o WhatsApp
   if (pronto) {
-    const msg = `Olá${nome ? " " + nome : ""}! O painel do Freguês da ${loja} está pronto.\n\nAcesse: ${link}\nE-mail: ${pronto.email}\nSenha provisória: ${pronto.senha}\n\nNo primeiro acesso, o sistema pede para você criar a sua própria senha. Depois disso, só você sabe a senha.\n\nQualquer dúvida, fale comigo.\n${assinaturaDe(a.config)}`;
+    const msg = mensagem(a.config, "acesso", {
+      nome,
+      loja,
+      link,
+      email: pronto.email,
+      senha: pronto.senha,
+    });
     return (
       <div className="mt-2">
         <p className="font-semibold text-manjericao">Login pronto. Agora mande para {nome || "o dono"}:</p>
@@ -205,14 +201,17 @@ function AcessoDono({ a, org_id, loja, slug, email, responsavel, telefone }: { a
     );
 
   // já tem login
-  const msgLink = `Olá${nome ? " " + nome : ""}! Este é o link do painel do Freguês da ${loja}:\n\n${link}\n\nEntre com o seu e-mail (${dono.email}) e a sua senha.\n\n${assinaturaDe(a.config)}`;
+  const msgLink = mensagem(a.config, "link_painel", {
+    nome,
+    loja,
+    link,
+    email: dono.email,
+  });
   return (
     <div className="mt-2">
       <div className="rounded-xl bg-carvao p-3">
         <p className="break-all font-semibold">{dono.email}</p>
-        <p className={`mt-0.5 text-[13px] ${dono.ultimo_login ? "text-manjericao" : "text-mostarda"}`}>
-          {dono.ultimo_login ? `Último acesso ${desde(dono.ultimo_login)}${dono.provisoria ? " · ainda com a senha provisória" : " · já criou a senha dele"}` : "Ainda não entrou no painel"}
-        </p>
+        <p className={`mt-0.5 text-[13px] ${dono.ultimo_login ? "text-manjericao" : "text-mostarda"}`}>{dono.ultimo_login ? `Último acesso ${desde(dono.ultimo_login)}${dono.provisoria ? " · ainda com a senha provisória" : " · já criou a senha dele"}` : "Ainda não entrou no painel"}</p>
       </div>
 
       {dono.ultimo_login && !dono.provisoria ? (
@@ -306,14 +305,32 @@ function ExcluirCliente({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof use
 /** Editar o cadastro do cliente (dados da empresa, da loja e do responsável). */
 function EditarCadastro({ c, a, endereco, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>; endereco: Endereco | null; fechar: (msg?: string) => void }) {
   const [end, setEnd] = useState<Endereco>(endereco ?? { ...ENDERECO_VAZIO, bairro: c.bairro ?? "" });
-  const [f, setF] = useState({ empresa: c.empresa, loja: c.loja, slug: c.slug, bairro: c.bairro ?? "", responsavel: c.responsavel ?? "", telefone: c.telefone ?? "", email: c.email ?? "" });
+  const [f, setF] = useState({
+    empresa: c.empresa,
+    loja: c.loja,
+    slug: c.slug,
+    bairro: c.bairro ?? "",
+    responsavel: c.responsavel ?? "",
+    telefone: c.telefone ?? "",
+    email: c.email ?? "",
+  });
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
   const inp = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
   const campo = (k: keyof typeof f, rotulo: string, tipo = "text") => (
     <label className="block">
       {rotulo}
-      <input type={tipo} value={f[k]} onChange={(e) => setF({ ...f, [k]: k === "slug" ? e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") : e.target.value })} className={inp} />
+      <input
+        type={tipo}
+        value={f[k]}
+        onChange={(e) =>
+          setF({
+            ...f,
+            [k]: k === "slug" ? e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") : e.target.value,
+          })
+        }
+        className={inp}
+      />
     </label>
   );
   return (
@@ -322,7 +339,11 @@ function EditarCadastro({ c, a, endereco, fechar }: { c: Cliente; a: ReturnType<
       onSubmit={async (e) => {
         e.preventDefault();
         setSalvando(true);
-        const r = (await a.acoes.editarCliente(c.org_id, { ...f, bairro: end.bairro })) ?? (await a.acoes.enderecoSalvar(c.org_id, end));
+        const r =
+          (await a.acoes.editarCliente(c.org_id, {
+            ...f,
+            bairro: end.bairro,
+          })) ?? (await a.acoes.enderecoSalvar(c.org_id, end));
         setSalvando(false);
         if (r) setErro(r);
         else fechar("Cadastro atualizado.");
@@ -354,11 +375,30 @@ function EditarCadastro({ c, a, endereco, fechar }: { c: Cliente; a: ReturnType<
 }
 
 function NovoClienteModal({ a, fechar }: { a: ReturnType<typeof useAdmin>; fechar: () => void }) {
-  const [n, setN] = useState<NovoCliente>({ empresa: "", loja: "", slug: "", bairro: "", plano: "completo", responsavel: "", telefone: "", email: "", dias_teste: 14, endereco: ENDERECO_VAZIO });
+  const ativos = a.planos.filter((p) => p.ativo !== false);
+  const [n, setN] = useState<NovoCliente>({
+    empresa: "",
+    loja: "",
+    slug: "",
+    bairro: "",
+    plano: ativos.some((p) => p.id === "completo") ? "completo" : (ativos[0]?.id ?? ""),
+    responsavel: "",
+    telefone: "",
+    email: "",
+    dias_teste: a.config.teste_dias,
+    endereco: ENDERECO_VAZIO,
+  });
   const [erro, setErro] = useState("");
   const [ok, setOk] = useState<string | null>(null);
   const set = (p: Partial<NovoCliente>) => setN((x) => ({ ...x, ...p }));
-  const slugDe = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 60);
+  const slugDe = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "")
+      .slice(0, 60);
   const inp = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={fechar}>
@@ -401,7 +441,19 @@ function NovoClienteModal({ a, fechar }: { a: ReturnType<typeof useAdmin>; fecha
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <label className="block text-[13px] text-areia">
                 Nome da loja
-                <input required value={n.loja} onChange={(e) => set({ loja: e.target.value, slug: slugDe(e.target.value), empresa: n.empresa || "" })} className={inp} placeholder="Ex.: Forno Velho Pizzaria" />
+                <input
+                  required
+                  value={n.loja}
+                  onChange={(e) =>
+                    set({
+                      loja: e.target.value,
+                      slug: slugDe(e.target.value),
+                      empresa: n.empresa || "",
+                    })
+                  }
+                  className={inp}
+                  placeholder="Ex.: Forno Velho Pizzaria"
+                />
               </label>
               <label className="block text-[13px] text-areia">
                 Razão social
@@ -435,7 +487,7 @@ function NovoClienteModal({ a, fechar }: { a: ReturnType<typeof useAdmin>; fecha
             </div>
             <p className="mt-5 text-[13px] text-areia">Plano</p>
             <div className="mt-1 grid gap-2 sm:grid-cols-3">
-              {a.planos.map((p) => (
+              {ativos.map((p) => (
                 <button type="button" key={p.id} onClick={() => set({ plano: p.id })} aria-pressed={n.plano === p.id} className={`rounded-2xl border p-3 text-left ${n.plano === p.id ? "border-brasa bg-[#fde9df]" : "border-linha"}`}>
                   <p className="font-semibold">{p.nome}</p>
                   <p className="tabular text-[14px] text-areia">{brl(p.preco)}/mês</p>
@@ -476,10 +528,17 @@ function CobrancaAuto({ c, a }: { c: Cliente; a: ReturnType<typeof useAdmin> }) 
   const ativar = async () => {
     setOcupado(true);
     setMsg(null);
-    const r = await a.acoes.servidor("ativar", { org_id: c.org_id, documento: doc });
+    const r = await a.acoes.servidor("ativar", {
+      org_id: c.org_id,
+      documento: doc,
+    });
     setOcupado(false);
     if (r.erro) return setMsg(r.erro);
-    setInfo((i) => ({ ...(i ?? { documento: doc, assinatura: null }), ativa: true, link: r.link ?? null }));
+    setInfo((i) => ({
+      ...(i ?? { documento: doc, assinatura: null }),
+      ativa: true,
+      link: r.link ?? null,
+    }));
     setMsg(`Cobrança ativada. Primeiro vencimento: ${dataBR(r.vencimento)}.${r.aviso ? ` ${r.aviso}` : ""}`);
   };
   const atualizar = async () => {
@@ -489,7 +548,14 @@ function CobrancaAuto({ c, a }: { c: Cliente; a: ReturnType<typeof useAdmin> }) 
     setMsg(r.erro ?? `Cobranças conferidas na Asaas (${r.cobrancas?.length ?? 0}).`);
   };
   const tel = (c.telefone || "").replace(/\D/g, "");
-  const texto = info?.link ? `Olá, ${c.responsavel.split(" ")[0] || ""}! Aqui é do Freguês. Para manter a ${c.loja} no ar, cadastre a forma de pagamento da mensalidade (Pix, boleto ou cartão) neste link: ${info.link}` : "";
+  const texto = info?.link
+    ? mensagem(a.config, "cobranca", {
+        nome: c.responsavel.split(" ")[0],
+        loja: c.loja,
+        link: info.link,
+        valor: brl(c.valor),
+      })
+    : "";
   return (
     <section className="mt-4 rounded-2xl border border-linha p-4">
       <div className="flex items-center justify-between gap-2">
@@ -551,59 +617,84 @@ function Configuracoes({ a }: { a: ReturnType<typeof useAdmin> }) {
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
   const [senha, setSenha] = useState("");
   const [msgSenha, setMsgSenha] = useState<{ ok: boolean; t: string } | null>(null);
+  const [sec, setSec] = useState<"dados" | "cobranca" | "mensagens" | "admins" | "integracoes">("dados");
   useEffect(() => setF(a.config), [a.config]);
   const inp = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
-  const campo = (k: keyof Config, rotulo: string, tipo = "text", dica?: string) => (
+  const campo = (k: "empresa" | "responsavel" | "email" | "whatsapp" | "assinatura", rotulo: string, tipo = "text", dica?: string) => (
     <label className="block text-[14px] font-semibold">
       {rotulo}
       {dica && <span className="font-normal text-areia"> {dica}</span>}
       <input type={tipo} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} className={inp} />
     </label>
   );
+  const SECOES = [
+    ["dados", "Seus dados"],
+    ["cobranca", "Cobrança"],
+    ["mensagens", "Mensagens"],
+    ["admins", "Administradores"],
+    ["integracoes", "Integrações"],
+  ] as const;
   return (
-    <div className="max-w-[640px]">
+    <div className="max-w-[720px]">
       <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Configurações</h1>
-      <p className="text-[15px] text-areia">Seus dados aparecem nas mensagens que você manda aos clientes e no botão "Falar com o Freguês" do painel deles.</p>
-      <form
-        className="mt-5 space-y-3 rounded-3xl border border-linha bg-forno p-5"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          const r = await a.acoes.salvarConfig(f);
-          setMsg(r ? { ok: false, t: r } : { ok: true, t: "Salvo." });
-        }}
-      >
-        <h2 className="text-[18px] font-bold">Seus dados</h2>
-        {campo("empresa", "Empresa")}
-        {campo("responsavel", "Seu nome")}
-        {campo("email", "E-mail de contato", "email")}
-        {campo("whatsapp", "WhatsApp de atendimento", "tel", "(os restaurantes falam com você por aqui)")}
-        {campo("assinatura", "Assinatura das mensagens", "text", "(opcional)")}
-        <p className="rounded-xl bg-carvao p-3 text-[14px]">
-          <span className="text-areia">Fim das mensagens que você manda: </span>
-          {assinaturaDe(f) || "—"}
-        </p>
-        {msg && <p className={`text-[14px] ${msg.ok ? "text-manjericao" : "text-[#e8846f]"}`}>{msg.t}</p>}
-        <button className="w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda">Salvar</button>
-      </form>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {SECOES.map(([id, rot]) => (
+          <button key={id} onClick={() => setSec(id)} aria-pressed={sec === id} className={`rounded-full px-3.5 py-1.5 text-[14px] font-semibold ${sec === id ? "bg-papel text-carvao" : "border border-linha text-areia hover:text-papel"}`}>
+            {rot}
+          </button>
+        ))}
+      </div>
+      <div className="mt-4">
+        {sec === "cobranca" && <RegrasCobranca a={a} />}
+        {sec === "mensagens" && <ModelosMensagem a={a} />}
+        {sec === "admins" && <Administradores a={a} />}
+        {sec === "integracoes" && <SaudeIntegracoes a={a} />}
+      </div>
+      {sec === "dados" && (
+        <>
+          <p className="text-[15px] text-areia">Seus dados aparecem nas mensagens que você manda aos clientes e no botão "Falar com o Freguês" do painel deles.</p>
+          <form
+            className="mt-5 space-y-3 rounded-3xl border border-linha bg-forno p-5"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const r = await a.acoes.salvarConfig(f);
+              setMsg(r ? { ok: false, t: r } : { ok: true, t: "Salvo." });
+            }}
+          >
+            <h2 className="text-[18px] font-bold">Seus dados</h2>
+            {campo("empresa", "Empresa")}
+            {campo("responsavel", "Seu nome")}
+            {campo("email", "E-mail de contato", "email")}
+            {campo("whatsapp", "WhatsApp de atendimento", "tel", "(os restaurantes falam com você por aqui)")}
+            {campo("assinatura", "Assinatura das mensagens", "text", "(opcional)")}
+            <p className="rounded-xl bg-carvao p-3 text-[14px]">
+              <span className="text-areia">Fim das mensagens que você manda: </span>
+              {assinaturaDe(f) || "—"}
+            </p>
+            {msg && <p className={`text-[14px] ${msg.ok ? "text-manjericao" : "text-[#e8846f]"}`}>{msg.t}</p>}
+            <button className="w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda">Salvar</button>
+          </form>
 
-      <form
-        className="mt-4 space-y-3 rounded-3xl border border-linha bg-forno p-5"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          const r = await a.acoes.trocarMinhaSenha(senha);
-          setMsgSenha(r ? { ok: false, t: r } : { ok: true, t: "Senha trocada." });
-          if (!r) setSenha("");
-        }}
-      >
-        <h2 className="text-[18px] font-bold">Seu acesso de administrador</h2>
-        <p className="text-[14px] text-areia">Você entra com {a.sessao?.user.email ?? "o seu e-mail"}.</p>
-        <label className="block text-[14px] font-semibold">
-          Nova senha <span className="font-normal text-areia">(mínimo 8 caracteres)</span>
-          <input type="password" minLength={8} required autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} className={inp} />
-        </label>
-        {msgSenha && <p className={`text-[14px] ${msgSenha.ok ? "text-manjericao" : "text-[#e8846f]"}`}>{msgSenha.t}</p>}
-        <button className="w-full rounded-xl border-2 border-papel py-3 font-semibold text-papel hover:bg-papel hover:text-carvao">Trocar minha senha</button>
-      </form>
+          <form
+            className="mt-4 space-y-3 rounded-3xl border border-linha bg-forno p-5"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const r = await a.acoes.trocarMinhaSenha(senha);
+              setMsgSenha(r ? { ok: false, t: r } : { ok: true, t: "Senha trocada." });
+              if (!r) setSenha("");
+            }}
+          >
+            <h2 className="text-[18px] font-bold">Seu acesso de administrador</h2>
+            <p className="text-[14px] text-areia">Você entra com {a.sessao?.user.email ?? "o seu e-mail"}.</p>
+            <label className="block text-[14px] font-semibold">
+              Nova senha <span className="font-normal text-areia">(mínimo 8 caracteres)</span>
+              <input type="password" minLength={8} required autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} className={inp} />
+            </label>
+            {msgSenha && <p className={`text-[14px] ${msgSenha.ok ? "text-manjericao" : "text-[#e8846f]"}`}>{msgSenha.t}</p>}
+            <button className="w-full rounded-xl border-2 border-papel py-3 font-semibold text-papel hover:bg-papel hover:text-carvao">Trocar minha senha</button>
+          </form>
+        </>
+      )}
     </div>
   );
 }
@@ -661,7 +752,7 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {a.planos
-              .filter((p) => p.id !== c.plano)
+              .filter((p) => p.id !== c.plano && p.ativo !== false)
               .map((p) => (
                 <button key={p.id} onClick={() => acao(a.acoes.mudarPlano(c.org_id, p.id), `Plano mudou para ${p.nome}`)} className="rounded-full border border-linha px-3 py-1.5 text-[13px] font-semibold hover:border-areia">
                   Mudar para {p.nome} ({brl(p.preco)})
@@ -787,6 +878,8 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
           </section>
         )}
 
+        {!c.demo && <FichaExtras a={a} c={c} />}
+
         {hist.length > 0 && (
           <section className="mt-4 text-[14px]">
             <h3 className="font-semibold">Histórico</h3>
@@ -839,6 +932,8 @@ export function Admin() {
       </div>
     );
 
+  if (a.modo === "real" && a.sessao?.user.user_metadata?.trocar_senha) return <PrimeiraSenhaAdmin a={a} />;
+
   if (!a.visao)
     return (
       <div className="tema-claro grid min-h-screen place-items-center bg-carvao p-6 text-center text-areia">
@@ -856,15 +951,38 @@ export function Admin() {
   const atrasados = a.clientes.filter((x) => !x.demo && x.status === "atrasada");
   const parados = a.clientes.filter((x) => !x.demo && x.status === "ativa" && x.ultimo_pedido && Date.now() - new Date(x.ultimo_pedido).getTime() > 7 * 86400000);
   const ticketMedio = v.clientes_ativos + v.atrasados ? v.mrr / (v.clientes_ativos + v.atrasados) : 0;
-  const porPlano = a.planos.map((p) => ({ p, n: a.clientes.filter((x) => !x.demo && x.plano === p.id && x.status !== "cancelada").length, mrr: a.clientes.filter((x) => !x.demo && x.plano === p.id && (x.status === "ativa" || x.status === "atrasada")).reduce((s, x) => s + x.valor, 0) }));
-  const maxPlano = Math.max(1, ...porPlano.map((x) => x.mrr));
   const ITENS: { id: Aba; rotulo: string; icone: React.ReactNode }[] = [
-    { id: "visao", rotulo: "Visão geral", icone: <LayoutDashboard className="h-5 w-5" /> },
-    { id: "clientes", rotulo: "Clientes", icone: <Building2 className="h-5 w-5" /> },
-    { id: "financeiro", rotulo: "Financeiro", icone: <CircleDollarSign className="h-5 w-5" /> },
+    {
+      id: "visao",
+      rotulo: "Visão geral",
+      icone: <LayoutDashboard className="h-5 w-5" />,
+    },
+    {
+      id: "clientes",
+      rotulo: "Clientes",
+      icone: <Building2 className="h-5 w-5" />,
+    },
+    {
+      id: "financeiro",
+      rotulo: "Financeiro",
+      icone: <CircleDollarSign className="h-5 w-5" />,
+    },
     { id: "planos", rotulo: "Planos", icone: <Layers className="h-5 w-5" /> },
-    { id: "atividade", rotulo: "Atividade", icone: <History className="h-5 w-5" /> },
-    { id: "config", rotulo: "Configurações", icone: <Settings className="h-5 w-5" /> },
+    {
+      id: "relatorios",
+      rotulo: "Relatórios",
+      icone: <BarChart3 className="h-5 w-5" />,
+    },
+    {
+      id: "atividade",
+      rotulo: "Atividade",
+      icone: <History className="h-5 w-5" />,
+    },
+    {
+      id: "config",
+      rotulo: "Configurações",
+      icone: <Settings className="h-5 w-5" />,
+    },
   ];
   const Alerta = ({ titulo, itens, cor, texto }: { titulo: string; itens: Cliente[]; cor: string; texto: (x: Cliente) => string }) => (
     <section className="rounded-3xl border border-linha bg-forno p-5">
@@ -877,7 +995,9 @@ export function Admin() {
           <li key={x.org_id}>
             <button onClick={() => setSel(x.org_id)} className="flex w-full items-center justify-between gap-3 rounded-xl bg-grafite px-3 py-2.5 text-left text-[14px] hover:bg-linha">
               <span className="min-w-0">
-                <span className="block truncate font-semibold">{x.loja} {x.demo && <span className="ml-1.5 rounded-full bg-[#e6eefb] px-2 py-0.5 align-middle text-[11px] font-semibold text-[#1d4f91]">Demonstração</span>}</span>
+                <span className="block truncate font-semibold">
+                  {x.loja} {x.demo && <span className="ml-1.5 rounded-full bg-[#e6eefb] px-2 py-0.5 align-middle text-[11px] font-semibold text-[#1d4f91]">Demonstração</span>}
+                </span>
                 <span className="block truncate text-[12px] text-areia">{texto(x)}</span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-fumo" />
@@ -937,7 +1057,13 @@ export function Admin() {
           {aba === "visao" && (
             <div className="space-y-5">
               <div>
-                <p className="text-[15px] capitalize text-areia">{new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p>
+                <p className="text-[15px] capitalize text-areia">
+                  {new Date().toLocaleDateString("pt-BR", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  })}
+                </p>
                 <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Sua carteira de restaurantes</h1>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -951,6 +1077,7 @@ export function Admin() {
                 <Kpi rotulo="Vendas dos seus clientes (30 dias)" valor={brl(v.vendas_30d)} sub="Dinheiro que passou longe da comissão de marketplace" />
                 <Kpi rotulo="Fregueses cadastrados" valor={v.fregueses.toLocaleString("pt-BR")} />
               </div>
+              <Lembretes a={a} abrir={setSel} />
               <div className="grid gap-4 lg:grid-cols-3">
                 <Alerta titulo="Teste acabando" cor="#2f7d77" itens={testesVencendo} texto={(x) => `termina ${dataBR(x.teste_ate)} · ${x.pedidos_30d} pedidos no teste`} />
                 <Alerta titulo="Mensalidade atrasada" cor="#ffc03a" itens={atrasados} texto={(x) => `${brl(x.valor)} · venceu ${dataBR(x.proximo_vencimento)}`} />
@@ -968,7 +1095,9 @@ export function Admin() {
                       <li key={x.org_id}>
                         <button onClick={() => setSel(x.org_id)} className="flex w-full items-center gap-3 py-2.5 text-left text-[14px] hover:text-brasa">
                           <span className="tabular w-5 text-fumo">{i + 1}</span>
-                          <span className="min-w-0 flex-1 truncate font-semibold">{x.loja} {x.demo && <span className="ml-1.5 rounded-full bg-[#e6eefb] px-2 py-0.5 align-middle text-[11px] font-semibold text-[#1d4f91]">Demonstração</span>}</span>
+                          <span className="min-w-0 flex-1 truncate font-semibold">
+                            {x.loja} {x.demo && <span className="ml-1.5 rounded-full bg-[#e6eefb] px-2 py-0.5 align-middle text-[11px] font-semibold text-[#1d4f91]">Demonstração</span>}
+                          </span>
                           <span className="tabular text-areia">{x.pedidos_30d} pedidos</span>
                           <span className="tabular w-28 text-right font-semibold">{brl(x.vendas_30d)}</span>
                         </button>
@@ -984,7 +1113,10 @@ export function Admin() {
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Clientes</h1>
-                  <p className="text-[15px] text-areia">{a.clientes.filter((x) => !x.demo).length} restaurantes na carteira{a.clientes.some((x) => x.demo) ? " (mais a loja de demonstração)" : ""}. Toque em um para ver uso, plano e faturas.</p>
+                  <p className="text-[15px] text-areia">
+                    {a.clientes.filter((x) => !x.demo).length} restaurantes na carteira
+                    {a.clientes.some((x) => x.demo) ? " (mais a loja de demonstração)" : ""}. Toque em um para ver uso, plano e faturas.
+                  </p>
                 </div>
                 <button onClick={() => setNovo(true)} className="flex items-center gap-2 rounded-full bg-brasa px-5 py-3 text-[15px] font-semibold text-carvao hover:bg-mostarda">
                   <Plus className="h-4 w-4" /> Novo cliente
@@ -1034,7 +1166,9 @@ export function Admin() {
                       return (
                         <tr key={x.org_id} onClick={() => setSel(x.org_id)} className="cursor-pointer transition hover:bg-grafite">
                           <td className="px-4 py-3">
-                            <p className="font-semibold">{x.loja} {x.demo && <span className="ml-1.5 rounded-full bg-[#e6eefb] px-2 py-0.5 align-middle text-[11px] font-semibold text-[#1d4f91]">Demonstração</span>}</p>
+                            <p className="font-semibold">
+                              {x.loja} {x.demo && <span className="ml-1.5 rounded-full bg-[#e6eefb] px-2 py-0.5 align-middle text-[11px] font-semibold text-[#1d4f91]">Demonstração</span>}
+                            </p>
                             <p className="text-[12px] text-areia">
                               {x.nicho ? `${x.nicho} · ` : ""}
                               {x.bairro} · {x.responsavel}
@@ -1099,7 +1233,12 @@ export function Admin() {
                                 {cli?.loja ?? "—"}
                               </button>
                             </td>
-                            <td className="px-4 py-3 capitalize">{new Date(f.competencia + "T12:00:00").toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}</td>
+                            <td className="px-4 py-3 capitalize">
+                              {new Date(f.competencia + "T12:00:00").toLocaleDateString("pt-BR", {
+                                month: "short",
+                                year: "numeric",
+                              })}
+                            </td>
                             <td className="tabular px-4 py-3">{dataBR(f.vencimento)}</td>
                             <td className="tabular px-4 py-3 text-right font-semibold">{brl(f.valor)}</td>
                             <td className="px-4 py-3">
@@ -1124,44 +1263,9 @@ export function Admin() {
             </div>
           )}
 
-          {aba === "planos" && (
-            <div className="space-y-5">
-              <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Planos</h1>
-              <div className="grid gap-4 md:grid-cols-3">
-                {porPlano.map(({ p, n, mrr }) => (
-                  <section key={p.id} className="flex flex-col rounded-3xl border border-linha bg-forno p-6">
-                    <p className="font-display text-[22px] font-extrabold">{p.nome}</p>
-                    <p className="text-[14px] text-areia">{p.descricao}</p>
-                    <p className="tabular mt-3 font-display text-[34px] font-extrabold">
-                      {brl(p.preco)}
-                      <span className="text-[15px] font-normal text-areia">/mês</span>
-                    </p>
-                    <ul className="mt-3 flex-1 space-y-1.5 text-[14px]">
-                      {p.recursos.map((r) => (
-                        <li key={r} className="flex gap-2">
-                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-manjericao" /> {r}
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="mt-4 rounded-2xl bg-grafite p-3 text-[14px]">
-                      <p className="flex justify-between">
-                        <span className="text-areia">Clientes</span>
-                        <b className="tabular">{n}</b>
-                      </p>
-                      <p className="flex justify-between">
-                        <span className="text-areia">Receita por mês</span>
-                        <b className="tabular">{brl(mrr)}</b>
-                      </p>
-                      <span className="mt-2 block h-1.5 rounded-full bg-carvao">
-                        <span className="block h-full rounded-full bg-brasa" style={{ width: `${(mrr / maxPlano) * 100}%` }} />
-                      </span>
-                    </div>
-                  </section>
-                ))}
-              </div>
-              <p className="text-[13px] text-areia">Para mudar o preço de um cliente específico, use a ficha dele. O preço dos planos para novos clientes fica na tabela "plans" do banco.</p>
-            </div>
-          )}
+          {aba === "planos" && <PlanosAdmin a={a} />}
+
+          {aba === "relatorios" && <Relatorios a={a} />}
 
           {aba === "config" && <Configuracoes a={a} />}
 
@@ -1178,7 +1282,14 @@ export function Admin() {
                       </button>{" "}
                       <span className="text-areia">· {h.acao}</span>
                     </span>
-                    <span className="shrink-0 text-areia">{new Date(h.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                    <span className="shrink-0 text-areia">
+                      {new Date(h.criado_em).toLocaleString("pt-BR", {
+                        day: "2-digit",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
                   </li>
                 ))}
                 {a.auditoria.length === 0 && <li className="p-8 text-center text-areia">Nada registrado ainda.</li>}
@@ -1188,9 +1299,9 @@ export function Admin() {
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-linha bg-forno md:hidden" aria-label="Administração">
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-7 border-t border-linha bg-forno md:hidden" aria-label="Administração">
         {ITENS.map((i) => (
-          <button key={i.id} onClick={() => setAba(i.id)} aria-current={aba === i.id ? "page" : undefined} className={`flex flex-col items-center gap-1 py-2.5 text-[11px] ${aba === i.id ? "text-brasa" : "text-areia"}`}>
+          <button key={i.id} onClick={() => setAba(i.id)} aria-current={aba === i.id ? "page" : undefined} className={`flex min-w-0 flex-col items-center gap-1 py-2.5 text-[10px] ${aba === i.id ? "text-brasa" : "text-areia"}`}>
             {i.icone}
             {i.rotulo.split(" ")[0]}
           </button>
