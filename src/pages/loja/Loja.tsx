@@ -3,6 +3,8 @@ import { ChatLoja } from "./ChatLoja";
 import { geoContains, type GeoPermissibleObjects } from "d3-geo";
 import { ArrowLeft, Bike, Check, ChevronRight, Clock, Copy, CreditCard, Minus, Plus, ShoppingBag, Star, Store, Wallet, X } from "lucide-react";
 import { brl, type Grupo, type Produto } from "../../data/mock";
+import QRCode from "qrcode";
+import { codigoPix, tipoChave } from "../../lib/pix";
 import { useDados, type Entrega } from "../../data/dados";
 import { Foto, FOTOS } from "../../components/Foto";
 import { BAIRROS, BAIRROS_RIO, GeoMap, centroide, vizinhos, type Feature, type Layer } from "../../components/GeoMap";
@@ -114,6 +116,15 @@ function SheetProduto({ p, fechar, adicionar }: { p: Produto; fechar: () => void
   );
 }
 
+/** QR do Pix de verdade (código copia e cola da loja). */
+function QrPix({ codigo }: { codigo: string }) {
+  const [src, setSrc] = useState("");
+  useEffect(() => {
+    QRCode.toDataURL(codigo, { margin: 1, width: 384, errorCorrectionLevel: "M" }).then(setSrc).catch(() => setSrc(""));
+  }, [codigo]);
+  return src ? <img src={src} alt="QR Code do Pix" className="h-52 w-52" /> : <div className="h-52 w-52" />;
+}
+
 function QrFake() {
   const cells = useMemo(() => {
     let s = 7;
@@ -172,7 +183,9 @@ export function Loja() {
   const [tel, setTel] = useState("");
   const [aceita, setAceita] = useState(true);
   const [saldo, setSaldo] = useState(0);
-  const [pag, setPag] = useState<"pix" | "cartao" | "dinheiro">("pix");
+  // Pix só aparece quando a loja cadastrou a chave dela (na demonstração, sempre)
+  const pixPronto = d.modo === "demo" || !!(LOJA.pix_chave && tipoChave(LOJA.pix_chave));
+  const [pag, setPag] = useState<"pix" | "maquininha" | "dinheiro">(pixPronto ? "pix" : "maquininha");
   const [cashback, setCashback] = useState(true);
   const [pago, setPago] = useState(false);
   const [copiado, setCopiado] = useState(false);
@@ -363,6 +376,10 @@ export function Loja() {
   }
 
   const totalFinal = pedido?.total ?? total;
+  const codigoDoPix =
+    d.modo === "real" && LOJA.pix_chave && tipoChave(LOJA.pix_chave) && pedido
+      ? codigoPix({ chave: LOJA.pix_chave, nome: LOJA.pix_nome || LOJA.nome, cidade: LOJA.pix_cidade || LOJA.cidade || "Rio de Janeiro", valor: totalFinal, txid: `PED${pedido.numero}` })
+      : "";
 
   if (d.modo === "real" && d.carregando) return <div className="grid min-h-screen place-items-center bg-[#fffaf2] text-[#5a4c41]">Abrindo o cardápio…</div>;
 
@@ -673,11 +690,13 @@ export function Loja() {
                   <p className="pt-2 text-[13px] font-semibold">Como você quer pagar?</p>
                   {(
                     [
-                      ["pix", "Pix", "Aprovação na hora", <Wallet key="w" className="h-5 w-5" />],
-                      ["cartao", "Cartão pelo site", "Crédito ou débito", <CreditCard key="c" className="h-5 w-5" />],
-                      ["dinheiro", "Pagar na entrega", "Dinheiro ou maquininha", <Bike key="b" className="h-5 w-5" />],
+                      ["pix", "Pix", "Pague agora pelo app do banco", <Wallet key="w" className="h-5 w-5" />],
+                      ["maquininha", modo === "entrega" ? "Cartão na entrega" : "Cartão na retirada", "Crédito ou débito na maquininha", <CreditCard key="c" className="h-5 w-5" />],
+                      ["dinheiro", "Dinheiro", modo === "entrega" ? "Pague ao receber" : "Pague ao retirar", <Bike key="b" className="h-5 w-5" />],
                     ] as const
-                  ).map(([v, t, ds, i]) => (
+                  )
+                    .filter(([v]) => v !== "pix" || pixPronto)
+                    .map(([v, t, ds, i]) => (
                     <label key={v} className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 ${pag === v ? "border-carvao bg-white" : "border-[#eadccb]"}`}>
                       <span className="text-brasa-escura">{i}</span>
                       <span className="flex-1">
@@ -704,15 +723,14 @@ export function Loja() {
                   <p className="text-[15px] text-[#5a4c41]">
                     Pedido #{pedido?.numero}. Pague {brl(totalFinal)} pelo app do seu banco.
                   </p>
-                  <div className="mt-4 rounded-2xl border border-[#eadccb] bg-white p-4">
-                    <QrFake />
-                  </div>
+                  <div className="mt-4 rounded-2xl border border-[#eadccb] bg-white p-4">{codigoDoPix ? <QrPix codigo={codigoDoPix} /> : <QrFake />}</div>
+                  {codigoDoPix && <p className="mt-2 text-[13px] text-[#5a4c41]">Pix para {LOJA.pix_nome || LOJA.nome}</p>}
                   <button
                     onClick={async () => {
                       try {
-                        await navigator.clipboard.writeText("00020126580014br.gov.bcb.pix-demonstracao-fregues");
+                        await navigator.clipboard.writeText(codigoDoPix || "00020126580014br.gov.bcb.pix-demonstracao-fregues");
                       } catch {
-                        /* demonstração */
+                        /* sem área de transferência */
                       }
                       setCopiado(true);
                     }}
@@ -721,9 +739,14 @@ export function Loja() {
                     {copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copiado ? "Código copiado" : "Copiar código Pix"}
                   </button>
                   <div className={`mt-6 w-full rounded-2xl p-4 text-[15px] font-semibold ${pago ? "bg-[#e3f5e9] text-[#1e6b42]" : "bg-[#f3e8d8] text-[#5a4c41]"}`} aria-live="polite">
-                    {pago ? "Pagamento confirmado. Seu pedido já foi para a cozinha." : "Aguardando o pagamento…"}
+                    {pago ? "Pagamento confirmado. Seu pedido já foi para a cozinha." : codigoDoPix ? "Depois de pagar, a loja confere e confirma aqui. Pode deixar esta tela aberta." : "Aguardando o pagamento…"}
                   </div>
-                  {!pago && d.modo === "real" && pedido && (
+                  {codigoDoPix && !pago && (
+                    <button onClick={() => setEtapa("acompanhar")} className="mt-3 text-[14px] font-semibold text-brasa-escura underline-offset-4 hover:underline">
+                      Já paguei, acompanhar o pedido
+                    </button>
+                  )}
+                  {!pago && d.modo === "real" && LOJA.demonstracao && pedido && (
                     <button
                       onClick={async () => {
                         await d.acoes.confirmarPixDemo(pedido.id);

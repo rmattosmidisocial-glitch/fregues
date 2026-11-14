@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-export const ROTAS = ["inicio", "painel", "pedidos", "caixa", "salao", "atendimento", "mapa", "fregueses", "automacoes", "formularios", "links", "cardapio", "loja", "bio", "pesquisa", "admin", "mesa"] as const;
+export const ROTAS = ["inicio", "painel", "pedidos", "caixa", "salao", "atendimento", "mapa", "fregueses", "automacoes", "formularios", "links", "cardapio", "loja", "bio", "pesquisa", "admin", "mesa", "config"] as const;
 export type Rota = (typeof ROTAS)[number];
 
 function ler(): Rota {

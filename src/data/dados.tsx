@@ -26,7 +26,7 @@ export const supabase: SupabaseClient | null = URL && KEY ? createClient(URL, KE
 export const supabaseAdmin: SupabaseClient | null = URL && KEY ? createClient(URL, KEY, { auth: { storageKey: "fregues-admin-auth" } }) : null;
 export const MODO: "real" | "demo" = supabase ? "real" : "demo";
 
-export type Loja = typeof M.LOJA & { id?: string; publicada?: boolean };
+export type Loja = typeof M.LOJA & { id?: string; publicada?: boolean; demonstracao?: boolean; pix_chave?: string | null; pix_nome?: string | null; pix_cidade?: string | null };
 export type Pulso = { risco: number; recuperado: number; voltaram: number; ritmo: number; atrasado: number; sumindo: number; total: number; comissao: number };
 export type DiaSemana = { dia: string; propria: number; marketplace: number };
 export type Entrega = {
@@ -110,6 +110,8 @@ type Dados = {
   acoes: {
     entrar: (email: string, senha: string) => Promise<string | null>;
     sair: () => Promise<void>;
+    /** Grava campos da loja (configurações do dono). */
+    salvarLoja: (c: Partial<Pick<Loja, "pix_chave" | "pix_nome" | "pix_cidade">>) => Promise<string | null>;
     /** Coloca a loja no ar (ou tira). Devolve o erro, ou null. */
     publicarLoja: (noAr: boolean) => Promise<string | null>;
     /** Minha conta: troca a senha (e tira o aviso de senha provisória). */
@@ -195,7 +197,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   // ---------- leitura pública: loja, zonas, cardápio ----------
   const carregarPublico = useCallback(async () => {
     if (!supabase) return;
-    const { data: s, error } = await supabase.from("stores").select("id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada").eq("slug", SLUG).single();
+    const { data: s, error } = await supabase.from("stores").select("id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade").eq("slug", SLUG).single();
     if (error || !s) {
       setErro("Não foi possível abrir a loja agora.");
       return;
@@ -409,6 +411,16 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         if (!supabase) return null;
         const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
         return error ? "E-mail ou senha incorretos." : null;
+      },
+      async salvarLoja(c) {
+        if (!supabase || !loja.id) {
+          setLoja((l) => ({ ...l, ...c }));
+          return null;
+        }
+        const { error } = await supabase.from("stores").update(c).eq("id", loja.id);
+        if (error) return error.message;
+        setLoja((l) => ({ ...l, ...c }));
+        return null;
       },
       async publicarLoja(noAr) {
         if (!supabase || !loja.id) return null;

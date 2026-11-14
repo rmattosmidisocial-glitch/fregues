@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Activity, Armchair, Calculator, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, LogOut, Map as MapIcon, UserRound, MessagesSquare, Sparkles, Users, Workflow, X } from "lucide-react";
+import { Activity, Armchair, Calculator, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, LogOut, Map as MapIcon, UserRound, MessagesSquare, Settings, Sparkles, Users, Workflow, X } from "lucide-react";
 import { useCrescer } from "../../data/crescer";
 import { useAtendimentoPainel } from "../../data/atendimento";
 import { useFormulariosPainel } from "../../data/formularios";
@@ -23,8 +23,9 @@ import { Cardapio } from "./Cardapio";
 import { Copiloto } from "./Copiloto";
 import { MinhaConta, PrimeiraSenha } from "./MinhaConta";
 import { LinkDaLoja } from "./LinkDaLoja";
+import { Configuracoes } from "./Configuracoes";
 
-type Item = { rota: Rota; rotulo: string; curto: string; icone: React.ReactNode; grupo: "Operação" | "Crescer" };
+type Item = { rota: Rota; rotulo: string; curto: string; icone: React.ReactNode; grupo: "Operação" | "Crescer" | "Loja" };
 const ITENS: Item[] = [
   { rota: "painel", rotulo: "Pulso", curto: "Pulso", grupo: "Operação", icone: <Activity className="h-5 w-5" /> },
   { rota: "pedidos", rotulo: "Pedidos", curto: "Pedidos", grupo: "Operação", icone: <ChefHat className="h-5 w-5" /> },
@@ -37,6 +38,7 @@ const ITENS: Item[] = [
   { rota: "automacoes", rotulo: "Automações", curto: "Automações", grupo: "Crescer", icone: <Workflow className="h-5 w-5" /> },
   { rota: "formularios", rotulo: "Formulários", curto: "Formulários", grupo: "Crescer", icone: <ClipboardList className="h-5 w-5" /> },
   { rota: "links", rotulo: "Links da bio", curto: "Links", grupo: "Crescer", icone: <Link2 className="h-5 w-5" /> },
+  { rota: "config", rotulo: "Configurações", curto: "Ajustes", grupo: "Loja", icone: <Settings className="h-5 w-5" /> },
 ];
 
 export function PainelLayout({ rota }: { rota: Rota }) {
@@ -184,6 +186,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
           {rota === "automacoes" && <Automacoes />}
           {rota === "formularios" && <Formularios />}
           {rota === "links" && <Links />}
+          {rota === "config" && <Configuracoes />}
         </main>
       </div>
 
