@@ -1,331 +1,235 @@
 import { useEffect, useState } from "react";
-import { AlarmClock, ArrowLeft, Bell, Coins, Filter, MessageCircle, Play, Plus, Tag, Ticket, Trash2, Workflow, Zap } from "lucide-react";
-import { brl, FREGUESES } from "../../data/mock";
-import { crescer, MODELOS, quandoTxt, useCrescer, type Automacao, type No, type TipoNo } from "../../data/crescer";
+import { Cake, HeartHandshake, MapPin, MessageCircle, RefreshCw, SkipForward, Star, UserRoundSearch, Zap } from "lucide-react";
+import { brl } from "../../data/mock";
+import { useDados } from "../../data/dados";
+import { INFO, TIPOS, montarTexto, useAutomacoes, type ItemFila, type Regra, type TipoAuto } from "../../data/automacoes";
 import { useToast } from "../../components/ui";
 
-const TIPO: Record<TipoNo, { rotulo: string; cor: string; icone: React.ReactNode }> = {
-  gatilho: { rotulo: "Quando", cor: "#ff5b1f", icone: <Zap className="h-4 w-4" /> },
-  espera: { rotulo: "Esperar", cor: "#8f7b6c", icone: <AlarmClock className="h-4 w-4" /> },
-  filtro: { rotulo: "Só se", cor: "#ffc03a", icone: <Filter className="h-4 w-4" /> },
-  whatsapp: { rotulo: "WhatsApp", cor: "#49c27e", icone: <MessageCircle className="h-4 w-4" /> },
-  cupom: { rotulo: "Cupom", cor: "#f0524a", icone: <Ticket className="h-4 w-4" /> },
-  etiqueta: { rotulo: "Etiqueta", cor: "#2f7d77", icone: <Tag className="h-4 w-4" /> },
-  alerta: { rotulo: "Avisar", cor: "#ff5b1f", icone: <Bell className="h-4 w-4" /> },
-  pontos: { rotulo: "Pontos", cor: "#ffc03a", icone: <Coins className="h-4 w-4" /> },
-};
-
-const ESTADO: Record<Automacao["estado"], string> = {
-  ativa: "bg-[#e2f2ea] text-[#1b6149]",
-  pausada: "bg-grafite text-areia",
-  rascunho: "bg-[#fcefd9] text-[#7a4600]",
+const ICONE: Record<TipoAuto, React.ReactNode> = {
+  sumindo: <UserRoundSearch className="h-5 w-5" />,
+  aniversario: <Cake className="h-5 w-5" />,
+  pos_entrega: <Star className="h-5 w-5" />,
+  primeiro_pedido: <HeartHandshake className="h-5 w-5" />,
 };
 
 function Interruptor({ ligado, onChange, rotulo }: { ligado: boolean; onChange: (v: boolean) => void; rotulo: string }) {
   return (
-    <button
-      role="switch"
-      aria-checked={ligado}
-      aria-label={rotulo}
-      onClick={(e) => {
-        e.stopPropagation();
-        onChange(!ligado);
-      }}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition ${ligado ? "bg-manjericao" : "bg-linha"}`}
-    >
+    <button role="switch" aria-checked={ligado} aria-label={rotulo} onClick={() => onChange(!ligado)} className={`relative h-6 w-11 shrink-0 rounded-full transition ${ligado ? "bg-manjericao" : "bg-linha"}`}>
       <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${ligado ? "left-[22px]" : "left-0.5"}`} />
     </button>
   );
 }
 
-const exemplo = FREGUESES[0];
-const preencher = (t = "") =>
-  t
-    .split("{nome}").join(exemplo.nome.split(" ")[0])
-    .split("{favorito}").join(exemplo.favorito)
-    .split("{pedido}").join(exemplo.favorito)
-    .split("{nivel}").join("Fiel")
-    .split("{bairro}").join("Méier")
-    .split("{cupom}").join("BRASA-7K2")
-    .replace(/\{link_[a-z_]+\}/g, "fregues.app/brasa/…");
-
-function CartaoNo({ n, i, ativo, rodando, editar }: { n: No; i: number; ativo: boolean; rodando: boolean; editar: () => void }) {
-  const t = TIPO[n.tipo];
-  return (
-    <div className="relative flex flex-col items-center">
-      {i > 0 && <div className={`h-7 w-0.5 ${rodando ? "bg-brasa" : "bg-linha"}`} />}
-      <button
-        onClick={editar}
-        className={`w-full max-w-[460px] rounded-2xl border bg-forno p-4 text-left transition hover:border-areia ${ativo ? "border-brasa shadow-[0_0_0_4px_rgba(255,91,31,.18)]" : "border-linha"}`}
-      >
-        <div className="flex items-center gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-carvao" style={{ background: t.cor }}>
-            {t.icone}
-          </span>
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: t.cor }}>
-              {t.rotulo}
-            </p>
-            <p className="truncate font-semibold">{n.titulo}</p>
-            {n.detalhe && <p className="truncate text-[13px] text-areia">{n.detalhe}</p>}
-          </div>
-        </div>
-        {n.tipo === "filtro" && <p className="mt-2 flex gap-3 text-[12px] font-semibold"><span className="text-manjericao">Sim → continua</span><span className="text-fumo">Não → termina</span></p>}
-        {n.texto && <p className="mt-3 rounded-xl rounded-tl-sm bg-[#e4f3ea] p-3 text-[14px] leading-relaxed text-[#1e3a2c]">{preencher(n.texto)}</p>}
-      </button>
-    </div>
-  );
-}
-
-function Editor({ a, voltar }: { a: Automacao; voltar: () => void }) {
-  const [sel, setSel] = useState<string | null>(null);
-  const [passo, setPasso] = useState(-1);
+export function Automacoes() {
+  const d = useDados();
+  const a = useAutomacoes();
   const { show, Toast } = useToast();
-  const no = a.nos.find((n) => n.id === sel);
-  const taxa = a.disparos ? Math.round((a.conversoes / a.disparos) * 100) : 0;
-
-  useEffect(() => {
-    if (passo < 0) return;
-    if (passo >= a.nos.length) {
-      crescer.registrarTeste(a.id, exemplo.nome);
-      show(`Teste concluído com ${exemplo.nome}`);
-      setPasso(-1);
-      return;
-    }
-    const t = setTimeout(() => setPasso(passo + 1), 650);
-    return () => clearTimeout(t);
-  }, [passo]);
-
-  const setNo = (p: Partial<No>) => crescer.setAuto(a.id, (x) => ({ ...x, nos: x.nos.map((n) => (n.id === sel ? { ...n, ...p } : n)) }));
+  const ligadas = a.regras.filter((r) => r.ligada).length;
+  const total30 = TIPOS.reduce((s, t) => s + a.resumo[t].enviadas, 0);
+  const voltaram30 = TIPOS.reduce((s, t) => s + a.resumo[t].voltaram, 0);
+  const receita30 = TIPOS.reduce((s, t) => s + a.resumo[t].receita, 0);
 
   return (
     <div>
-      <button onClick={voltar} className="mb-3 flex items-center gap-1 text-[14px] text-areia hover:text-papel">
-        <ArrowLeft className="h-4 w-4" /> Automações
-      </button>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <input
-            value={a.nome}
-            onChange={(e) => crescer.setAuto(a.id, (x) => ({ ...x, nome: e.target.value }))}
-            aria-label="Nome da automação"
-            className="w-full bg-transparent font-display text-[clamp(1.6rem,3vw,2.3rem)] font-extrabold tracking-[-0.015em] outline-none focus:underline"
-          />
-          <p className="max-w-[640px] text-[15px] text-areia">{a.descricao}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setPasso(0)} disabled={passo >= 0} className="flex items-center gap-2 rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia disabled:opacity-50">
-            <Play className="h-4 w-4" /> {passo >= 0 ? "Testando…" : "Testar"}
-          </button>
-          <button
-            onClick={() => {
-              const nv = a.estado === "ativa" ? "pausada" : "ativa";
-              crescer.setAuto(a.id, (x) => ({ ...x, estado: nv }));
-              show(nv === "ativa" ? "Automação ligada" : "Automação pausada");
-            }}
-            className={`rounded-full px-4 py-2 text-[14px] font-semibold ${a.estado === "ativa" ? "bg-grafite text-papel" : "bg-brasa text-carvao hover:bg-mostarda"}`}
-          >
-            {a.estado === "ativa" ? "Pausar" : "Ligar automação"}
-          </button>
-        </div>
-      </div>
+      <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Automações</h1>
+      <p className="max-w-[760px] text-[15px] text-areia">
+        Ligue as mensagens que a casa quer mandar. Todo dia o sistema separa <b className="text-papel">quem deve receber cada uma</b>, já com o texto pronto. Você envia com um toque no WhatsApp e acompanha quem voltou a pedir.
+      </p>
 
-      <div className="mt-5 grid grid-cols-3 gap-3">
+      <div className="mt-5 grid gap-3 sm:grid-cols-4">
         {[
-          ["Disparos em 30 dias", a.disparos.toLocaleString("pt-BR")],
-          ["Deram resultado", `${a.conversoes} (${taxa}%)`],
-          ["Vendas geradas", a.receita ? brl(a.receita) : "—"],
+          ["Regras ligadas", `${ligadas} de ${TIPOS.length}`],
+          ["Na fila hoje", String(a.fila.length)],
+          ["Enviadas (30 dias)", String(total30)],
+          ["Voltaram a pedir", total30 ? `${voltaram30} · ${brl(receita30)}` : "—"],
         ].map(([k, v]) => (
           <div key={k} className="rounded-2xl border border-linha bg-forno p-4">
-            <p className="text-[12px] text-areia">{k}</p>
-            <p className="tabular mt-1 font-display text-[22px] font-bold">{v}</p>
+            <p className="text-[13px] text-areia">{k}</p>
+            <p className="tabular mt-1 font-display text-[24px] font-extrabold">{v}</p>
           </div>
         ))}
       </div>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_360px]">
-        <div className="rounded-3xl border border-linha bg-[radial-gradient(var(--color-linha)_1px,transparent_1px)] p-5 [background-size:18px_18px] md:p-8">
-          {a.nos.map((n, i) => (
-            <CartaoNo key={n.id} n={n} i={i} ativo={sel === n.id || passo === i} rodando={passo >= i && passo >= 0} editar={() => setSel(n.id)} />
+      <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_1fr]">
+        <section className="rounded-3xl border border-linha bg-forno p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 font-display text-[22px] font-bold">
+              <MessageCircle className="h-5 w-5 text-brasa" /> Fila de hoje
+            </h2>
+            <button onClick={() => a.recarregar().then(() => show("Fila atualizada"))} className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold text-areia hover:bg-grafite hover:text-papel">
+              <RefreshCw className="h-4 w-4" /> Atualizar
+            </button>
+          </div>
+          {a.carregando ? (
+            <p className="mt-4 text-areia">Montando a fila…</p>
+          ) : ligadas === 0 ? (
+            <p className="mt-4 rounded-2xl border border-dashed border-linha p-6 text-center text-areia">Ligue uma regra ao lado e a fila aparece aqui.</p>
+          ) : a.fila.length === 0 ? (
+            <p className="mt-4 rounded-2xl border border-dashed border-linha p-6 text-center text-areia">Tudo em dia! Ninguém para chamar agora.</p>
+          ) : (
+            <div className="mt-3 space-y-5">
+              {TIPOS.filter((t) => a.fila.some((i) => i.tipo === t)).map((t) => (
+                <div key={t}>
+                  <p className="text-[13px] font-semibold uppercase tracking-[0.06em] text-areia">
+                    {INFO[t].nome} · {a.fila.filter((i) => i.tipo === t).length}
+                  </p>
+                  <ul className="mt-2 space-y-2">
+                    {a.fila
+                      .filter((i) => i.tipo === t)
+                      .map((i) => (
+                        <LinhaFila key={i.tipo + i.customerId + (i.ref ?? "")} i={i} regra={a.regras.find((r) => r.tipo === t)!} loja={d.loja.nome} marcar={a.marcar} />
+                      ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <div className="space-y-4">
+          {TIPOS.map((t) => (
+            <CartaoRegra key={t} r={a.regras.find((x) => x.tipo === t)!} res={a.resumo[t]} salvar={a.salvarRegra} avisar={show} loja={d.loja.nome} />
           ))}
-          <div className="flex flex-col items-center">
-            <div className="h-7 w-0.5 bg-linha" />
-            <span className="rounded-full border border-dashed border-linha px-3 py-1 text-[12px] text-fumo">Fim</span>
+          <div className="flex gap-3 rounded-3xl border border-linha bg-forno p-5 text-[14px]">
+            <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-brasa" />
+            <p className="text-areia">
+              <b className="text-papel">Avisar quem estava fora da área:</b> quando você libera um bairro no <a href="#mapa" className="font-semibold text-papel underline">Território</a>, a lista de quem pediu aparece lá, com o botão Avisar.
+            </p>
+          </div>
+          <div className="flex gap-3 rounded-3xl border border-dashed border-linha p-5 text-[14px]">
+            <Zap className="mt-0.5 h-5 w-5 shrink-0 text-mostarda" />
+            <p className="text-areia">
+              <b className="text-papel">Envio 100% automático (sem tocar):</b> depende do WhatsApp oficial da loja (API da Meta). Quando estiver ligado, estas mesmas regras passam a sair sozinhas.
+            </p>
           </div>
         </div>
-
-        <aside className="space-y-4">
-          {no ? (
-            <div className="rounded-3xl border border-linha bg-forno p-5">
-              <p className="text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: TIPO[no.tipo].cor }}>
-                {TIPO[no.tipo].rotulo}
-              </p>
-              <label className="mt-2 block text-[13px] text-areia">
-                Título
-                <input value={no.titulo} onChange={(e) => setNo({ titulo: e.target.value })} className="mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2 text-[15px] text-papel" />
-              </label>
-              {no.tipo === "espera" && (
-                <label className="mt-3 block text-[13px] text-areia">
-                  Esperar quantas horas? (0 = melhor horário do cliente)
-                  <input type="number" min={0} value={no.horas ?? 0} onChange={(e) => setNo({ horas: Number(e.target.value), titulo: Number(e.target.value) ? `Esperar ${e.target.value} ${Number(e.target.value) === 1 ? "hora" : "horas"}` : "Esperar o melhor horário" })} className="tabular mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2 text-[15px] text-papel" />
-                </label>
-              )}
-              {no.texto !== undefined && (
-                <label className="mt-3 block text-[13px] text-areia">
-                  Mensagem
-                  <textarea value={no.texto} onChange={(e) => setNo({ texto: e.target.value })} rows={5} className="mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2 text-[15px] leading-relaxed text-papel" />
-                  <span className="mt-1 block text-[12px] text-fumo">Use {"{nome}"}, {"{favorito}"}, {"{cupom}"} e {"{bairro}"}: o Freguês troca pelo dado de cada cliente.</span>
-                </label>
-              )}
-              <button onClick={() => setSel(null)} className="mt-4 w-full rounded-xl bg-papel py-2.5 text-[14px] font-semibold text-carvao">
-                Pronto
-              </button>
-            </div>
-          ) : (
-            <p className="rounded-3xl border border-dashed border-linha p-5 text-[14px] text-areia">Toque em um passo do fluxo para mudar o texto da mensagem ou o tempo de espera.</p>
-          )}
-
-          <div className="rounded-3xl border border-linha bg-forno p-5">
-            <h3 className="font-display text-[18px] font-bold">Últimas execuções</h3>
-            {a.execucoes.length === 0 && <p className="mt-2 text-[14px] text-areia">Ainda não rodou. Ligue a automação ou faça um teste.</p>}
-            <ul className="mt-2 divide-y divide-linha">
-              {a.execucoes.slice(0, 8).map((x) => (
-                <li key={x.id} className="flex items-start justify-between gap-3 py-2.5 text-[14px]">
-                  <span className="min-w-0">
-                    <span className="block truncate font-semibold">{x.cliente}</span>
-                    <span className="block text-[13px] text-areia">{x.nota}</span>
-                  </span>
-                  <span className="shrink-0 text-right">
-                    <span className={`block text-[12px] font-semibold ${x.resultado === "convertido" ? "text-manjericao" : x.resultado === "parou" ? "text-mostarda" : x.resultado === "teste" ? "text-brasa" : "text-areia"}`}>{x.valor ? brl(x.valor) : x.resultado === "teste" ? "teste" : ""}</span>
-                    <span className="text-[12px] text-fumo">{quandoTxt(x.quando)}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <button
-            onClick={() => {
-              crescer.removerAuto(a.id);
-              voltar();
-            }}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-linha py-2.5 text-[14px] text-areia hover:border-tomate hover:text-tomate"
-          >
-            <Trash2 className="h-4 w-4" /> Excluir automação
-          </button>
-        </aside>
       </div>
       <Toast />
     </div>
   );
 }
 
-export function Automacoes() {
-  const autos = useCrescer((s) => s.automacoes);
-  const [aberta, setAberta] = useState<string | null>(null);
-  const [filtro, setFiltro] = useState<"todas" | Automacao["estado"]>("todas");
-  const [modelos, setModelos] = useState(false);
-  const a = autos.find((x) => x.id === aberta);
-  if (a) return <Editor a={a} voltar={() => setAberta(null)} />;
-
-  const receita = autos.reduce((s, x) => s + x.receita, 0);
-  const ativas = autos.filter((x) => x.estado === "ativa").length;
-  const lista = autos.filter((x) => filtro === "todas" || x.estado === filtro);
-
+function LinhaFila({ i, regra, loja, marcar }: { i: ItemFila; regra: Regra; loja: string; marcar: (i: ItemFila, pulou: boolean) => Promise<void> }) {
+  const texto = montarTexto(regra.texto, i, loja);
+  const tel = i.telefone.replace(/\D/g, "");
   return (
-    <div>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Automações</h1>
-          <p className="max-w-[620px] text-[15px] text-areia">O Freguês trabalha sozinho: quando algo acontece, ele manda a mensagem certa, na hora certa, para o cliente certo.</p>
-        </div>
-        <button onClick={() => setModelos(true)} className="flex items-center gap-2 rounded-full bg-brasa px-5 py-3 text-[15px] font-semibold text-carvao hover:bg-mostarda">
-          <Plus className="h-4 w-4" /> Nova automação
+    <li className="flex items-center justify-between gap-3 rounded-2xl bg-grafite px-4 py-3">
+      <div className="min-w-0">
+        <p className="truncate font-semibold">{i.nome}</p>
+        <p className="truncate text-[13px] text-areia">{i.detalhe}</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        <button onClick={() => marcar(i, true)} title="Pular (não mandar)" aria-label={`Pular ${i.nome}`} className="rounded-full p-2 text-areia hover:bg-carvao hover:text-papel">
+          <SkipForward className="h-4 w-4" />
         </button>
+        <a
+          href={`https://wa.me/55${tel}?text=${encodeURIComponent(texto)}`}
+          target="_blank"
+          rel="noreferrer"
+          onClick={() => marcar(i, false)}
+          className="flex items-center gap-1.5 rounded-full bg-[#25d366] px-3 py-1.5 text-[13px] font-semibold text-[#08301a]"
+        >
+          <MessageCircle className="h-4 w-4" /> Enviar
+        </a>
       </div>
+    </li>
+  );
+}
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-3xl bg-[#fde9df] p-5">
-          <p className="text-[14px] text-[#9a3412]">Vendas que as automações trouxeram em 30 dias</p>
-          <p className="tabular mt-1 font-display text-[34px] font-extrabold text-brasa">{brl(receita)}</p>
+function CartaoRegra({
+  r,
+  res,
+  salvar,
+  avisar,
+  loja,
+}: {
+  r: Regra;
+  res: { enviadas: number; voltaram: number; receita: number };
+  salvar: (t: TipoAuto, c: Partial<Regra>) => Promise<string | null>;
+  avisar: (t: string) => void;
+  loja: string;
+}) {
+  const info = INFO[r.tipo];
+  const [texto, setTexto] = useState(r.texto);
+  const [aberto, setAberto] = useState(false);
+  useEffect(() => setTexto(r.texto), [r.texto]);
+  return (
+    <section className={`rounded-3xl border bg-forno p-5 ${r.ligada ? "border-manjericao/50" : "border-linha"}`}>
+      <div className="flex items-start gap-3">
+        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${r.ligada ? "bg-manjericao text-carvao" : "bg-grafite text-areia"}`}>{ICONE[r.tipo]}</span>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">{info.nome}</p>
+          <p className="text-[13px] text-areia">{info.quando}</p>
         </div>
-        <div className="rounded-3xl border border-linha bg-forno p-5">
-          <p className="text-[14px] text-areia">Ligadas agora</p>
-          <p className="tabular mt-1 font-display text-[34px] font-extrabold">
-            {ativas} <span className="text-[18px] text-areia">de {autos.length}</span>
+        <Interruptor
+          ligado={r.ligada}
+          rotulo={`Ligar ${info.nome}`}
+          onChange={async (v) => {
+            const e = await salvar(r.tipo, { ligada: v });
+            avisar(e ?? (v ? `${info.nome}: ligada` : `${info.nome}: desligada`));
+          }}
+        />
+      </div>
+      {res.enviadas > 0 && (
+        <p className="mt-3 text-[13px] text-areia">
+          30 dias: <b className="text-papel">{res.enviadas}</b> enviadas · <b className="text-papel">{res.voltaram}</b> pediram em até 7 dias{res.receita ? ` · ${brl(res.receita)}` : ""}
+        </p>
+      )}
+      <button onClick={() => setAberto(!aberto)} className="mt-3 text-[13px] font-semibold text-areia underline">
+        {aberto ? "Fechar" : "Ver e editar a mensagem"}
+      </button>
+      {aberto && (
+        <div className="mt-3 space-y-2 text-[13px] text-areia">
+          <textarea
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            onBlur={async () => {
+              if (texto === r.texto) return;
+              const e = await salvar(r.tipo, { texto });
+              avisar(e ?? "Mensagem salva");
+            }}
+            rows={4}
+            aria-label={`Mensagem: ${info.nome}`}
+            className="w-full rounded-xl border border-linha bg-grafite px-3 py-2 text-[14px] leading-relaxed text-papel"
+          />
+          <p>
+            Preenchidos sozinhos: <code>{"{nome}"}</code> <code>{"{loja}"}</code> <code>{"{favorito}"}</code> <code>{"{link}"}</code>
           </p>
-        </div>
-        <div className="rounded-3xl border border-linha bg-forno p-5">
-          <p className="text-[14px] text-areia">Mensagens enviadas em 30 dias</p>
-          <p className="tabular mt-1 font-display text-[34px] font-extrabold">{autos.reduce((s, x) => s + x.disparos, 0).toLocaleString("pt-BR")}</p>
-        </div>
-      </div>
-
-      <div className="mt-5 flex flex-wrap gap-2">
-        {(["todas", "ativa", "pausada", "rascunho"] as const).map((f) => (
-          <button key={f} onClick={() => setFiltro(f)} aria-pressed={filtro === f} className={`rounded-full px-4 py-2 text-[14px] font-semibold capitalize ${filtro === f ? "bg-papel text-carvao" : "border border-linha text-areia hover:text-papel"}`}>
-            {f === "todas" ? "Todas" : f === "ativa" ? "Ligadas" : f === "pausada" ? "Pausadas" : "Rascunhos"}
-          </button>
-        ))}
-      </div>
-
-      <ul className="mt-4 space-y-3">
-        {lista.map((x) => {
-          const t = TIPO[x.nos[0].tipo];
-          return (
-            <li key={x.id}>
-              <div role="button" tabIndex={0} onClick={() => setAberta(x.id)} onKeyDown={(e) => e.key === "Enter" && setAberta(x.id)} className="flex cursor-pointer flex-wrap items-center gap-4 rounded-3xl border border-linha bg-forno p-4 transition hover:border-areia md:p-5">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-grafite text-brasa">
-                  <Workflow className="h-5 w-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold">{x.nome}</p>
-                  <p className="truncate text-[14px] text-areia">
-                    <span style={{ color: t.cor }}>Quando:</span> {x.nos[0].titulo} · {x.nos.length - 1} passos
-                  </p>
-                </div>
-                <div className="hidden text-right sm:block">
-                  <p className="tabular font-semibold">{x.receita ? brl(x.receita) : `${x.disparos} envios`}</p>
-                  <p className="text-[12px] text-areia">editada {quandoTxt(x.editada)}</p>
-                </div>
-                <span className={`rounded-full px-2.5 py-1 text-[12px] font-semibold capitalize ${ESTADO[x.estado]}`}>{x.estado}</span>
-                <Interruptor ligado={x.estado === "ativa"} rotulo={`Ligar ${x.nome}`} onChange={(v) => crescer.setAuto(x.id, (y) => ({ ...y, estado: v ? "ativa" : "pausada" }))} />
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-
-      {modelos && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={() => setModelos(false)}>
-          <div role="dialog" aria-label="Escolher modelo" className="scroll-thin max-h-[85vh] w-full max-w-[720px] overflow-y-auto rounded-3xl border border-linha bg-forno p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="font-display text-[24px] font-extrabold">Comece por um modelo pronto</h2>
-            <p className="text-[14px] text-areia">Feitos para restaurante. Você ajusta o texto e liga.</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {MODELOS.map((m, i) => (
-                <button
-                  key={m.nome}
-                  onClick={() => {
-                    const id = crescer.novaDeModelo(i);
-                    setModelos(false);
-                    setAberta(id);
-                  }}
-                  className="rounded-2xl border border-linha bg-carvao p-4 text-left transition hover:border-brasa"
-                >
-                  <p className="font-semibold">{m.nome}</p>
-                  <p className="mt-1 text-[13px] leading-relaxed text-areia">{m.descricao}</p>
-                  <div className="mt-3 flex gap-1">
-                    {m.nos.map((n) => (
-                      <span key={n.id} className="grid h-6 w-6 place-items-center rounded-lg text-carvao" style={{ background: TIPO[n.tipo].cor }} title={TIPO[n.tipo].rotulo}>
-                        {TIPO[n.tipo].icone}
-                      </span>
-                    ))}
-                  </div>
-                </button>
-              ))}
-            </div>
+          <p className="rounded-xl rounded-tl-sm bg-[#e4f3ea] p-3 text-[14px] leading-relaxed text-[#1e3a2c]">{montarTexto(texto, { nome: "Maria Silva", favorito: "X-Bacon" }, loja)}</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p>{info.regra}</p>
+            {texto !== INFO[r.tipo].padrao && (
+              <button
+                onClick={async () => {
+                  setTexto(INFO[r.tipo].padrao);
+                  const e = await salvar(r.tipo, { texto: INFO[r.tipo].padrao });
+                  avisar(e ?? "Voltou ao texto padrão");
+                }}
+                className="font-semibold underline"
+              >
+                Voltar ao texto padrão
+              </button>
+            )}
           </div>
+          {r.tipo === "aniversario" && (
+            <label className="flex items-center gap-2">
+              Avisar
+              <input
+                inputMode="numeric"
+                defaultValue={r.dias}
+                onBlur={async (e) => {
+                  const n = Math.max(0, Math.min(15, Number(e.target.value) || 0));
+                  if (n === r.dias) return;
+                  const er = await salvar(r.tipo, { dias: n });
+                  avisar(er ?? `Agora avisa ${n} dias antes`);
+                }}
+                className="w-14 rounded-lg border border-linha bg-grafite px-2 py-1 text-center text-papel"
+              />
+              dias antes do aniversário
+            </label>
+          )}
         </div>
       )}
-    </div>
+    </section>
   );
 }
