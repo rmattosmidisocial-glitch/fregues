@@ -149,6 +149,7 @@ export function EnderecoLoja({ valor, mudar }: { valor: Endereco; mudar: (e: End
                   interactive: false,
                 },
               ]}
+            mover
               pins={ponto ? [{ coord: ponto, kind: "loja" }] : []}
               onPointClick={(c) => {
                 set({ lon: c[0], lat: c[1] });

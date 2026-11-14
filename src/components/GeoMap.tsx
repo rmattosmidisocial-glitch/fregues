@@ -1,5 +1,5 @@
 import { geoCircle, geoMercator, geoPath, type GeoPermissibleObjects } from "d3-geo";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { feature } from "topojson-client";
 import bairrosTopo from "../data/bairros-rj.topo.json";
 import rjMunicipios from "../data/rj-municipios.json";
@@ -97,10 +97,89 @@ type Props = {
   labels?: { coord: [number, number]; text: string; forte?: boolean }[];
   /** Círculos de distância (raio em km) ao redor de um ponto, como "até 5 km do restaurante". */
   circulos?: { centro: [number, number]; raioKm: number; cor: string; rotulo?: string }[];
+  /** Deixa arrastar o mapa (um dedo ou o mouse), dar zoom (pinça, roda do mouse ou botões + e −). */
+  mover?: boolean;
 };
 
-export function GeoMap({ width, height, fitTo, layers, padding = 12, onClick, onHover, pins = [], heat = [], className = "", ariaLabel, onPointClick, labels = [], circulos = [] }: Props) {
+export function GeoMap({ width, height, fitTo, layers, padding = 12, onClick, onHover, pins = [], heat = [], className = "", ariaLabel, onPointClick, labels = [], circulos = [], mover = false }: Props) {
   const [hover, setHover] = useState<string | null>(null);
+  // arrastar e zoom: t = deslocamento (x, y) e escala (k) em coordenadas do desenho
+  const [t, setT] = useState({ x: 0, y: 0, k: 1 });
+  const svgRef = useRef<SVGSVGElement>(null);
+  const toques = useRef(new Map<number, { x: number; y: number }>());
+  const inicio = useRef<{ t: typeof t; dist: number; meio: { x: number; y: number } } | null>(null);
+  const arrastou = useRef(false);
+  const noSvg = (cx: number, cy: number) => {
+    const svg = svgRef.current;
+    const m = svg?.getScreenCTM();
+    if (!svg || !m) return { x: 0, y: 0 };
+    const pt = svg.createSVGPoint();
+    pt.x = cx;
+    pt.y = cy;
+    const p = pt.matrixTransform(m.inverse());
+    return { x: p.x, y: p.y };
+  };
+  const limitar = (k: number) => Math.min(12, Math.max(1, k));
+  const zoomEm = (fator: number, c = { x: width / 2, y: height / 2 }) =>
+    setT((o) => {
+      const k = limitar(o.k * fator);
+      return { k, x: c.x - ((c.x - o.x) * k) / o.k, y: c.y - ((c.y - o.y) * k) / o.k };
+    });
+  const estado = () => {
+    const ps = [...toques.current.values()];
+    const meio = { x: ps.reduce((s, p) => s + p.x, 0) / ps.length, y: ps.reduce((s, p) => s + p.y, 0) / ps.length };
+    const dist = ps.length > 1 ? Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y) : 0;
+    return { meio, dist };
+  };
+  // zoom com a roda do mouse segurando Ctrl, ou pinça no trackpad (sem isso a roda rola a página normalmente)
+  React.useEffect(() => {
+    const svg = svgRef.current;
+    if (!mover || !svg) return;
+    const roda = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const c = noSvg(e.clientX, e.clientY);
+      zoomEm(e.deltaY < 0 ? 1.15 : 1 / 1.15, c);
+    };
+    svg.addEventListener("wheel", roda, { passive: false });
+    return () => svg.removeEventListener("wheel", roda);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mover]);
+  const eventosMover = mover
+    ? {
+        onPointerDown: (e: React.PointerEvent<SVGSVGElement>) => {
+          if (e.button !== 0 && e.pointerType === "mouse") return;
+          toques.current.set(e.pointerId, noSvg(e.clientX, e.clientY));
+          if (toques.current.size === 1) arrastou.current = false;
+          const { meio, dist } = estado();
+          inicio.current = { t, dist, meio };
+        },
+        onPointerMove: (e: React.PointerEvent<SVGSVGElement>) => {
+          if (!toques.current.has(e.pointerId) || !inicio.current) return;
+          toques.current.set(e.pointerId, noSvg(e.clientX, e.clientY));
+          const { meio, dist } = estado();
+          const i = inicio.current;
+          const k = i.dist && dist ? limitar((i.t.k * dist) / i.dist) : i.t.k;
+          const x = meio.x - ((i.meio.x - i.t.x) * k) / i.t.k;
+          const y = meio.y - ((i.meio.y - i.t.y) * k) / i.t.k;
+          if (!arrastou.current && Math.hypot(meio.x - i.meio.x, meio.y - i.meio.y) < 4 && Math.abs(k - i.t.k) < 0.01) return;
+          if (!arrastou.current) e.currentTarget.setPointerCapture(e.pointerId);
+          arrastou.current = true;
+          setT({ k, x, y });
+        },
+        onPointerUp: (e: React.PointerEvent<SVGSVGElement>) => {
+          toques.current.delete(e.pointerId);
+          if (toques.current.size) {
+            const { meio, dist } = estado();
+            inicio.current = { t, dist, meio };
+          } else inicio.current = null;
+        },
+        onPointerCancel: (e: React.PointerEvent<SVGSVGElement>) => {
+          toques.current.delete(e.pointerId);
+          if (!toques.current.size) inicio.current = null;
+        },
+      }
+    : {};
   const { path, projection } = useMemo(() => {
     const projection = geoMercator().fitExtent(
       [
@@ -117,10 +196,13 @@ export function GeoMap({ width, height, fitTo, layers, padding = 12, onClick, on
     [layers, path],
   );
 
-  return (
+  const desenho = (
     <svg
+      ref={svgRef}
+      {...eventosMover}
       viewBox={`0 0 ${width} ${height}`}
       className={className}
+      style={mover ? { touchAction: "none", cursor: "grab", userSelect: "none", WebkitUserSelect: "none" } : undefined}
       role="img"
       aria-label={ariaLabel}
       onClick={
@@ -133,7 +215,8 @@ export function GeoMap({ width, height, fitTo, layers, padding = 12, onClick, on
               const m = svg.getScreenCTM();
               if (!m) return;
               const p = pt.matrixTransform(m.inverse());
-              const c = projection.invert?.([p.x, p.y]);
+              if (arrastou.current) return;
+              const c = projection.invert?.([(p.x - t.x) / t.k, (p.y - t.y) / t.k]);
               if (c) onPointClick(c as [number, number]);
             }
           : undefined
@@ -145,6 +228,7 @@ export function GeoMap({ width, height, fitTo, layers, padding = 12, onClick, on
           <stop offset="1" stopColor="#ff5b1f" stopOpacity="0" />
         </radialGradient>
       </defs>
+      <g transform={`translate(${t.x} ${t.y}) scale(${t.k})`}>
       {paths.map((l) => (
         <g key={l.id} className={l.className} style={l.style}>
           {l.d.map(({ f, d }) => {
@@ -159,6 +243,7 @@ export function GeoMap({ width, height, fitTo, layers, padding = 12, onClick, on
                 stroke={l.stroke ? l.stroke(f) : "#17110e"}
                 strokeWidth={l.strokeWidth ?? 0.6}
                 strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
                 style={{ cursor: l.interactive ? "pointer" : "default", transition: "fill 180ms ease" }}
                 onMouseEnter={
                   l.interactive
@@ -176,7 +261,7 @@ export function GeoMap({ width, height, fitTo, layers, padding = 12, onClick, on
                       }
                     : undefined
                 }
-                onClick={l.interactive ? () => onClick?.(f, l.id) : undefined}
+                onClick={l.interactive ? () => !arrastou.current && onClick?.(f, l.id) : undefined}
               >
                 <title>{f.properties.nome}</title>
               </path>
@@ -190,9 +275,9 @@ export function GeoMap({ width, height, fitTo, layers, padding = 12, onClick, on
         const topo = projection([c.centro[0], c.centro[1] + c.raioKm / 111.195]);
         return (
           <g key={"c" + i} style={{ pointerEvents: "none" }}>
-            <path d={d} fill={c.cor} fillOpacity={0.08} stroke={c.cor} strokeWidth={2} strokeDasharray="6 4" />
+            <path d={d} fill={c.cor} fillOpacity={0.08} stroke={c.cor} strokeWidth={2} strokeDasharray="6 4" vectorEffect="non-scaling-stroke" />
             {c.rotulo && topo && (
-              <text x={topo[0]} y={topo[1] - 6} textAnchor="middle" fontSize={12} fontWeight={700} fontFamily="Instrument Sans, sans-serif" fill={c.cor} stroke="#17110e" strokeWidth={3} paintOrder="stroke">
+              <text x={topo[0]} y={topo[1] - 6 / t.k} textAnchor="middle" fontSize={12 / t.k} strokeWidth={3 / t.k} fontWeight={700} fontFamily="Instrument Sans, sans-serif" fill={c.cor} stroke="#17110e" paintOrder="stroke">
                 {c.rotulo}
               </text>
             )}
@@ -202,7 +287,7 @@ export function GeoMap({ width, height, fitTo, layers, padding = 12, onClick, on
       {heat.map((h, i) => {
         const p = projection(h.coord);
         if (!p) return null;
-        return <circle key={i} cx={p[0]} cy={p[1]} r={6 + h.w * 10} fill="url(#heat)" style={{ pointerEvents: "none" }} />;
+        return <circle key={i} cx={p[0]} cy={p[1]} r={(6 + h.w * 10) / t.k} fill="url(#heat)" style={{ pointerEvents: "none" }} />;
       })}
       {labels.map((l, i) => {
         const p = projection(l.coord);
@@ -214,12 +299,12 @@ export function GeoMap({ width, height, fitTo, layers, padding = 12, onClick, on
             y={p[1]}
             textAnchor="middle"
             dominantBaseline="central"
-            fontSize={l.forte ? 13 : 11}
+            fontSize={(l.forte ? 13 : 11) / t.k}
             fontWeight={l.forte ? 700 : 500}
             fontFamily="Instrument Sans, sans-serif"
             fill={l.forte ? "#17110e" : "#c9b8a6"}
             stroke={l.forte ? "none" : "#17110e"}
-            strokeWidth={3}
+            strokeWidth={3 / t.k}
             paintOrder="stroke"
             style={{ pointerEvents: "none" }}
           >
@@ -231,7 +316,7 @@ export function GeoMap({ width, height, fitTo, layers, padding = 12, onClick, on
         const p = projection(pin.coord);
         if (!p) return null;
         return (
-          <g key={i} transform={`translate(${p[0]} ${p[1]})`} style={{ pointerEvents: "none" }}>
+          <g key={i} transform={`translate(${p[0]} ${p[1]}) scale(${1 / t.k})`} style={{ pointerEvents: "none" }}>
             {pin.kind === "loja" ? (
               <>
                 <circle r="13" fill="#ff5b1f" opacity="0.25">
@@ -253,7 +338,28 @@ export function GeoMap({ width, height, fitTo, layers, padding = 12, onClick, on
           </g>
         );
       })}
+      </g>
     </svg>
+  );
+  if (!mover) return desenho;
+  const btn = "grid h-9 w-9 place-items-center rounded-full border border-white/15 bg-[#17110e]/85 text-[18px] font-bold leading-none text-[#fff6e9] backdrop-blur hover:bg-[#2a201a]";
+  return (
+    <div className="relative">
+      {desenho}
+      <div className="absolute right-3 top-1/2 flex -translate-y-1/2 flex-col gap-1.5" onPointerDown={(e) => e.stopPropagation()}>
+        <button type="button" aria-label="Aproximar" onClick={() => zoomEm(1.5)} className={btn}>
+          +
+        </button>
+        <button type="button" aria-label="Afastar" onClick={() => zoomEm(1 / 1.5)} className={btn}>
+          −
+        </button>
+        {(t.k !== 1 || t.x !== 0 || t.y !== 0) && (
+          <button type="button" aria-label="Voltar ao mapa inteiro" title="Voltar" onClick={() => setT({ x: 0, y: 0, k: 1 })} className={btn + " text-[13px]"}>
+            ⤢
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 

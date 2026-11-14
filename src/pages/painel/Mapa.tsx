@@ -241,6 +241,7 @@ export function MapaAtuacao() {
             layers={layers}
             heat={mun && calor ? heat : []}
             pins={[{ coord: LOJA.coord, kind: "loja" }]}
+            mover
             circulos={mun ? zonas.filter((z) => z.raioKm).map((z) => ({ centro: LOJA.coord, raioKm: z.raioKm!, cor: z.cor, rotulo: `${km(z.raioKm!)} km` })) : []}
             onClick={(f, layerId) => {
               if (layerId === "mun") abrirMun(f.properties.nome);
