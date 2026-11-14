@@ -24,6 +24,7 @@ import { Copiloto } from "./Copiloto";
 import { MinhaConta, PrimeiraSenha } from "./MinhaConta";
 import { LinkDaLoja } from "./LinkDaLoja";
 import { Configuracoes } from "./Configuracoes";
+import { AceiteTermos, VERSAO_TERMOS } from "../publico/Legal";
 
 type Item = { rota: Rota; rotulo: string; curto: string; icone: React.ReactNode; grupo: "Operação" | "Crescer" | "Loja" };
 const ITENS: Item[] = [
@@ -44,14 +45,25 @@ const ITENS: Item[] = [
 export function PainelLayout({ rota }: { rota: Rota }) {
   const [copiloto, setCopiloto] = useState(false);
   const [conta, setConta] = useState(false);
+  const d = useDados();
   const [suporte, setSuporte] = useState("21967640607");
+  // aceite dos termos: null = ainda conferindo
+  const [aceitou, setAceitou] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!supabase || !d.sessao) return;
+    supabase
+      .from("termos_aceites")
+      .select("versao")
+      .eq("versao", VERSAO_TERMOS)
+      .maybeSingle()
+      .then(({ data, error }) => setAceitou(error ? true : !!data));
+  }, [d.sessao]);
   useEffect(() => {
     supabase?.rpc("config_publica").then(({ data }) => {
       const w = (data as { whatsapp: string }[] | null)?.[0]?.whatsapp;
       if (w) setSuporte(w.replace(/\D/g, ""));
     });
   }, []);
-  const d = useDados();
   const [assin, setAssin] = useState<{ status: string; plano_nome: string; teste_ate: string | null; proximo_vencimento: string | null; valor: number } | null>(null);
   useEffect(() => {
     if (!supabase || !d.sessao) return;
@@ -67,6 +79,17 @@ export function PainelLayout({ rota }: { rota: Rota }) {
   if (d.modo === "real" && d.carregando) return <div className="tema-claro grid min-h-screen place-items-center bg-carvao text-areia">Abrindo o painel…</div>;
   if (d.modo === "real" && !d.sessao) return <Login />;
   if (d.modo === "real" && d.sessao?.user.user_metadata?.trocar_senha) return <PrimeiraSenha />;
+  if (d.modo === "real" && d.sessao && aceitou === false)
+    return (
+      <AceiteTermos
+        aceitar={async () => {
+          const { error } = await supabase!.from("termos_aceites").insert({ versao: VERSAO_TERMOS });
+          if (error && !/duplicate/i.test(error.message)) return error.message;
+          setAceitou(true);
+          return null;
+        }}
+      />
+    );
   if (d.modo === "real" && d.sessao && d.semAcesso)
     return (
       <div className="grid min-h-screen place-items-center bg-carvao p-4">

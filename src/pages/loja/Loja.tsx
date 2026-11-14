@@ -181,7 +181,7 @@ export function Loja() {
   const [erroEnd, setErroEnd] = useState("");
   const [nome, setNome] = useState("");
   const [tel, setTel] = useState("");
-  const [aceita, setAceita] = useState(true);
+  const [aceita, setAceita] = useState(false); // LGPD: o cliente escolhe, não vem marcado
   const [saldo, setSaldo] = useState(0);
   // Pix só aparece quando a loja cadastrou a chave dela (na demonstração, sempre)
   const pixPronto = d.modo === "demo" || !!(LOJA.pix_chave && tipoChave(LOJA.pix_chave));
@@ -677,6 +677,13 @@ export function Loja() {
                       <input type="checkbox" checked={aceita} onChange={() => setAceita(!aceita)} className="mt-0.5 h-5 w-5 accent-[#c2410c]" />
                       Quero receber novidades e cupons da {LOJA.nome} no WhatsApp. Posso sair quando quiser.
                     </label>
+                    <p className="text-[12px] text-[#6b5546]">
+                      Seus dados são usados para entregar o pedido. Veja a{" "}
+                      <a href="#privacidade" target="_blank" rel="noreferrer" className="underline">
+                        política de privacidade
+                      </a>
+                      .
+                    </p>
                   </div>
                   {saldo > 0 && (
                     <label className="flex items-center justify-between rounded-2xl border border-[#eadccb] p-4">
