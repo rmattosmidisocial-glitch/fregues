@@ -27,6 +27,8 @@ export type Zona = {
   tempo: [number, number];
   minimo: number;
   gratisAcima?: number;
+  /** Distância máxima do restaurante, em km (linha reta). Vazio = sem limite de distância. */
+  raioKm?: number;
   cor: string;
   bairros: string[]; // ids IBGE dos bairros
   municipios?: string[]; // códigos IBGE de municípios atendidos inteiros

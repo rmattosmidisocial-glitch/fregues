@@ -1,4 +1,4 @@
-import { geoMercator, geoPath, type GeoPermissibleObjects } from "d3-geo";
+import { geoCircle, geoMercator, geoPath, type GeoPermissibleObjects } from "d3-geo";
 import React, { useMemo, useState } from "react";
 import { feature } from "topojson-client";
 import bairrosTopo from "../data/bairros-rj.topo.json";
@@ -95,9 +95,11 @@ type Props = {
   ariaLabel: string;
   onPointClick?: (coord: [number, number]) => void;
   labels?: { coord: [number, number]; text: string; forte?: boolean }[];
+  /** Círculos de distância (raio em km) ao redor de um ponto, como "até 5 km do restaurante". */
+  circulos?: { centro: [number, number]; raioKm: number; cor: string; rotulo?: string }[];
 };
 
-export function GeoMap({ width, height, fitTo, layers, padding = 12, onClick, onHover, pins = [], heat = [], className = "", ariaLabel, onPointClick, labels = [] }: Props) {
+export function GeoMap({ width, height, fitTo, layers, padding = 12, onClick, onHover, pins = [], heat = [], className = "", ariaLabel, onPointClick, labels = [], circulos = [] }: Props) {
   const [hover, setHover] = useState<string | null>(null);
   const { path, projection } = useMemo(() => {
     const projection = geoMercator().fitExtent(
@@ -182,6 +184,21 @@ export function GeoMap({ width, height, fitTo, layers, padding = 12, onClick, on
           })}
         </g>
       ))}
+      {circulos.map((c, i) => {
+        const g = geoCircle().center(c.centro).radius(c.raioKm / 111.195).precision(2)();
+        const d = path(g as unknown as GeoPermissibleObjects) ?? "";
+        const topo = projection([c.centro[0], c.centro[1] + c.raioKm / 111.195]);
+        return (
+          <g key={"c" + i} style={{ pointerEvents: "none" }}>
+            <path d={d} fill={c.cor} fillOpacity={0.08} stroke={c.cor} strokeWidth={2} strokeDasharray="6 4" />
+            {c.rotulo && topo && (
+              <text x={topo[0]} y={topo[1] - 6} textAnchor="middle" fontSize={12} fontWeight={700} fontFamily="Instrument Sans, sans-serif" fill={c.cor} stroke="#17110e" strokeWidth={3} paintOrder="stroke">
+                {c.rotulo}
+              </text>
+            )}
+          </g>
+        );
+      })}
       {heat.map((h, i) => {
         const p = projection(h.coord);
         if (!p) return null;
@@ -261,4 +278,12 @@ export function centroide(f: Feature): [number, number] {
     y += c[1];
   }
   return [x / ring.length, y / ring.length];
+}
+
+/** Distância em linha reta entre dois pontos [lon, lat], em km. */
+export function distanciaKm(a: [number, number], b: [number, number]) {
+  const R = 6371, rad = Math.PI / 180;
+  const dLat = (b[1] - a[1]) * rad, dLon = (b[0] - a[0]) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[1] * rad) * Math.cos(b[1] * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
 }

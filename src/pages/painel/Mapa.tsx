@@ -8,6 +8,7 @@ import {
   GeoMap,
   bairrosDoMunicipio,
   centroide,
+  distanciaKm,
   nomeBairro,
   vizinhos,
   type Feature,
@@ -40,6 +41,15 @@ export function MapaAtuacao() {
   const { show, Toast } = useToast();
 
   const zonaDoBairro = (id: string) => zonas.find((z) => z.bairros.includes(id));
+  // distância em linha reta do restaurante até o centro do bairro
+  const distBairro = (f: Feature) => distanciaKm(LOJA.coord, centroide(f));
+  // zona que já cobre o bairro só pela distância (zonas com raio em km)
+  const zonaPorRaio = (f: Feature) =>
+    zonas
+      .filter((z) => z.raioKm && distBairro(f) <= z.raioKm)
+      .sort((a, b) => (a.raioKm ?? 0) - (b.raioKm ?? 0))[0];
+  const foraDoRaio = (z: Zona, f: Feature) => !!z.raioKm && distBairro(f) > z.raioKm;
+  const km = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
   const zonaDoMun = (nome: string) => zonas.find((z) => z.municipios?.includes(COD_MUN[nome]));
   const ativos = zonas.reduce((s, z) => s + z.bairros.length, 0);
   const munInteiros = zonas.reduce((s, z) => s + (z.municipios?.length ?? 0), 0);
@@ -123,12 +133,12 @@ export function MapaAtuacao() {
         features: doMun,
         interactive: true,
         fill: (f, h) => {
-          const z = zonaDoBairro(f.properties.id);
+          const z = zonaDoBairro(f.properties.id) ?? zonaPorRaio(f);
           if (z) return z.cor;
           if (demanda && DEMANDA[f.properties.id]) return h ? "#5a4320" : "#3b2c17";
           return h ? "#3d2f27" : "#2a201a";
         },
-        opacity: (f) => (zonaDoBairro(f.properties.id) ? 0.92 : 1),
+        opacity: (f) => (zonaDoBairro(f.properties.id) ? 0.92 : zonaPorRaio(f) ? 0.5 : 1),
         stroke: (f) =>
           sel?.properties.id === f.properties.id ? "#fff6e9" : demanda && DEMANDA[f.properties.id] && !zonaDoBairro(f.properties.id) ? "#ffc03a" : "#17110e",
         strokeWidth: 1,
@@ -145,6 +155,11 @@ export function MapaAtuacao() {
   }
 
   function moverBairro(f: Feature, destino: string | null) {
+    const zd = zonas.find((z) => z.id === destino);
+    if (zd && foraDoRaio(zd, f)) {
+      show(`${f.properties.nome} fica a ${km(distBairro(f))} km do restaurante: passa do limite de ${km(zd.raioKm!)} km da zona ${zd.nome}`);
+      return;
+    }
     d.acoes.moverBairro(f.properties.id, destino);
     const nome = f.properties.nome;
     if (destino) {
@@ -156,7 +171,8 @@ export function MapaAtuacao() {
   function atenderTodos(destino: string | null) {
     for (const b of doMun) {
       const atual = zonaDoBairro(b.properties.id);
-      if (destino && !atual) d.acoes.moverBairro(b.properties.id, destino);
+      const zd = zonas.find((z) => z.id === destino);
+      if (destino && !atual && !(zd && foraDoRaio(zd, b))) d.acoes.moverBairro(b.properties.id, destino);
       if (!destino && atual) d.acoes.moverBairro(b.properties.id, null);
     }
     show(destino ? `Todos os bairros de ${mun} entraram na zona ${zonas.find((z) => z.id === destino)?.nome}` : `Bairros de ${mun} removidos`);
@@ -225,6 +241,7 @@ export function MapaAtuacao() {
             layers={layers}
             heat={mun && calor ? heat : []}
             pins={[{ coord: LOJA.coord, kind: "loja" }]}
+            circulos={mun ? zonas.filter((z) => z.raioKm).map((z) => ({ centro: LOJA.coord, raioKm: z.raioKm!, cor: z.cor, rotulo: `${km(z.raioKm!)} km` })) : []}
             onClick={(f, layerId) => {
               if (layerId === "mun") abrirMun(f.properties.nome);
               else setSel(f);
@@ -343,6 +360,7 @@ export function MapaAtuacao() {
                 </button>
               </div>
               <h2 className="font-display text-[26px] font-extrabold leading-tight">{sel.properties.nome}</h2>
+              <p className="mt-0.5 text-[13px] text-areia">A {km(distBairro(sel))} km do restaurante (em linha reta)</p>
               {selZona ? (
                 <>
                   <p className="mt-1 text-[14px] text-areia">
@@ -353,8 +371,9 @@ export function MapaAtuacao() {
                     {zonas
                       .filter((z) => z.id !== selZona.id)
                       .map((z) => (
-                        <button key={z.id} onClick={() => moverBairro(sel, z.id)} className="flex items-center gap-2 rounded-full border border-linha px-3 py-1.5 text-[13px] font-semibold hover:border-areia">
+                        <button key={z.id} disabled={foraDoRaio(z, sel)} onClick={() => moverBairro(sel, z.id)} className="flex items-center gap-2 rounded-full border border-linha px-3 py-1.5 text-[13px] font-semibold hover:border-areia disabled:opacity-40">
                           <span className="h-2.5 w-2.5 rounded-full" style={{ background: z.cor }} /> {z.nome}
+                          {foraDoRaio(z, sel) && <span className="font-normal">· passa de {km(z.raioKm!)} km</span>}
                         </button>
                       ))}
                   </div>
@@ -365,7 +384,13 @@ export function MapaAtuacao() {
                 </>
               ) : (
                 <>
-                  <p className="mt-1 text-[14px] text-areia">Fora da área de entrega.</p>
+                  {zonaPorRaio(sel) ? (
+                    <p className="mt-1 text-[14px] text-areia">
+                      Já entrega aqui pela distância: zona <b className="text-papel">{zonaPorRaio(sel)!.nome}</b> (até {km(zonaPorRaio(sel)!.raioKm!)} km).
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[14px] text-areia">Fora da área de entrega.</p>
+                  )}
                   {DEMANDA[sel.properties.id] && (
                     <p className="mt-3 rounded-xl border border-dashed border-mostarda/60 p-3 text-[14px]">
                       <b className="text-mostarda">{DEMANDA[sel.properties.id]} {DEMANDA[sel.properties.id] === 1 ? "pessoa tentou" : "pessoas tentaram"}</b> pedir daqui nos últimos 30 dias. Ao ativar, você avisa cada uma no WhatsApp com um toque.
@@ -374,8 +399,9 @@ export function MapaAtuacao() {
                   <p className="mt-4 text-[13px] text-areia">Entregar aqui na zona</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {zonas.map((z) => (
-                      <button key={z.id} onClick={() => moverBairro(sel, z.id)} className="flex items-center gap-2 rounded-full bg-papel px-3 py-1.5 text-[13px] font-semibold text-carvao hover:bg-mostarda">
+                      <button key={z.id} disabled={foraDoRaio(z, sel)} onClick={() => moverBairro(sel, z.id)} className="flex items-center gap-2 rounded-full bg-papel px-3 py-1.5 text-[13px] font-semibold text-carvao hover:bg-mostarda disabled:opacity-40">
                         <span className="h-2.5 w-2.5 rounded-full" style={{ background: z.cor }} /> {z.nome}
+                        {foraDoRaio(z, sel) && <span className="font-normal">· passa de {km(z.raioKm!)} km</span>}
                       </button>
                     ))}
                   </div>
@@ -451,6 +477,7 @@ function ZonaCard({ id, avisar, setErro }: { id: string; avisar: (t: string) => 
     t1: String(z.tempo[1]),
     minimo: dec(z.minimo),
     gratis: z.gratisAcima != null ? dec(z.gratisAcima) : "",
+    raio: z.raioKm != null ? String(z.raioKm).replace(".", ",") : "",
   });
   const [apagar, setApagar] = useState(false);
   const qtd = z.bairros.length + (z.municipios?.length ?? 0);
@@ -461,6 +488,10 @@ function ZonaCard({ id, avisar, setErro }: { id: string; avisar: (t: string) => 
     if (campo === "nome") {
       if (v.trim() === z.nome) return;
       c = { nome: v };
+    } else if (campo === "raio") {
+      const n = num(v);
+      if (v.trim() !== "" && (!Number.isFinite(n) || n <= 0)) return setErro("Raio inválido: use km (ex.: 5 ou 7,5).");
+      c = { raioKm: v.trim() === "" ? null : n };
     } else if (campo === "gratis") {
       const n = num(v);
       c = { gratisAcima: v.trim() === "" ? null : Number.isFinite(n) ? n : undefined };
@@ -496,6 +527,10 @@ function ZonaCard({ id, avisar, setErro }: { id: string; avisar: (t: string) => 
         {inp("gratis", "Grátis acima", { ph: "—" })}
         {inp("t0", "Tempo de (min)")}
         {inp("t1", "até (min)")}
+        {inp("raio", "Até (km)", { ph: "sem limite" })}
+        <div className="col-span-3 -mt-1 text-[11px] leading-snug">
+          {z.raioKm ? `Entrega em tudo até ${z.raioKm.toLocaleString("pt-BR")} km do restaurante (linha reta). Bairro mais longe não entra nesta zona.` : "Sem limite de km: vale só para os bairros que você pintar no mapa."}
+        </div>
         <div className="flex items-end justify-end">
           {apagar ? (
             <span className="flex flex-col items-end gap-1 text-[12px]">

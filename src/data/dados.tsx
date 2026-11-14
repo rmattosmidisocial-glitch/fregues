@@ -51,7 +51,7 @@ export type NovoPedido = {
   avisar_quando_atender?: boolean;
 };
 export type NovoFregues = { nome: string; telefone: string; aniversario?: string; tags?: string[]; obs?: string; aceitaMarketing?: boolean };
-export type ZonaCampos = Partial<{ nome: string; cor: string; taxa: number; tempoMin: number; tempoMax: number; minimo: number; gratisAcima: number | null }>;
+export type ZonaCampos = Partial<{ nome: string; cor: string; taxa: number; tempoMin: number; tempoMax: number; minimo: number; gratisAcima: number | null; raioKm: number | null }>;
 export type Lead = { id: string; telefone: string; nome: string | null; quando: string; avisadoEm: string | null };
 
 export type ProdutoEdit = {
@@ -216,6 +216,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         tempo: [z.tempo_min, z.tempo_max] as [number, number],
         minimo: Number(z.pedido_minimo),
         gratisAcima: z.gratis_acima ? Number(z.gratis_acima) : undefined,
+        raioKm: z.raio_km != null ? Number(z.raio_km) : undefined,
         bairros: (zb ?? []).filter((x) => x.zone_id === z.id).map((x) => x.bairro_id as string),
         municipios: (zm ?? []).filter((x) => x.zone_id === z.id).map((x) => x.municipio_cod as string),
       })),
@@ -553,6 +554,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
                   ...(c.taxa !== undefined ? { taxa: c.taxa } : {}),
                   ...(c.minimo !== undefined ? { minimo: c.minimo } : {}),
                   ...(c.gratisAcima !== undefined ? { gratisAcima: c.gratisAcima ?? undefined } : {}),
+                  ...(c.raioKm !== undefined ? { raioKm: c.raioKm ?? undefined } : {}),
                   tempo: [c.tempoMin ?? z.tempo[0], c.tempoMax ?? z.tempo[1]] as [number, number],
                 },
           ),
@@ -565,6 +567,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         if (c.minimo !== undefined) col.pedido_minimo = c.minimo;
         if (c.tempoMin !== undefined) col.tempo_min = c.tempoMin;
         if (c.tempoMax !== undefined) col.tempo_max = c.tempoMax;
+        if (c.raioKm !== undefined) col.raio_km = c.raioKm;
         if (c.gratisAcima !== undefined) col.gratis_acima = c.gratisAcima;
         const { error } = await supabase.from("delivery_zones").update(col).eq("id", id);
         return error ? error.message : null;
@@ -574,11 +577,13 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         if (!n) return "Dê um nome à zona";
         if (zonas.some((z) => z.nome.toLowerCase() === n.toLowerCase())) return "Já existe uma zona com esse nome";
         if (!supabase) {
-          setZonas((zs) => [...zs, { id: "z" + Date.now(), nome: n, cor, taxa: 0, tempo: [30, 45], minimo: 0, bairros: [], municipios: [] }]);
+          const km = n.match(/(\d+(?:[.,]\d+)?)\s*km/i);
+          setZonas((zs) => [...zs, { id: "z" + Date.now(), nome: n, cor, taxa: 0, tempo: [30, 45], minimo: 0, raioKm: km ? Number(km[1].replace(",", ".")) : undefined, bairros: [], municipios: [] }]);
           return null;
         }
         if (!loja.id) return "Loja não carregada";
-        const { error } = await supabase.from("delivery_zones").insert({ store_id: loja.id, nome: n, cor, taxa: 0, tempo_min: 30, tempo_max: 45, pedido_minimo: 0, ordem: zonas.length });
+        const km = n.match(/(\d+(?:[.,]\d+)?)\s*km/i);
+        const { error } = await supabase.from("delivery_zones").insert({ store_id: loja.id, nome: n, cor, taxa: 0, tempo_min: 30, tempo_max: 45, pedido_minimo: 0, ordem: zonas.length, raio_km: km ? Number(km[1].replace(",", ".")) : null });
         if (error) return error.message;
         await recarregar();
         return null;
