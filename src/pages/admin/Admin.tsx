@@ -291,6 +291,7 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
           <div className="min-w-0">
             <Pill s={c.status} />
             <h2 className="mt-2 font-display text-[28px] font-extrabold leading-tight">{c.loja}</h2>
+            {c.demo && <p className="mt-1 rounded-xl bg-[#e6eefb] px-3 py-2 text-[13px] font-semibold text-[#1d4f91]">Loja de demonstração: fica no ar para mostrar a quem vai comprar e não entra no seu faturamento.</p>}
             <p className="text-[14px] text-areia">
               {c.empresa} · {c.bairro || "sem bairro"}
             </p>
@@ -485,11 +486,11 @@ export function Admin() {
     );
   const v = a.visao;
   const c = a.clientes.find((x) => x.org_id === sel);
-  const testesVencendo = a.clientes.filter((x) => x.status === "teste" && (diasAte(x.teste_ate) ?? 99) <= 5);
-  const atrasados = a.clientes.filter((x) => x.status === "atrasada");
-  const parados = a.clientes.filter((x) => x.status === "ativa" && x.ultimo_pedido && Date.now() - new Date(x.ultimo_pedido).getTime() > 7 * 86400000);
+  const testesVencendo = a.clientes.filter((x) => !x.demo && x.status === "teste" && (diasAte(x.teste_ate) ?? 99) <= 5);
+  const atrasados = a.clientes.filter((x) => !x.demo && x.status === "atrasada");
+  const parados = a.clientes.filter((x) => !x.demo && x.status === "ativa" && x.ultimo_pedido && Date.now() - new Date(x.ultimo_pedido).getTime() > 7 * 86400000);
   const ticketMedio = v.clientes_ativos + v.atrasados ? v.mrr / (v.clientes_ativos + v.atrasados) : 0;
-  const porPlano = a.planos.map((p) => ({ p, n: a.clientes.filter((x) => x.plano === p.id && x.status !== "cancelada").length, mrr: a.clientes.filter((x) => x.plano === p.id && (x.status === "ativa" || x.status === "atrasada")).reduce((s, x) => s + x.valor, 0) }));
+  const porPlano = a.planos.map((p) => ({ p, n: a.clientes.filter((x) => !x.demo && x.plano === p.id && x.status !== "cancelada").length, mrr: a.clientes.filter((x) => !x.demo && x.plano === p.id && (x.status === "ativa" || x.status === "atrasada")).reduce((s, x) => s + x.valor, 0) }));
   const maxPlano = Math.max(1, ...porPlano.map((x) => x.mrr));
   const ITENS: { id: Aba; rotulo: string; icone: React.ReactNode }[] = [
     { id: "visao", rotulo: "Visão geral", icone: <LayoutDashboard className="h-5 w-5" /> },
@@ -509,7 +510,7 @@ export function Admin() {
           <li key={x.org_id}>
             <button onClick={() => setSel(x.org_id)} className="flex w-full items-center justify-between gap-3 rounded-xl bg-grafite px-3 py-2.5 text-left text-[14px] hover:bg-linha">
               <span className="min-w-0">
-                <span className="block truncate font-semibold">{x.loja}</span>
+                <span className="block truncate font-semibold">{x.loja} {x.demo && <span className="ml-1.5 rounded-full bg-[#e6eefb] px-2 py-0.5 align-middle text-[11px] font-semibold text-[#1d4f91]">Demonstração</span>}</span>
                 <span className="block truncate text-[12px] text-areia">{texto(x)}</span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-fumo" />
@@ -600,7 +601,7 @@ export function Admin() {
                       <li key={x.org_id}>
                         <button onClick={() => setSel(x.org_id)} className="flex w-full items-center gap-3 py-2.5 text-left text-[14px] hover:text-brasa">
                           <span className="tabular w-5 text-fumo">{i + 1}</span>
-                          <span className="min-w-0 flex-1 truncate font-semibold">{x.loja}</span>
+                          <span className="min-w-0 flex-1 truncate font-semibold">{x.loja} {x.demo && <span className="ml-1.5 rounded-full bg-[#e6eefb] px-2 py-0.5 align-middle text-[11px] font-semibold text-[#1d4f91]">Demonstração</span>}</span>
                           <span className="tabular text-areia">{x.pedidos_30d} pedidos</span>
                           <span className="tabular w-28 text-right font-semibold">{brl(x.vendas_30d)}</span>
                         </button>
@@ -616,7 +617,7 @@ export function Admin() {
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Clientes</h1>
-                  <p className="text-[15px] text-areia">{a.clientes.length} restaurantes na carteira. Toque em um para ver uso, plano e faturas.</p>
+                  <p className="text-[15px] text-areia">{a.clientes.filter((x) => !x.demo).length} restaurantes na carteira{a.clientes.some((x) => x.demo) ? " (mais a loja de demonstração)" : ""}. Toque em um para ver uso, plano e faturas.</p>
                 </div>
                 <button onClick={() => setNovo(true)} className="flex items-center gap-2 rounded-full bg-brasa px-5 py-3 text-[15px] font-semibold text-carvao hover:bg-mostarda">
                   <Plus className="h-4 w-4" /> Novo cliente
@@ -666,7 +667,7 @@ export function Admin() {
                       return (
                         <tr key={x.org_id} onClick={() => setSel(x.org_id)} className="cursor-pointer transition hover:bg-grafite">
                           <td className="px-4 py-3">
-                            <p className="font-semibold">{x.loja}</p>
+                            <p className="font-semibold">{x.loja} {x.demo && <span className="ml-1.5 rounded-full bg-[#e6eefb] px-2 py-0.5 align-middle text-[11px] font-semibold text-[#1d4f91]">Demonstração</span>}</p>
                             <p className="text-[12px] text-areia">
                               {x.nicho ? `${x.nicho} · ` : ""}
                               {x.bairro} · {x.responsavel}

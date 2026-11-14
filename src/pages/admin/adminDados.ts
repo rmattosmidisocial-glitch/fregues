@@ -30,6 +30,8 @@ export type Cliente = {
   usuarios: number;
   convites_pendentes: number;
   nicho?: string;
+  /** Loja de demonstração: fica fora do financeiro. */
+  demo?: boolean;
 };
 export type Fatura = { id: string; org_id: string; competencia: string; vencimento: string; valor: number; status: "aberta" | "paga" | "atrasada" | "cancelada"; pago_em: string | null; forma: string | null; link?: string | null };
 export type Cobranca = { ativa: boolean; link: string | null; documento: string | null; assinatura: string | null };
