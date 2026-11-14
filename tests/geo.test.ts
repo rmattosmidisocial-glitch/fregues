@@ -19,3 +19,15 @@ describe("Bairros e distâncias", () => {
     expect(d).toBeLessThan(9);
   });
 });
+
+import { contraste, coresDaMarca } from "../src/lib/cor";
+describe("Cor da marca", () => {
+  it("cor escura é clareada para o texto do botão continuar legível", () => {
+    const c = coresDaMarca("#1d3557");
+    expect(contraste(c.principal, "#2b211d")).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(c.escura, "#fffaf2")).toBeGreaterThanOrEqual(4.5);
+  });
+  it("cor clara fica como está", () => {
+    expect(coresDaMarca("#f2a93b").principal).toBe("#f2a93b");
+  });
+});

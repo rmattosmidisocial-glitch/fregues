@@ -9,7 +9,7 @@ import { EnderecoLoja, type Endereco as End } from "../admin/EnderecoLoja";
 import { useDados } from "../../data/dados";
 import { codigoPix, normalizarChave, tipoChave } from "../../lib/pix";
 import { brl } from "../../data/mock";
-import { NotaFiscal, OpcaoRelatorios, PagamentoOnline, WhatsAppOficial } from "./ConfigIntegracoes";
+import { Aparencia, NotaFiscal, OpcaoRelatorios, PagamentoOnline, WhatsAppOficial } from "./ConfigIntegracoes";
 
 const campo = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
 
@@ -23,6 +23,7 @@ export function Configuracoes() {
       <p className="text-[15px] text-areia">Tudo o que você ajusta aqui muda na hora na sua loja.</p>
       <div className="mt-6 space-y-5">
         <DadosLoja key={"dados" + d.loja.id} />
+        <Aparencia key={"cor" + d.loja.id} />
         <Funcionamento key={"hor" + d.loja.id} />
         <Endereco key={"end" + d.loja.id} />
         <Regras key={"reg" + d.loja.id} />

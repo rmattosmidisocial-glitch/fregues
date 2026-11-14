@@ -1,7 +1,8 @@
 // Recursos opcionais da loja: relatórios, pagamento online (Mercado Pago), WhatsApp oficial e nota fiscal (NFC-e).
 // Tudo vem desligado. As chaves ficam guardadas só no servidor: depois de salvas, ninguém vê de novo (nem o dono).
 import { useEffect, useState } from "react";
-import { BarChart3, CheckCircle2, CreditCard, FileText, MessageCircle } from "lucide-react";
+import { BarChart3, CheckCircle2, CreditCard, FileText, MessageCircle, Palette } from "lucide-react";
+import { CORES_SUGERIDAS, coresDaMarca } from "../../lib/cor";
 import { useDados, type Integracoes } from "../../data/dados";
 
 const campo = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
@@ -330,5 +331,64 @@ export function NotaFiscal() {
       )}
       <Aviso m={m} />
     </Secao>
+  );
+}
+
+/* ---------------- Aparência da loja ---------------- */
+export function Aparencia() {
+  const d = useDados();
+  const [cor, setCor] = useState(d.loja.cor_marca || "#f45b26");
+  const [m, setM] = useState<Msg>(null);
+  const c = coresDaMarca(cor);
+  const ajustou = c.principal.toLowerCase() !== cor.toLowerCase();
+  return (
+    <section className="rounded-3xl border border-linha bg-forno p-5">
+      <h2 className="flex items-center gap-2 font-display text-[20px] font-bold">
+        <Palette className="h-5 w-5 text-brasa" /> Aparência da loja
+      </h2>
+      <p className="mt-1 text-[14px] text-areia">A cor da sua marca nos botões e destaques da loja online. O painel continua igual.</p>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {CORES_SUGERIDAS.map(([h, nome]) => (
+          <button key={h} onClick={() => (setCor(h), setM(null))} title={nome} aria-label={nome} aria-pressed={cor.toLowerCase() === h} className={`h-9 w-9 rounded-full border-2 ${cor.toLowerCase() === h ? "border-papel ring-2 ring-brasa" : "border-transparent"}`} style={{ background: h }} />
+        ))}
+        <label className="flex items-center gap-2 rounded-full border border-linha px-3 py-1.5 text-[13px] font-semibold">
+          <input type="color" value={cor} onChange={(e) => (setCor(e.target.value), setM(null))} className="h-6 w-8 cursor-pointer bg-transparent" aria-label="Outra cor" />
+          Outra cor
+        </label>
+      </div>
+      {/* prévia */}
+      <div className="mt-4 overflow-hidden rounded-2xl border border-linha bg-[#fffaf2] text-[#2b211d]">
+        <div className="bg-[#2b211d] px-4 py-3 text-[#fff6eb]">
+          <p className="font-display text-[18px] font-extrabold">{d.loja.nome || "Sua loja"}</p>
+          <span className="mt-1 inline-block rounded-full px-2.5 py-0.5 text-[12px] font-semibold text-[#2b211d]" style={{ background: c.principal }}>
+            Aberto agora
+          </span>
+        </div>
+        <div className="space-y-2 p-4">
+          <p className="text-[14px]">
+            X-Bacon Duplo <b style={{ color: c.escura }}>R$ 34,90</b>
+          </p>
+          <div className="rounded-full px-4 py-2.5 text-center text-[14px] font-semibold text-[#2b211d]" style={{ background: c.principal }}>
+            Adicionar à sacola
+          </div>
+        </div>
+      </div>
+      {ajustou && <p className="mt-2 text-[12px] text-areia">Clareamos um pouco a cor para o texto dos botões continuar fácil de ler.</p>}
+      <Aviso m={m} />
+      <div className="mt-3 flex gap-2">
+        <button
+          onClick={async () => {
+            const r = await d.acoes.salvarLoja({ cor_marca: cor.toLowerCase() === "#f45b26" ? null : cor.toLowerCase() });
+            setM(r ? { ok: false, t: r } : { ok: true, t: "Pronto: a loja online já está com a nova cor." });
+          }}
+          className="flex-1 rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda"
+        >
+          Salvar cor
+        </button>
+        <button onClick={() => (setCor("#f45b26"), setM(null))} className="rounded-xl border border-linha px-4 text-[14px] font-semibold hover:border-areia">
+          Padrão
+        </button>
+      </div>
+    </section>
   );
 }

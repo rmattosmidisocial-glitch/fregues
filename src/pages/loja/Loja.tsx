@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChatLoja } from "./ChatLoja";
+import { estiloDaMarca } from "../../lib/cor";
 import { avisar, avisosLigados, avisosSuportados, pedirAvisos } from "../../lib/avisos";
 import { ArrowLeft, Bell, Bike, Check, ChevronRight, Clock, Copy, CreditCard, Minus, Plus, ShoppingBag, Star, Store, Wallet, X } from "lucide-react";
 import { brl, type Grupo, type Produto } from "../../data/mock";
@@ -509,7 +510,7 @@ export function Loja() {
   if (d.modo === "real" && d.carregando) return <div className="grid min-h-screen place-items-center bg-[#fffaf2] text-[#5a4c41]">Abrindo o cardápio…</div>;
 
   return (
-    <div className="min-h-screen bg-[#f6ecdf] text-carvao">
+    <div className="min-h-screen bg-[#f6ecdf] text-carvao" style={estiloDaMarca(LOJA.cor_marca)}>
       <div className="mx-auto min-h-screen max-w-[480px] bg-[#fffaf2] pb-28 shadow-[0_0_80px_rgba(0,0,0,.08)]">
         <div className="flex items-center justify-between bg-carvao px-4 py-2 text-[12px] text-areia">
           {d.modo === "demo" || (d.sessao && d.papel && !d.semAcesso) ? (
