@@ -1,6 +1,6 @@
 // Cria (ou vincula) o login do dono do restaurante com uma senha provisória. Só o administrador do Freguês usa.
 import { SUPA_URL, exigirAdmin, lerServidor, rpcServidor } from "../_lib/base.js";
-import { emailAcesso, enviarEmail } from "../_lib/email.js";
+import { emailAcesso, emailConfigurado, enviarEmail } from "../_lib/email.js";
 
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -48,14 +48,14 @@ export default async function handler(req, res) {
     const link = `https://${req.headers["x-forwarded-host"] || req.headers.host}/?r=${st?.slug || ""}#painel`;
     let enviado = false;
     let aviso = "";
-    try {
+    if (emailConfigurado()) try {
       const m = emailAcesso({ loja: st?.nome || "sua loja", link, email: em, senha, novaSenha: ja.length > 0 });
       await enviarEmail({ para: em, assunto: m.assunto, texto: m.texto, html: m.html });
       enviado = true;
     } catch (e) {
       aviso = e.message;
     }
-    return res.status(200).json({ ok: true, email: em, ja_existia: ja.length > 0, senha_trocada: true, enviado, aviso, link: enviado ? undefined : link });
+    return res.status(200).json({ ok: true, email: em, ja_existia: ja.length > 0, senha_trocada: true, enviado, aviso, link });
   } catch (e) {
     return res.status(500).json({ erro: e.message });
   }

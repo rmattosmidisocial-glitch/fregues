@@ -91,13 +91,14 @@ function senhaProvisoria(loja: string) {
   return base + String(1000 + (n[0] % 9000));
 }
 
-/** Login do dono: cria e-mail + senha provisória e manda por e-mail para ele. No primeiro acesso ele é obrigado a criar a senha dele. */
-function AcessoDono({ a, org_id, loja, email, temAcesso }: { a: ReturnType<typeof useAdmin>; org_id: string; loja: string; email: string; temAcesso?: boolean }) {
+/** Login do dono: cria e-mail + senha provisória e manda para ele no WhatsApp (e por e-mail, se o envio estiver ligado). No primeiro acesso ele é obrigado a criar a senha dele. */
+function AcessoDono({ a, org_id, loja, email, responsavel, telefone, temAcesso }: { a: ReturnType<typeof useAdmin>; org_id: string; loja: string; email: string; responsavel: string; telefone: string; temAcesso?: boolean }) {
   const [em, setEm] = useState(email);
   const [senha, setSenha] = useState(() => senhaProvisoria(loja));
   const [estado, setEstado] = useState<"" | "enviando" | "pronto" | "existe">(temAcesso ? "existe" : "");
-  const [res, setRes] = useState<{ enviado?: boolean; aviso?: string; link?: string } | null>(null);
+  const [res, setRes] = useState<{ enviado?: boolean; link?: string } | null>(null);
   const [erro, setErro] = useState("");
+  const [copiado, setCopiado] = useState(false);
   const criar = async (redefinir: boolean) => {
     setErro("");
     setEstado("enviando");
@@ -113,35 +114,45 @@ function AcessoDono({ a, org_id, loja, email, temAcesso }: { a: ReturnType<typeo
   };
   const inp = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
 
-  if (estado === "pronto")
-    return res?.enviado ? (
-      <div className="mt-2 rounded-2xl bg-[#e4f3ea] p-3 text-[14px] text-[#1b6149]">
-        <p className="font-semibold">Login criado e enviado para {em.trim().toLowerCase()}.</p>
-        <p className="mt-1">No primeiro acesso, o sistema obriga o dono a criar a senha dele. Depois disso, só ele sabe a senha.</p>
-      </div>
-    ) : (
-      <div className="mt-2 rounded-2xl bg-[#fcefd9] p-3 text-[14px] text-[#7a4600]">
-        <p className="font-semibold">Login criado, mas o e-mail não saiu.</p>
-        <p className="mt-1">{res?.aviso || "O envio de e-mail ainda não está configurado."} Passe estes dados para o dono por outro meio:</p>
-        <p className="mt-2 break-all font-semibold">
-          {res?.link}
-          <br />
-          E-mail: {em.trim().toLowerCase()}
-          <br />
-          Senha provisória: {senha}
-        </p>
+  if (estado === "pronto") {
+    const link = res?.link || `${window.location.origin}/?r=#painel`;
+    const nome = responsavel.split(" ")[0] || "";
+    const msg = `Olá${nome ? " " + nome : ""}! O painel do Freguês da ${loja} está pronto.\n\nAcesse: ${link}\nE-mail: ${em.trim().toLowerCase()}\nSenha provisória: ${senha}\n\nNo primeiro acesso, o sistema pede para você criar a sua própria senha. Depois disso, só você sabe a senha.`;
+    const zap = telefone.replace(/\D/g, "");
+    return (
+      <div className="mt-2 rounded-2xl bg-carvao p-3 text-[14px]">
+        <p className="font-semibold text-manjericao">Login criado.{res?.enviado ? ` Também foi por e-mail para ${em.trim().toLowerCase()}.` : ""} Agora mande para {nome || "o dono"}:</p>
+        <p className="mt-2 whitespace-pre-line break-all rounded-xl bg-grafite p-2.5">{msg}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {zap && (
+            <a href={`https://wa.me/55${zap}?text=${encodeURIComponent(msg)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full bg-[#25d366] px-4 py-2 text-[14px] font-bold text-[#0b2e17]">
+              Enviar no WhatsApp <ArrowUpRight className="h-4 w-4" />
+            </a>
+          )}
+          <button
+            onClick={() => {
+              navigator.clipboard?.writeText(msg).catch(() => {});
+              setCopiado(true);
+            }}
+            className="flex items-center gap-1.5 rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia"
+          >
+            <Copy className="h-4 w-4" /> {copiado ? "Copiado" : "Copiar mensagem"}
+          </button>
+        </div>
+        {!zap && <p className="mt-2 text-[13px] text-areia">Sem WhatsApp no cadastro: copie a mensagem e mande pelo seu celular.</p>}
       </div>
     );
+  }
 
   return (
     <div className="mt-2 text-[14px]">
       {estado === "existe" ? (
-        <p className="text-areia">Este cliente já tem login. Se o dono esqueceu a senha, mande uma nova senha provisória para o e-mail dele.</p>
+        <p className="text-areia">Este cliente já tem login. Se o dono esqueceu a senha, gere uma nova senha provisória e mande para ele.</p>
       ) : (
-        <p className="text-areia">Crie o login do dono. Ele recebe o acesso por e-mail e, no primeiro acesso, cria a senha dele.</p>
+        <p className="text-areia">Crie o login do dono e mande no WhatsApp dele. No primeiro acesso, ele cria a senha dele.</p>
       )}
       <label className="mt-2 block">
-        E-mail do dono
+        E-mail do dono (é o login dele)
         <input type="email" value={em} onChange={(e) => setEm(e.target.value)} className={inp} />
       </label>
       <label className="mt-2 block">
@@ -150,7 +161,7 @@ function AcessoDono({ a, org_id, loja, email, temAcesso }: { a: ReturnType<typeo
       </label>
       {erro && <p className="mt-2 text-[#e8846f]">{erro}</p>}
       <button disabled={estado === "enviando" || senha.length < 8 || !em} onClick={() => criar(estado === "existe")} className="mt-3 w-full rounded-xl bg-brasa py-2.5 font-semibold text-carvao hover:bg-mostarda disabled:opacity-60">
-        {estado === "enviando" ? "Enviando…" : estado === "existe" ? "Enviar nova senha provisória" : "Criar login e enviar por e-mail"}
+        {estado === "enviando" ? "Criando…" : estado === "existe" ? "Gerar nova senha provisória" : "Criar login do dono"}
       </button>
     </div>
   );
@@ -218,10 +229,10 @@ function NovoClienteModal({ a, fechar }: { a: ReturnType<typeof useAdmin>; fecha
               <Check className="h-7 w-7" />
             </span>
             <h2 className="mt-4 font-display text-[24px] font-extrabold">{n.loja} entrou na carteira</h2>
-            <p className="mt-2 text-[15px] text-areia">Agora crie o login do dono. Ele recebe o acesso no e-mail.</p>
+            <p className="mt-2 text-[15px] text-areia">Agora crie o login do dono e mande no WhatsApp dele.</p>
             {ok && (
               <div className="mt-3 rounded-2xl border border-linha p-3 text-left">
-                <AcessoDono a={a} org_id={ok} loja={n.loja} email={n.email} />
+                <AcessoDono a={a} org_id={ok} loja={n.loja} email={n.email} responsavel={n.responsavel} telefone={n.telefone} />
               </div>
             )}
             <button onClick={fechar} className="mt-5 rounded-full bg-papel px-6 py-3 font-semibold text-carvao">
@@ -553,7 +564,7 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
         {!c.demo && (
           <section className="mt-4 rounded-2xl border border-linha p-4 text-[14px]">
             <h3 className="font-semibold">Login do dono</h3>
-            <AcessoDono key={c.org_id} a={a} org_id={c.org_id} loja={c.loja} email={c.email} temAcesso={c.usuarios > 0} />
+            <AcessoDono key={c.org_id} a={a} org_id={c.org_id} loja={c.loja} email={c.email} responsavel={c.responsavel} telefone={c.telefone} temAcesso={c.usuarios > 0} />
           </section>
         )}
 

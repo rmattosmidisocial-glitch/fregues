@@ -264,7 +264,7 @@ export function useAdmin() {
     },
     /** Cria o login do dono com senha provisória (ou vincula um login que já existe). */
     async criarAcesso(org_id: string, email: string, senha: string, redefinir = false): Promise<{ erro?: string; ja_existia?: boolean; senha_trocada?: boolean; enviado?: boolean; aviso?: string; link?: string }> {
-      if (!supabase) return { senha_trocada: true, enviado: true };
+      if (!supabase) return { senha_trocada: true, link: `${window.location.origin}/?r=demo#painel` };
       const { data } = await supabase.auth.getSession();
       const r = await fetch("/api/admin/acesso", {
         method: "POST",
