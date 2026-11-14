@@ -262,6 +262,12 @@ export function useAdmin() {
       log(org_id, "editou cadastro");
       return null;
     },
+    /** Logins ligados ao cliente (e-mail, último acesso, se ainda está com a senha provisória). */
+    async logins(org_id: string): Promise<{ email: string; papel: string; ultimo_login: string | null; provisoria: boolean }[]> {
+      if (!supabase) return [];
+      const { data } = await supabase.rpc("admin_logins", { p_org: org_id });
+      return (data as { email: string; papel: string; ultimo_login: string | null; provisoria: boolean }[]) ?? [];
+    },
     /** Cria o login do dono com senha provisória (ou vincula um login que já existe). */
     async criarAcesso(org_id: string, email: string, senha: string, redefinir = false): Promise<{ erro?: string; ja_existia?: boolean; senha_trocada?: boolean; enviado?: boolean; aviso?: string; link?: string }> {
       if (!supabase) return { senha_trocada: true, link: `${window.location.origin}/?r=demo#painel` };

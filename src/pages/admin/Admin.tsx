@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, Pencil, Building2, Check, ChevronRight, CircleDollarSign, Clock, Copy, CreditCard, ExternalLink, History, LayoutDashboard, Layers, LogOut, Pause, Play, Plus, Search, ShieldCheck, Store, TrendingUp, X } from "lucide-react";
+import { ArrowUpRight, MessageCircle, Pencil, Building2, Check, ChevronRight, CircleDollarSign, Clock, Copy, CreditCard, ExternalLink, History, LayoutDashboard, Layers, LogOut, Pause, Play, Plus, Search, ShieldCheck, Store, TrendingUp, X } from "lucide-react";
 import { Logo } from "../../components/Logo";
 import { brl } from "../../data/mock";
 import { BotaoTema } from "../../tema";
@@ -91,78 +91,160 @@ function senhaProvisoria(loja: string) {
   return base + String(1000 + (n[0] % 9000));
 }
 
-/** Login do dono: cria e-mail + senha provisória e manda para ele no WhatsApp (e por e-mail, se o envio estiver ligado). No primeiro acesso ele é obrigado a criar a senha dele. */
-function AcessoDono({ a, org_id, loja, email, responsavel, telefone, temAcesso }: { a: ReturnType<typeof useAdmin>; org_id: string; loja: string; email: string; responsavel: string; telefone: string; temAcesso?: boolean }) {
+const linkPainelDe = (slug: string) => `${window.location.origin}/?r=${slug}#painel`;
+const linkLojaDe = (slug: string) => `${window.location.origin}/?r=${slug}#loja`;
+const telFmt = (t: string) => {
+  const d = (t || "").replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
+  return d.length === 11 ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}` : d.length === 10 ? `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}` : t;
+};
+const zapDe = (t: string) => {
+  const d = (t || "").replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
+  return d.length >= 10 ? "55" + d : "";
+};
+
+/** Botões de envio: WhatsApp (abre a conversa com a mensagem pronta) e copiar. */
+function Enviar({ msg, telefone }: { msg: string; telefone: string }) {
+  const [copiado, setCopiado] = useState(false);
+  const zap = zapDe(telefone);
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      <a
+        href={zap ? `https://wa.me/${zap}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`}
+        target="_blank"
+        rel="noreferrer"
+        className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#25d366] px-4 py-3 text-[15px] font-bold text-[#0b2e17] hover:brightness-95"
+      >
+        <MessageCircle className="h-5 w-5" /> Enviar no WhatsApp{zap ? ` · ${telFmt(telefone)}` : ""}
+      </a>
+      <button
+        onClick={() => {
+          navigator.clipboard?.writeText(msg).catch(() => {});
+          setCopiado(true);
+        }}
+        className="flex items-center gap-1.5 rounded-xl border border-linha px-4 py-3 text-[14px] font-semibold hover:border-areia"
+      >
+        <Copy className="h-4 w-4" /> {copiado ? "Copiado" : "Copiar"}
+      </button>
+    </div>
+  );
+}
+
+type Login = { email: string; papel: string; ultimo_login: string | null; provisoria: boolean };
+
+/** Login do dono: cria (ou renova) e-mail + senha provisória e manda no WhatsApp dele. No primeiro acesso ele é obrigado a criar a senha dele. */
+function AcessoDono({ a, org_id, loja, slug, email, responsavel, telefone }: { a: ReturnType<typeof useAdmin>; org_id: string; loja: string; slug: string; email: string; responsavel: string; telefone: string }) {
+  const [logins, setLogins] = useState<Login[] | null>(null);
   const [em, setEm] = useState(email);
   const [senha, setSenha] = useState(() => senhaProvisoria(loja));
-  const [estado, setEstado] = useState<"" | "enviando" | "pronto" | "existe">(temAcesso ? "existe" : "");
-  const [res, setRes] = useState<{ enviado?: boolean; link?: string } | null>(null);
+  const [novaSenha, setNovaSenha] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [pronto, setPronto] = useState<{ email: string; senha: string } | null>(null);
   const [erro, setErro] = useState("");
-  const [copiado, setCopiado] = useState(false);
-  const criar = async (redefinir: boolean) => {
-    setErro("");
-    setEstado("enviando");
-    const r = await a.acoes.criarAcesso(org_id, em, senha, redefinir);
-    if (r.erro) {
-      setErro(r.erro);
-      setEstado(temAcesso ? "existe" : "");
-    } else if (r.ja_existia && !r.senha_trocada) setEstado("existe");
-    else {
-      setRes(r);
-      setEstado("pronto");
-    }
-  };
+  const carregar = () => a.acoes.logins(org_id).then(setLogins);
+  useEffect(() => {
+    carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [org_id]);
+
+  const dono = logins?.find((l) => l.papel === "dono") ?? logins?.[0];
+  const nome = responsavel.split(" ")[0] || "";
+  const link = linkPainelDe(slug);
   const inp = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
 
-  if (estado === "pronto") {
-    const link = res?.link || `${window.location.origin}/?r=#painel`;
-    const nome = responsavel.split(" ")[0] || "";
-    const msg = `Olá${nome ? " " + nome : ""}! O painel do Freguês da ${loja} está pronto.\n\nAcesse: ${link}\nE-mail: ${em.trim().toLowerCase()}\nSenha provisória: ${senha}\n\nNo primeiro acesso, o sistema pede para você criar a sua própria senha. Depois disso, só você sabe a senha.`;
-    const zap = telefone.replace(/\D/g, "");
+  const criar = async (login: string, redefinir: boolean) => {
+    setErro("");
+    setEnviando(true);
+    const r = await a.acoes.criarAcesso(org_id, login, senha, redefinir);
+    setEnviando(false);
+    if (r.erro) return setErro(r.erro);
+    if (r.ja_existia && !r.senha_trocada) {
+      setErro("Esse e-mail já tem login. Use \"Gerar nova senha provisória\".");
+      return carregar();
+    }
+    setPronto({ email: login.trim().toLowerCase(), senha });
+    setNovaSenha(false);
+    carregar();
+  };
+
+  if (logins === null) return <p className="mt-2 text-areia">Carregando…</p>;
+
+  // acabou de criar ou renovar: mensagem com a senha, pronta para o WhatsApp
+  if (pronto) {
+    const msg = `Olá${nome ? " " + nome : ""}! O painel do Freguês da ${loja} está pronto.\n\nAcesse: ${link}\nE-mail: ${pronto.email}\nSenha provisória: ${pronto.senha}\n\nNo primeiro acesso, o sistema pede para você criar a sua própria senha. Depois disso, só você sabe a senha.`;
     return (
-      <div className="mt-2 rounded-2xl bg-carvao p-3 text-[14px]">
-        <p className="font-semibold text-manjericao">Login criado.{res?.enviado ? ` Também foi por e-mail para ${em.trim().toLowerCase()}.` : ""} Agora mande para {nome || "o dono"}:</p>
-        <p className="mt-2 whitespace-pre-line break-all rounded-xl bg-grafite p-2.5">{msg}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {zap && (
-            <a href={`https://wa.me/55${zap}?text=${encodeURIComponent(msg)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full bg-[#25d366] px-4 py-2 text-[14px] font-bold text-[#0b2e17]">
-              Enviar no WhatsApp <ArrowUpRight className="h-4 w-4" />
-            </a>
-          )}
-          <button
-            onClick={() => {
-              navigator.clipboard?.writeText(msg).catch(() => {});
-              setCopiado(true);
-            }}
-            className="flex items-center gap-1.5 rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia"
-          >
-            <Copy className="h-4 w-4" /> {copiado ? "Copiado" : "Copiar mensagem"}
-          </button>
-        </div>
-        {!zap && <p className="mt-2 text-[13px] text-areia">Sem WhatsApp no cadastro: copie a mensagem e mande pelo seu celular.</p>}
+      <div className="mt-2">
+        <p className="font-semibold text-manjericao">Login pronto. Agora mande para {nome || "o dono"}:</p>
+        <p className="mt-2 whitespace-pre-line break-words rounded-xl bg-carvao p-3">{msg}</p>
+        <Enviar msg={msg} telefone={telefone} />
+        <button onClick={() => setPronto(null)} className="mt-2 w-full py-2 text-[13px] text-areia hover:text-papel">
+          Voltar
+        </button>
       </div>
     );
   }
 
+  // ainda não tem login
+  if (!dono)
+    return (
+      <div className="mt-2">
+        <p className="text-areia">Este cliente ainda não tem login. Crie o e-mail e a senha provisória e mande no WhatsApp do dono.</p>
+        <label className="mt-2 block">
+          E-mail do dono (é o login dele)
+          <input type="email" value={em} onChange={(e) => setEm(e.target.value)} className={inp} />
+        </label>
+        <label className="mt-2 block">
+          Senha provisória
+          <input value={senha} onChange={(e) => setSenha(e.target.value)} className={inp} />
+        </label>
+        {erro && <p className="mt-2 text-[#e8846f]">{erro}</p>}
+        <button disabled={enviando || senha.length < 8 || !em} onClick={() => criar(em, false)} className="mt-3 w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda disabled:opacity-60">
+          {enviando ? "Criando…" : "Criar login"}
+        </button>
+      </div>
+    );
+
+  // já tem login
+  const msgLink = `Olá${nome ? " " + nome : ""}! Este é o link do painel do Freguês da ${loja}:\n\n${link}\n\nEntre com o seu e-mail (${dono.email}) e a sua senha.`;
   return (
-    <div className="mt-2 text-[14px]">
-      {estado === "existe" ? (
-        <p className="text-areia">Este cliente já tem login. Se o dono esqueceu a senha, gere uma nova senha provisória e mande para ele.</p>
+    <div className="mt-2">
+      <div className="rounded-xl bg-carvao p-3">
+        <p className="break-all font-semibold">{dono.email}</p>
+        <p className={`mt-0.5 text-[13px] ${dono.ultimo_login ? "text-manjericao" : "text-mostarda"}`}>
+          {dono.ultimo_login ? `Último acesso ${desde(dono.ultimo_login)}${dono.provisoria ? " · ainda com a senha provisória" : " · já criou a senha dele"}` : "Ainda não entrou no painel"}
+        </p>
+      </div>
+
+      {dono.ultimo_login && !dono.provisoria ? (
+        <>
+          <p className="mt-3 text-areia">Mandar o link do painel de novo (sem senha):</p>
+          <Enviar msg={msgLink} telefone={telefone} />
+        </>
       ) : (
-        <p className="text-areia">Crie o login do dono e mande no WhatsApp dele. No primeiro acesso, ele cria a senha dele.</p>
+        <p className="mt-3 text-areia">Para mandar o acesso, gere uma senha provisória: ela vai na mensagem do WhatsApp.</p>
       )}
-      <label className="mt-2 block">
-        E-mail do dono (é o login dele)
-        <input type="email" value={em} onChange={(e) => setEm(e.target.value)} className={inp} />
-      </label>
-      <label className="mt-2 block">
-        Senha provisória
-        <input value={senha} onChange={(e) => setSenha(e.target.value)} className={inp} />
-      </label>
-      {erro && <p className="mt-2 text-[#e8846f]">{erro}</p>}
-      <button disabled={estado === "enviando" || senha.length < 8 || !em} onClick={() => criar(estado === "existe")} className="mt-3 w-full rounded-xl bg-brasa py-2.5 font-semibold text-carvao hover:bg-mostarda disabled:opacity-60">
-        {estado === "enviando" ? "Criando…" : estado === "existe" ? "Gerar nova senha provisória" : "Criar login do dono"}
-      </button>
+
+      {novaSenha ? (
+        <div className="mt-3 rounded-xl border border-linha p-3">
+          <label className="block">
+            Nova senha provisória
+            <input value={senha} onChange={(e) => setSenha(e.target.value)} className={inp} />
+          </label>
+          {dono.ultimo_login && !dono.provisoria && <p className="mt-2 text-[13px] text-mostarda">A senha atual do dono para de funcionar e ele vai criar outra no próximo acesso.</p>}
+          {erro && <p className="mt-2 text-[#e8846f]">{erro}</p>}
+          <div className="mt-3 flex gap-2">
+            <button disabled={enviando || senha.length < 8} onClick={() => criar(dono.email, true)} className="flex-1 rounded-xl bg-brasa py-2.5 font-semibold text-carvao hover:bg-mostarda disabled:opacity-60">
+              {enviando ? "Gerando…" : "Gerar e preparar o WhatsApp"}
+            </button>
+            <button onClick={() => setNovaSenha(false)} className="rounded-xl border border-linha px-4 py-2.5 font-semibold">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setNovaSenha(true)} className={`mt-3 w-full rounded-xl py-3 font-semibold ${dono.ultimo_login && !dono.provisoria ? "border border-linha text-papel hover:border-areia" : "bg-brasa text-carvao hover:bg-mostarda"}`}>
+          {dono.ultimo_login && !dono.provisoria ? "Dono esqueceu a senha: gerar nova provisória" : "Gerar senha provisória e enviar no WhatsApp"}
+        </button>
+      )}
     </div>
   );
 }
@@ -232,7 +314,7 @@ function NovoClienteModal({ a, fechar }: { a: ReturnType<typeof useAdmin>; fecha
             <p className="mt-2 text-[15px] text-areia">Agora crie o login do dono e mande no WhatsApp dele.</p>
             {ok && (
               <div className="mt-3 rounded-2xl border border-linha p-3 text-left">
-                <AcessoDono a={a} org_id={ok} loja={n.loja} email={n.email} responsavel={n.responsavel} telefone={n.telefone} />
+                <AcessoDono a={a} org_id={ok} loja={n.loja} slug={n.slug} email={n.email} responsavel={n.responsavel} telefone={n.telefone} />
               </div>
             )}
             <button onClick={fechar} className="mt-5 rounded-full bg-papel px-6 py-3 font-semibold text-carvao">
@@ -546,14 +628,18 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
               <dd>{c.empresa}</dd>
               <dt className="text-areia">Loja</dt>
               <dd>{c.loja}</dd>
-              <dt className="text-areia">Endereço</dt>
-              <dd className="break-all">?r={c.slug}</dd>
+              <dt className="text-areia">Loja online</dt>
+              <dd className="break-all">
+                <a href={linkLojaDe(c.slug)} target="_blank" rel="noreferrer" className="underline decoration-linha underline-offset-2 hover:text-brasa">
+                  {linkLojaDe(c.slug).replace(/^https?:\/\//, "")}
+                </a>
+              </dd>
               <dt className="text-areia">Bairro</dt>
               <dd>{c.bairro || "—"}</dd>
               <dt className="text-areia">Responsável</dt>
               <dd>{c.responsavel || "—"}</dd>
               <dt className="text-areia">WhatsApp</dt>
-              <dd>{c.telefone || "—"}</dd>
+              <dd>{c.telefone ? telFmt(c.telefone) : "—"}</dd>
               <dt className="text-areia">E-mail</dt>
               <dd className="break-all">{c.email || "—"}</dd>
             </dl>
@@ -564,7 +650,7 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
         {!c.demo && (
           <section className="mt-4 rounded-2xl border border-linha p-4 text-[14px]">
             <h3 className="font-semibold">Login do dono</h3>
-            <AcessoDono key={c.org_id} a={a} org_id={c.org_id} loja={c.loja} email={c.email} responsavel={c.responsavel} telefone={c.telefone} temAcesso={c.usuarios > 0} />
+            <AcessoDono key={c.org_id + c.slug} a={a} org_id={c.org_id} loja={c.loja} slug={c.slug} email={c.email} responsavel={c.responsavel} telefone={c.telefone} />
           </section>
         )}
 
