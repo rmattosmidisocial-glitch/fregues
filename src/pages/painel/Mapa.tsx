@@ -20,6 +20,11 @@ import { buscarCep, localizar } from "../../data/endereco";
 import { useToast } from "../../components/ui";
 
 const NOMES_MUN = MUNICIPIOS_RJ.map((m) => m.properties.nome).sort((a, b) => a.localeCompare(b, "pt-BR"));
+// centro de cada bairro (calculado uma vez)
+const CENTROS = new Map(BAIRROS.map((b) => [b.properties.id, centroide(b)] as const));
+/** Bairros (de qualquer cidade) com o centro até `raio` km do ponto. */
+const bairrosNoRaio = (centro: [number, number], raio: number) => BAIRROS.filter((b) => distanciaKm(centro, CENTROS.get(b.properties.id)!) <= raio).map((b) => b.properties.id);
+
 const COD_MUN: Record<string, string> = Object.fromEntries(MUNICIPIOS_RJ.map((m) => [m.properties.nome, m.properties.id]));
 
 export function MapaAtuacao() {
@@ -44,10 +49,8 @@ export function MapaAtuacao() {
   // distância em linha reta do restaurante até o centro do bairro
   const distBairro = (f: Feature) => distanciaKm(LOJA.coord, centroide(f));
   // zona que já cobre o bairro só pela distância (zonas com raio em km)
-  const zonaPorRaio = (f: Feature) =>
-    zonas
-      .filter((z) => z.raioKm && distBairro(f) <= z.raioKm)
-      .sort((a, b) => (a.raioKm ?? 0) - (b.raioKm ?? 0))[0];
+  // (zonas por km já marcam os bairros sozinhas; o que vale é o que está marcado)
+  const zonaPorRaio = (_f: Feature): Zona | undefined => undefined;
   const foraDoRaio = (z: Zona, f: Feature) => !!z.raioKm && distBairro(f) > z.raioKm;
   const km = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
   const zonaDoMun = (nome: string) => zonas.find((z) => z.municipios?.includes(COD_MUN[nome]));
@@ -380,8 +383,9 @@ export function MapaAtuacao() {
               {selZona ? (
                 <>
                   <p className="mt-1 text-[14px] text-areia">
-                    Zona <b className="text-papel">{selZona.nome}</b> · {brl(selZona.taxa)} · {selZona.tempo[0]}–{selZona.tempo[1]} min
+                    Zona <b className="text-papel">{selZona.nome}</b> · {brl(selZona.taxasBairro?.[sel.properties.id] ?? selZona.taxa)} · {selZona.tempo[0]}–{selZona.tempo[1]} min
                   </p>
+                  <TaxaBairro key={sel.properties.id + selZona.id} bairroId={sel.properties.id} zona={selZona} avisar={show} />
                   <p className="mt-4 text-[13px] text-areia">Mover para</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {zonas
@@ -467,7 +471,7 @@ function Zonas({ avisar }: { avisar: (t: string) => void }) {
           const r = await d.acoes.criarZona(nova, cor);
           if (r) setErro(r);
           else {
-            avisar(/\d\s*km/i.test(nova) ? `Zona ${nova.trim()} criada: já entrega em tudo dentro desse raio (círculo no mapa)` : `Zona ${nova.trim()} criada. Agora clique nos bairros do mapa para colocar nela`);
+            avisar(/\d\s*km/i.test(nova) ? `Zona ${nova.trim()} criada: marcando os bairros dentro do raio…` : `Zona ${nova.trim()} criada. Agora clique nos bairros do mapa para colocar nela`);
             setNova("");
             setErro(null);
           }
@@ -498,6 +502,23 @@ function ZonaCard({ id, avisar, setErro }: { id: string; avisar: (t: string) => 
   const [apagar, setApagar] = useState(false);
   const qtd = z.bairros.length + (z.municipios?.length ?? 0);
 
+  // marca no mapa todos os bairros até o raio (de qualquer cidade) e tira os que passaram dele
+  async function preencher(raio: number) {
+    const dentro = bairrosNoRaio(d.loja.coord, raio);
+    const ocupados = new Set(d.zonas.filter((x) => x.id !== z.id).flatMap((x) => x.bairros));
+    const colocar = dentro.filter((b) => !z.bairros.includes(b) && !ocupados.has(b));
+    const tirar = z.bairros.filter((b) => !dentro.includes(b));
+    if (!colocar.length && !tirar.length) return avisar(`Zona ${z.nome}: nada para mudar até ${raio.toLocaleString("pt-BR")} km`);
+    const r = await d.acoes.pintarBairros(z.id, colocar, tirar);
+    if (r) return setErro(r);
+    avisar(`Zona ${z.nome}: ${colocar.length} bairros marcados até ${raio.toLocaleString("pt-BR")} km${tirar.length ? `, ${tirar.length} saíram por passar do limite` : ""}`);
+  }
+  // zona nova com km: já marca tudo sozinha
+  useEffect(() => {
+    if (z.raioKm && z.bairros.length === 0) preencher(z.raioKm);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [z.id]);
+
   async function salvar(campo: keyof typeof f) {
     const v = f[campo];
     let c: Parameters<typeof d.acoes.salvarZona>[1] = {};
@@ -519,6 +540,7 @@ function ZonaCard({ id, avisar, setErro }: { id: string; avisar: (t: string) => 
     }
     const r = await d.acoes.salvarZona(z.id, c);
     setErro(r);
+    if (!r && campo === "raio" && c.raioKm) return preencher(c.raioKm);
     if (!r) avisar(`Zona ${z.nome} atualizada`);
   }
   const inp = (campo: keyof typeof f, rot: string, extra?: { ph?: string }) => (
@@ -545,7 +567,16 @@ function ZonaCard({ id, avisar, setErro }: { id: string; avisar: (t: string) => 
         {inp("t1", "até (min)")}
         {inp("raio", "Até (km)", { ph: "sem limite" })}
         <div className="col-span-3 -mt-1 text-[11px] leading-snug">
-          {z.raioKm ? `Entrega em tudo até ${z.raioKm.toLocaleString("pt-BR")} km do restaurante (linha reta). Bairro mais longe não entra nesta zona.` : "Sem limite de km: vale só para os bairros que você pintar no mapa."}
+          {z.raioKm ? (
+            <>
+              Marca os bairros até {z.raioKm.toLocaleString("pt-BR")} km do restaurante (linha reta). Bairro mais longe não entra.{" "}
+              <button type="button" onClick={() => preencher(z.raioKm!)} className="font-semibold underline">
+                Marcar de novo
+              </button>
+            </>
+          ) : (
+            "Sem limite de km: vale só para os bairros que você pintar no mapa."
+          )}
         </div>
         <div className="flex items-end justify-end">
           {apagar ? (
@@ -739,5 +770,38 @@ function Simulador({ zonaDoBairro, zonaDoMun }: { zonaDoBairro: (id: string) => 
           : caixa(false, `Não entregamos em ${simNome}`, "O cliente vê a opção de retirar no balcão e pode deixar o WhatsApp para ser avisado.")}
       </details>
     </section>
+  );
+}
+
+/** Taxa própria do bairro, no lugar da taxa da zona. */
+function TaxaBairro({ bairroId, zona, avisar }: { bairroId: string; zona: Zona; avisar: (t: string) => void }) {
+  const d = useDados();
+  const atual = zona.taxasBairro?.[bairroId];
+  const [v, setV] = useState(atual != null ? dec(atual) : "");
+  const [erro, setErro] = useState("");
+  async function salvar() {
+    const t = v.trim() === "" ? null : num(v);
+    if (t !== null && (!Number.isFinite(t) || t < 0)) return setErro("Use só números (ex.: 8,00).");
+    if (t === (atual ?? null)) return;
+    const r = await d.acoes.taxaDoBairro(bairroId, t);
+    if (r) return setErro(r);
+    setErro("");
+    avisar(t === null ? "Este bairro voltou a usar a taxa da zona" : `Taxa deste bairro: ${brl(t)}`);
+  }
+  return (
+    <label className="mt-3 block text-[13px] text-areia">
+      Taxa de entrega deste bairro
+      <div className="mt-1 flex items-center gap-2">
+        <span className="text-papel">R$</span>
+        <input inputMode="decimal" value={v} placeholder={`${dec(zona.taxa)} (da zona)`} onChange={(e) => setV(e.target.value)} onBlur={salvar} onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()} className="w-36 rounded-xl border border-linha bg-carvao px-3 py-2 text-[15px] text-papel" />
+        {atual != null && (
+          <button type="button" onClick={() => (setV(""), d.acoes.taxaDoBairro(bairroId, null).then(() => avisar("Este bairro voltou a usar a taxa da zona")))} className="text-[12px] underline">
+            usar a da zona
+          </button>
+        )}
+      </div>
+      {erro && <span className="mt-1 block text-[#e8846f]">{erro}</span>}
+      <span className="mt-1 block text-[12px]">Vazio = usa a taxa da zona ({brl(zona.taxa)}).</span>
+    </label>
   );
 }

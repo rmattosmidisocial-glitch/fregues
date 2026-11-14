@@ -119,7 +119,7 @@ export function GeoMap({ width, height, fitTo, layers, padding = 12, onClick, on
     const p = pt.matrixTransform(m.inverse());
     return { x: p.x, y: p.y };
   };
-  const limitar = (k: number) => Math.min(12, Math.max(1, k));
+  const limitar = (k: number) => Math.min(12, Math.max(0.35, k));
   const zoomEm = (fator: number, c = { x: width / 2, y: height / 2 }) =>
     setT((o) => {
       const k = limitar(o.k * fator);

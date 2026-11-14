@@ -31,6 +31,8 @@ export type Zona = {
   raioKm?: number;
   cor: string;
   bairros: string[]; // ids IBGE dos bairros
+  /** Taxa própria de alguns bairros (no lugar da taxa da zona). */
+  taxasBairro?: Record<string, number>;
   municipios?: string[]; // códigos IBGE de municípios atendidos inteiros
 };
 

@@ -117,6 +117,10 @@ type Dados = {
     /** Minha conta: troca o e-mail de login (confirma com a senha atual). */
     trocarEmail: (novo: string, senhaAtual: string) => Promise<string | null>;
     moverBairro: (bairroId: string, destino: string | null) => Promise<void>;
+    /** Coloca vários bairros numa zona de uma vez (e tira outros dela). */
+    pintarBairros: (zonaId: string, colocar: string[], tirar: string[]) => Promise<string | null>;
+    /** Taxa própria do bairro (null = usa a taxa da zona). */
+    taxaDoBairro: (bairroId: string, taxa: number | null) => Promise<string | null>;
     atenderMunicipio: (cod: string, destino: string | null) => Promise<void>;
     editarZona: (id: string, campo: "taxa" | "minimo" | "t1", valor: number) => Promise<void>;
     salvarZona: (id: string, campos: ZonaCampos) => Promise<string | null>;
@@ -198,7 +202,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     setLoja({ ...M.LOJA, ...s, cidade: s.cidade || M.LOJA.cidade, coord, nota: Number(s.nota), aberto: s.aberta } as Loja);
     const [{ data: zs }, { data: zb }, { data: zm }, { data: cats }, { data: prods }] = await Promise.all([
       supabase.from("delivery_zones").select("*").eq("store_id", s.id).order("ordem"),
-      supabase.from("zone_bairros").select("zone_id, bairro_id").eq("store_id", s.id),
+      supabase.from("zone_bairros").select("zone_id, bairro_id, taxa").eq("store_id", s.id),
       supabase.from("zone_municipios").select("zone_id, municipio_cod").eq("store_id", s.id),
       supabase.from("categories").select("id,nome,ordem").eq("store_id", s.id).order("ordem"),
       supabase
@@ -218,6 +222,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         gratisAcima: z.gratis_acima ? Number(z.gratis_acima) : undefined,
         raioKm: z.raio_km != null ? Number(z.raio_km) : undefined,
         bairros: (zb ?? []).filter((x) => x.zone_id === z.id).map((x) => x.bairro_id as string),
+        taxasBairro: Object.fromEntries((zb ?? []).filter((x) => x.zone_id === z.id && x.taxa != null).map((x) => [x.bairro_id as string, Number(x.taxa)])),
         municipios: (zm ?? []).filter((x) => x.zone_id === z.id).map((x) => x.municipio_cod as string),
       })),
     );
@@ -442,6 +447,39 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         if (!supabase || !loja.id) return;
         await supabase.from("zone_bairros").delete().eq("store_id", loja.id).eq("bairro_id", id);
         if (destino) await supabase.from("zone_bairros").insert({ zone_id: destino, bairro_id: id, store_id: loja.id });
+      },
+      async pintarBairros(zonaId, colocar, tirar) {
+        setZonas((zs) =>
+          zs.map((z) => ({
+            ...z,
+            bairros: z.id === zonaId ? [...z.bairros.filter((b) => !tirar.includes(b) && !colocar.includes(b)), ...colocar] : z.bairros.filter((b) => !colocar.includes(b)),
+          })),
+        );
+        if (!supabase || !loja.id) return null;
+        if (tirar.length) {
+          const { error } = await supabase.from("zone_bairros").delete().eq("store_id", loja.id).eq("zone_id", zonaId).in("bairro_id", tirar);
+          if (error) return error.message;
+        }
+        if (colocar.length) {
+          await supabase.from("zone_bairros").delete().eq("store_id", loja.id).in("bairro_id", colocar);
+          const { error } = await supabase.from("zone_bairros").insert(colocar.map((b) => ({ zone_id: zonaId, bairro_id: b, store_id: loja.id })));
+          if (error) return error.message;
+        }
+        return null;
+      },
+      async taxaDoBairro(bairroId, taxa) {
+        setZonas((zs) =>
+          zs.map((z) => {
+            if (!z.bairros.includes(bairroId)) return z;
+            const t = { ...(z.taxasBairro ?? {}) };
+            if (taxa == null) delete t[bairroId];
+            else t[bairroId] = taxa;
+            return { ...z, taxasBairro: t };
+          }),
+        );
+        if (!supabase || !loja.id) return null;
+        const { error } = await supabase.from("zone_bairros").update({ taxa }).eq("store_id", loja.id).eq("bairro_id", bairroId);
+        return error ? error.message : null;
       },
       async atenderMunicipio(cod, destino) {
         setZonas((zs) =>
@@ -771,7 +809,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         const z = bairroLocalId ? zonas.find((x) => x.bairros.includes(bairroLocalId)) : undefined;
         const bairro = bairroLocalId ? nomeBairro(bairroLocalId) : null;
         return z
-          ? { atende: true, bairro, zona: z.nome, taxa: z.taxa, tempo_min: z.tempo[0], tempo_max: z.tempo[1], pedido_minimo: z.minimo, gratis_acima: z.gratisAcima ?? null }
+          ? { atende: true, bairro, zona: z.nome, taxa: (bairroLocalId ? z.taxasBairro?.[bairroLocalId] : undefined) ?? z.taxa, tempo_min: z.tempo[0], tempo_max: z.tempo[1], pedido_minimo: z.minimo, gratis_acima: z.gratisAcima ?? null }
           : { atende: false, bairro };
       },
       pedidoLocal(p) {
