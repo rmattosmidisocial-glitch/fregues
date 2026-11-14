@@ -370,9 +370,13 @@ export function Loja() {
     <div className="min-h-screen bg-[#f6ecdf] text-carvao">
       <div className="mx-auto min-h-screen max-w-[480px] bg-[#fffaf2] pb-28 shadow-[0_0_80px_rgba(0,0,0,.08)]">
         <div className="flex items-center justify-between bg-carvao px-4 py-2 text-[12px] text-areia">
-          <a href="#painel" className="flex items-center gap-1 hover:text-papel">
-            <ArrowLeft className="h-3.5 w-3.5" /> Painel do dono
-          </a>
+          {d.modo === "demo" ? (
+            <a href="#painel" className="flex items-center gap-1 hover:text-papel">
+              <ArrowLeft className="h-3.5 w-3.5" /> Painel do dono
+            </a>
+          ) : (
+            <span>{d.loja.nome}</span>
+          )}
           <span className="flex items-center gap-1.5">
             Loja feita com <Brasinha className="h-4 w-4" /> freguês
           </span>
