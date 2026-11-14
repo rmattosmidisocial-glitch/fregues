@@ -6,11 +6,21 @@ import { crescer, persistir, type Botao, type PaginaLinks } from "./crescer";
 export const linkBio = () => `${location.origin}/?r=${encodeURIComponent(SLUG)}#bio`;
 
 /** Converte o destino guardado no botão no endereço de verdade. "#loja" = loja; "form:<id>" = formulário. */
+/** Botões antigos guardavam "/loja" e "/f/reserva"; converte para o formato atual. */
+export function normalizarUrl(url: string, tipo?: string) {
+  if (url === "/loja" || url === "/cardapio") return tipo === "cardapio" ? "#cardapio" : "#loja";
+  if (url.startsWith("/f/")) return "form:";
+  return url;
+}
+
 export function destino(url: string) {
+  url = normalizarUrl(url);
   const base = `${location.origin}/?r=${encodeURIComponent(SLUG)}`;
+  if (url === "form:") return `${base}&o=bio#loja`;
   if (url === "#loja" || url === "#cardapio") return `${base}&o=bio#loja`;
   if (url.startsWith("form:")) return `${base}&f=${url.slice(5)}#pesquisa`;
   if (url.startsWith("#")) return `${base}${url}`;
+  if (url.startsWith("/")) return `${location.origin}${url}`;
   if (url && !/^https?:\/\//.test(url) && !url.startsWith("mailto:")) return "https://" + url;
   return url;
 }
@@ -55,7 +65,12 @@ export function useLinksPainel(lojaId: string | undefined, ativo: boolean, lojaN
       if (!pg || !vivo) return;
       const p = pg as Linha;
       endereco = p.endereco;
-      const [{ data: rz }, { data: vd }] = await Promise.all([sb.rpc("links_resumo", { p_store: lojaId }), sb.rpc("links_vendas", { p_store: lojaId })]);
+      const [{ data: rz }, { data: vd }, { data: fsAr }] = await Promise.all([
+        sb.rpc("links_resumo", { p_store: lojaId }),
+        sb.rpc("links_vendas", { p_store: lojaId }),
+        sb.from("forms").select("id,nome").eq("store_id", lojaId).eq("estado", "no ar"),
+      ]);
+      const formsNoAr = (fsAr as { id: string; nome: string }[] | null) ?? [];
       if (!vivo) return;
       const r = (rz ?? {}) as { visitas?: number; por_botao?: Record<string, number>; por_dia?: number[] };
       const v = (vd ?? {}) as { pedidos?: number; receita?: number };
@@ -64,7 +79,14 @@ export function useLinksPainel(lojaId: string | undefined, ativo: boolean, lojaN
         titulo: p.titulo,
         bio: p.bio ?? "",
         tema: p.tema,
-        botoes: (p.botoes ?? []).map((b) => ({ ...b, cliques: Number(r.por_botao?.[b.id] ?? 0) })),
+        botoes: (p.botoes ?? []).map((b) => {
+          let url = normalizarUrl(b.url, b.tipo);
+          if (url === "form:") {
+            const alvo = formsNoAr.find((f) => (b.tipo === "reserva" ? /reserva/i : /clube|cadastro/i).test(f.nome));
+            url = alvo ? `form:${alvo.id}` : "form:";
+          }
+          return { ...b, url, cliques: Number(r.por_botao?.[b.id] ?? 0) };
+        }),
         visitas: Number(r.visitas ?? 0),
         pedidos: Number(v.pedidos ?? 0),
         receita: Number(v.receita ?? 0),
