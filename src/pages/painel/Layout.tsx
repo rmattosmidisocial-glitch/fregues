@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Activity, Armchair, Calculator, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, LogOut, Map as MapIcon, MessagesSquare, Sparkles, Users, Workflow, X } from "lucide-react";
 import { useCrescer } from "../../data/crescer";
 import { useAtendimentoPainel } from "../../data/atendimento";
+import { useFormulariosPainel } from "../../data/formularios";
 import { BotaoTema } from "../../tema";
 import { Atendimento } from "./Atendimento";
 import { Automacoes } from "./Automacoes";
@@ -44,6 +45,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
     supabase.rpc("minha_assinatura").then(({ data }) => setAssin((data as typeof assin) ?? null));
   }, [d.sessao]);
   useAtendimentoPainel(d.loja.id, d.modo === "real" && !!d.sessao);
+  useFormulariosPainel(d.loja.id, d.modo === "real" && !!d.sessao, d.loja.nome, [...d.cardapio].sort((a, b) => Number(!!b.maisPedido) - Number(!!a.maisPedido)).map((p) => p.nome));
   const naoLidas = useCrescer((s) => s.conversas.filter((c) => c.naoLida).length);
   const contador = (r: Rota) => (r === "pedidos" ? d.pedidos.filter((p) => p.status === "novo").length : r === "atendimento" ? naoLidas : 0);
   const aberta = d.loja.aberto;

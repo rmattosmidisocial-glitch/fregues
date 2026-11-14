@@ -1,4 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import QRCode from "qrcode";
+import { useDados } from "../../data/dados";
+import { linkForm } from "../../data/formularios";
 import { ArrowDown, ArrowLeft, ArrowUp, ClipboardList, Copy, ExternalLink, Plus, Star, Trash2 } from "lucide-react";
 import { crescer, quandoTxt, useCrescer, type Campo, type Formulario, type TipoCampo } from "../../data/crescer";
 import { useToast } from "../../components/ui";
@@ -48,7 +51,23 @@ function Abrir({ f, voltar }: { f: Formulario; voltar: () => void }) {
     });
   const numericos = f.campos.filter((c) => c.tipo === "estrelas" || c.tipo === "nps");
   const escolhas = f.campos.filter((c) => c.tipo === "escolha");
-  const link = `fregues.app/brasa/f/${f.id}`;
+  const d = useDados();
+  const real = d.modo === "real";
+  const link = linkForm(f.id);
+  const [qr, setQr] = useState("");
+  const [apagar, setApagar] = useState(false);
+  useEffect(() => {
+    QRCode.toDataURL(link, { margin: 2, width: 720, color: { dark: "#17110e", light: "#ffffff" } }).then(setQr);
+  }, [link]);
+  function exportar() {
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const linhas = [["quando", ...f.campos.map((c) => c.rotulo)].map(esc).join(";"), ...f.respostas.map((r) => [new Date(r.quando).toLocaleString("pt-BR"), ...f.campos.map((c) => r.valores[c.id])].map(esc).join(";"))];
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(["\ufeff" + linhas.join("\n")], { type: "text/csv;charset=utf-8" }));
+    a.download = `${f.nome.replace(/[^\w-]+/g, "-").toLowerCase()}-respostas.csv`;
+    a.click();
+    show(`${f.respostas.length} respostas exportadas`);
+  }
 
   return (
     <div>
@@ -62,8 +81,15 @@ function Abrir({ f, voltar }: { f: Formulario; voltar: () => void }) {
         </div>
         <div className="flex gap-2">
           <a
-            href="#pesquisa"
-            onClick={() => crescer.abrirPublico(f.id)}
+            href={real ? link : "#pesquisa"}
+            target={real ? "_blank" : undefined}
+            rel="noreferrer"
+            onClick={(e) => {
+              if (real && f.estado !== "no ar") {
+                e.preventDefault();
+                show("Coloque no ar primeiro para o link abrir para o cliente");
+              } else crescer.abrirPublico(f.id);
+            }}
             className="flex items-center gap-2 rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia"
           >
             <ExternalLink className="h-4 w-4" /> Ver como o cliente vê
@@ -86,6 +112,34 @@ function Abrir({ f, voltar }: { f: Formulario; voltar: () => void }) {
             {r}
           </button>
         ))}
+        <div className="ml-auto flex items-center gap-1 pb-1">
+          {f.respostas.length > 0 && (
+            <button onClick={exportar} className="rounded-full px-3 py-1.5 text-[13px] font-semibold text-areia hover:bg-grafite hover:text-papel">
+              Baixar respostas
+            </button>
+          )}
+          {apagar ? (
+            <span className="flex items-center gap-2 text-[13px]">
+              Apagar{f.respostas.length ? ` com ${f.respostas.length} respostas` : ""}?
+              <button
+                onClick={() => {
+                  crescer.removerForm(f.id);
+                  voltar();
+                }}
+                className="rounded-full bg-[#9b2c1f] px-3 py-1 font-semibold text-white"
+              >
+                Sim
+              </button>
+              <button onClick={() => setApagar(false)} className="underline">
+                Não
+              </button>
+            </span>
+          ) : (
+            <button onClick={() => setApagar(true)} aria-label="Apagar formulário" className="rounded-full p-2 text-areia hover:bg-grafite hover:text-[#ff8b80]">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {aba === "respostas" && (
@@ -253,7 +307,7 @@ function Abrir({ f, voltar }: { f: Formulario; voltar: () => void }) {
               <span className="min-w-0 flex-1 truncate rounded-xl bg-carvao px-3 py-2.5 text-[15px]">{link}</span>
               <button
                 onClick={() => {
-                  navigator.clipboard?.writeText(`https://${link}`).catch(() => {});
+                  navigator.clipboard?.writeText(link).catch(() => {});
                   show("Link copiado");
                 }}
                 className="flex items-center gap-2 rounded-xl bg-papel px-4 text-[14px] font-semibold text-carvao"
@@ -261,6 +315,7 @@ function Abrir({ f, voltar }: { f: Formulario; voltar: () => void }) {
                 <Copy className="h-4 w-4" /> Copiar
               </button>
             </div>
+            {f.estado !== "no ar" && <p className="mt-3 rounded-xl bg-[#fcefd9] px-3 py-2 text-[13px] font-semibold text-[#7a4600]">Este formulário não está no ar. O link só abre para o cliente depois de “Colocar no ar”.</p>}
             <ul className="mt-4 space-y-2 text-[14px] text-areia">
               <li>• Na bio do Instagram, pela página de links</li>
               <li>• No WhatsApp, pelas automações</li>
@@ -268,21 +323,13 @@ function Abrir({ f, voltar }: { f: Formulario; voltar: () => void }) {
             </ul>
           </div>
           <div className="flex items-center gap-5 rounded-3xl border border-linha bg-forno p-5">
-            <div className="grid h-36 w-36 shrink-0 grid-cols-9 gap-0.5 rounded-xl bg-papel p-2" aria-label="QR code do formulário" role="img">
-              {Array.from({ length: 81 }, (_, i) => {
-                const x = i % 9;
-                const y = Math.floor(i / 9);
-                const canto = (x < 3 && y < 3) || (x > 5 && y < 3) || (x < 3 && y > 5);
-                const on = canto ? !(x % 6 === 1 && y % 6 === 1) : (x * 7 + y * 13 + f.id.length) % 3 === 0;
-                return <span key={i} className={on ? "bg-carvao" : ""} />;
-              })}
-            </div>
+            {qr ? <img src={qr} alt="QR code do formulário" className="h-36 w-36 shrink-0 rounded-xl" /> : <div className="h-36 w-36 shrink-0 rounded-xl bg-grafite" />}
             <div>
               <h3 className="font-display text-[18px] font-bold">QR code para a mesa</h3>
               <p className="mt-1 text-[14px] text-areia">Imprima e cole na mesa, no balcão ou no adesivo da embalagem.</p>
-              <button onClick={() => show("QR code baixado")} className="mt-3 rounded-xl border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia">
+              <a href={qr} download={`qr-${f.nome.replace(/[^\w-]+/g, "-").toLowerCase()}.png`} className="mt-3 inline-block rounded-xl border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia">
                 Baixar QR code
-              </button>
+              </a>
             </div>
           </div>
         </div>

@@ -1,18 +1,52 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { SLUG, supabase } from "../../data/dados";
 import { ArrowLeft, Check, Star } from "lucide-react";
-import { crescer, useCrescer } from "../../data/crescer";
+import { crescer, useCrescer, type Formulario } from "../../data/crescer";
 import { Brasinha } from "../../components/Logo";
 import { FOTOS } from "../../components/Foto";
+
+const idDaUrl = () => {
+  try {
+    return new URLSearchParams(location.search).get("f");
+  } catch {
+    return null;
+  }
+};
 
 export function Pesquisa() {
   const forms = useCrescer((s) => s.forms);
   const id = useCrescer((s) => s.formPublico);
-  const f = forms.find((x) => x.id === id) ?? forms[0];
+  const fid = idDaUrl();
+  const real = !!supabase && !!fid;
+  const [remoto, setRemoto] = useState<(Formulario & { loja: string }) | null | "erro">(null);
+  const f = real ? (remoto && remoto !== "erro" ? remoto : null) : (forms.find((x) => x.id === id) ?? forms[0]);
+  const lojaNome = real && remoto && remoto !== "erro" ? remoto.loja : "Brasa Burger";
   const [v, setV] = useState<Record<string, string | number>>({});
   const [erro, setErro] = useState("");
+  const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
 
-  function enviar() {
+  useEffect(() => {
+    if (!real) return;
+    supabase!.rpc("form_publico", { p_slug: SLUG, p_id: fid }).then(({ data }) => setRemoto(data ? ({ ...(data as object), respostas: [], estado: "no ar" } as unknown as Formulario & { loja: string }) : "erro"));
+  }, [real, fid]);
+
+  if (real && remoto === "erro")
+    return (
+      <div className="grid min-h-screen place-items-center bg-[#f6ecdf] p-6 text-center text-carvao">
+        <div>
+          <p className="font-display text-[24px] font-bold">Este formulário não está disponível</p>
+          <p className="mt-2 text-[#8f7b6c]">Ele pode ter sido pausado pela loja.</p>
+          <a href="#loja" className="mt-5 inline-block rounded-full bg-carvao px-6 py-3 font-semibold text-papel">
+            Ver o cardápio
+          </a>
+        </div>
+      </div>
+    );
+  if (!f) return <div className="grid min-h-screen place-items-center bg-[#f6ecdf] text-[#8f7b6c]">Carregando…</div>;
+
+  async function enviar() {
+    if (!f) return;
     setErro("");
     const falta = f.campos.find((c) => c.obrigatorio && (v[c.id] === undefined || v[c.id] === ""));
     if (falta) {
@@ -20,7 +54,12 @@ export function Pesquisa() {
       document.getElementById(`campo-${falta.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    crescer.responderForm(f.id, v);
+    if (real) {
+      setEnviando(true);
+      const { error } = await supabase!.rpc("form_responder", { p_slug: SLUG, p_id: f.id, p_valores: v });
+      setEnviando(false);
+      if (error) return setErro(error.message);
+    } else crescer.responderForm(f.id, v);
     setEnviado(true);
   }
 
@@ -30,9 +69,13 @@ export function Pesquisa() {
     <div className="min-h-screen bg-[#f6ecdf] text-carvao">
       <div className="mx-auto min-h-screen max-w-[480px] bg-[#fffaf2] pb-16">
         <div className="flex items-center justify-between bg-carvao px-4 py-2 text-[12px] text-areia">
-          <a href="#formularios" className="flex items-center gap-1 hover:text-papel">
-            <ArrowLeft className="h-3.5 w-3.5" /> Painel do dono
-          </a>
+          {real ? (
+            <span>{lojaNome}</span>
+          ) : (
+            <a href="#formularios" className="flex items-center gap-1 hover:text-papel">
+              <ArrowLeft className="h-3.5 w-3.5" /> Painel do dono
+            </a>
+          )}
           <span className="flex items-center gap-1.5">
             Feito com <Brasinha className="h-4 w-4" /> freguês
           </span>
@@ -42,7 +85,7 @@ export function Pesquisa() {
           <div className="absolute inset-0 bg-gradient-to-t from-carvao via-carvao/75 to-carvao/20" />
           <div className="relative">
             <p className="text-[13px] font-semibold uppercase tracking-[0.1em]" style={{ color: f.cor }}>
-              Brasa Burger
+              {lojaNome}
             </p>
             <h1 className="mt-1 font-display text-[34px] font-extrabold leading-tight tracking-[-0.015em]">{f.nome}</h1>
             {f.descricao && !enviado && <p className="mt-1 text-[14px] text-areia">Leva menos de 1 minuto.</p>}
@@ -55,7 +98,7 @@ export function Pesquisa() {
               <Check className="h-8 w-8" />
             </span>
             <p className="mt-5 font-display text-[24px] font-bold leading-snug">{f.obrigado}</p>
-            <a href="#loja" className="mt-6 inline-block rounded-full bg-carvao px-6 py-3 font-semibold text-papel">
+            <a href={real ? `?r=${encodeURIComponent(SLUG)}#loja` : "#loja"} className="mt-6 inline-block rounded-full bg-carvao px-6 py-3 font-semibold text-papel">
               Ver o cardápio
             </a>
             <button
@@ -125,10 +168,10 @@ export function Pesquisa() {
               </div>
             ))}
             {erro && <p className="rounded-2xl bg-[#ffe1d6] p-3 text-[14px] font-semibold text-[#9a2a10]">{erro}</p>}
-            <button onClick={enviar} className="w-full rounded-full py-4 text-[16px] font-bold text-carvao" style={{ background: f.cor }}>
-              Enviar
+            <button onClick={enviar} disabled={enviando} className="w-full rounded-full py-4 text-[16px] font-bold text-carvao disabled:opacity-60" style={{ background: f.cor }}>
+              {enviando ? "Enviando…" : "Enviar"}
             </button>
-            <p className="text-center text-[12px] text-[#8f7b6c]">Suas respostas vão só para a Brasa Burger.</p>
+            <p className="text-center text-[12px] text-[#8f7b6c]">Suas respostas vão só para a {lojaNome}.</p>
           </div>
         )}
       </div>

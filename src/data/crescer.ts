@@ -26,6 +26,7 @@ const agora = Date.now();
 const H = 3600_000;
 const D = 24 * H;
 const uid = () => Math.random().toString(36).slice(2, 10);
+const novoId = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : uid());
 
 // ---------------- Automações ----------------
 export type TipoNo = "gatilho" | "espera" | "filtro" | "whatsapp" | "cupom" | "etiqueta" | "alerta" | "pontos";
@@ -528,6 +529,8 @@ export const persistir: {
   conversa?: (c: Conversa) => void;
   equipe?: (id: string, texto: string) => void;
   ajustes?: (a: Ajustes) => void;
+  form?: (f: Formulario) => void;
+  formApagar?: (id: string) => void;
 } = {};
 
 export const crescer = {
@@ -596,10 +599,20 @@ export const crescer = {
   // formulários
   setForm(id: string, f: (x: Formulario) => Formulario) {
     store.set((s) => ({ ...s, forms: s.forms.map((x) => (x.id === id ? f(x) : x)) }));
+    const atual = store.get().forms.find((x) => x.id === id);
+    if (atual) persistir.form?.(atual);
+  },
+  carregarForms(forms: Formulario[]) {
+    store.set((s) => ({ ...s, forms, formPublico: forms[0]?.id ?? s.formPublico }));
+  },
+  removerForm(id: string) {
+    store.set((s) => ({ ...s, forms: s.forms.filter((x) => x.id !== id) }));
+    persistir.formApagar?.(id);
   },
   novoForm() {
-    const f: Formulario = { id: uid(), nome: "Novo formulário", descricao: "", estado: "rascunho", cor: "#ff5b1f", obrigado: "Obrigado! Recebemos sua resposta.", campos: [{ id: uid(), rotulo: "Seu nome", tipo: "nome", obrigatorio: true }], respostas: [] };
+    const f: Formulario = { id: novoId(), nome: "Novo formulário", descricao: "", estado: "rascunho", cor: "#ff5b1f", obrigado: "Obrigado! Recebemos sua resposta.", campos: [{ id: uid(), rotulo: "Seu nome", tipo: "nome", obrigatorio: true }], respostas: [] };
     store.set((s) => ({ ...s, forms: [f, ...s.forms] }));
+    persistir.form?.(f);
     return f.id;
   },
   responderForm(id: string, valores: Record<string, string | number>) {
