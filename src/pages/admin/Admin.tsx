@@ -84,30 +84,109 @@ function LoginAdmin({ a }: { a: ReturnType<typeof useAdmin> }) {
   );
 }
 
+// senha provisória: nome da loja + 4 números (fácil de digitar, difícil de adivinhar)
+function senhaProvisoria(loja: string) {
+  const base = loja.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").slice(0, 12) || "fregues";
+  const n = new Uint32Array(1);
+  crypto.getRandomValues(n);
+  return base + String(1000 + (n[0] % 9000));
+}
+
+/** Cria o login do dono (e-mail + senha provisória) e monta a mensagem para mandar no WhatsApp. */
+function AcessoDono({ a, org_id, loja, slug, email, responsavel, telefone, temAcesso }: { a: ReturnType<typeof useAdmin>; org_id: string; loja: string; slug: string; email: string; responsavel: string; telefone: string; temAcesso?: boolean }) {
+  const [em, setEm] = useState(email);
+  const [senha, setSenha] = useState(() => senhaProvisoria(loja));
+  const [estado, setEstado] = useState<"" | "enviando" | "pronto" | "existe">(temAcesso ? "existe" : "");
+  const [erro, setErro] = useState("");
+  const [copiado, setCopiado] = useState(false);
+  const link = `${LINK_BASE}?r=${slug}#painel`;
+  const nome = responsavel.split(" ")[0] || "";
+  const msg = `Olá${nome ? " " + nome : ""}! O painel do Freguês da ${loja} está pronto.\n\nAcesse: ${link}\nE-mail: ${em.trim().toLowerCase()}\nSenha provisória: ${senha}\n\nNo primeiro acesso, toque em "Minha conta" e crie uma senha só sua.`;
+  const criar = async (redefinir: boolean) => {
+    setErro("");
+    setEstado("enviando");
+    const r = await a.acoes.criarAcesso(org_id, em, senha, redefinir);
+    if (r.erro) {
+      setErro(r.erro);
+      setEstado("");
+    } else setEstado(r.ja_existia && !r.senha_trocada ? "existe" : "pronto");
+  };
+  const inp = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
+
+  if (estado === "pronto")
+    return (
+      <div className="mt-3 rounded-2xl bg-carvao p-3 text-left text-[14px]">
+        <p className="font-semibold text-manjericao">Acesso criado. Mande para {nome || "o dono"}:</p>
+        <p className="mt-2 whitespace-pre-line break-all">{msg}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            onClick={() => {
+              navigator.clipboard?.writeText(msg).catch(() => {});
+              setCopiado(true);
+            }}
+            className="flex items-center gap-1.5 rounded-full border border-linha px-3 py-1.5 text-[13px] font-semibold hover:border-areia"
+          >
+            <Copy className="h-3.5 w-3.5" /> {copiado ? "Copiado" : "Copiar mensagem"}
+          </button>
+          {telefone && (
+            <a href={`https://wa.me/55${telefone.replace(/\D/g, "")}?text=${encodeURIComponent(msg)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full bg-[#e4f3ea] px-3 py-1.5 text-[13px] font-semibold text-[#1b6149]">
+              Enviar no WhatsApp <ArrowUpRight className="h-3.5 w-3.5" />
+            </a>
+          )}
+        </div>
+      </div>
+    );
+
+  return (
+    <div className="mt-3 rounded-2xl border border-linha p-3 text-left text-[14px]">
+      <p className="font-semibold">Login do dono</p>
+      {estado === "existe" ? (
+        <p className="mt-1 text-areia">Esse e-mail já tem login e está ligado a esta loja. Se o dono esqueceu a senha, gere uma nova provisória:</p>
+      ) : (
+        <p className="mt-1 text-areia">Crie o e-mail e a senha provisória. O dono troca os dois depois, em "Minha conta".</p>
+      )}
+      <label className="mt-2 block">
+        E-mail
+        <input type="email" value={em} onChange={(e) => setEm(e.target.value)} className={inp} />
+      </label>
+      <label className="mt-2 block">
+        Senha provisória
+        <input value={senha} onChange={(e) => setSenha(e.target.value)} className={inp} />
+      </label>
+      {erro && <p className="mt-2 text-[#e8846f]">{erro}</p>}
+      <button disabled={estado === "enviando" || senha.length < 8 || !em} onClick={() => criar(estado === "existe")} className="mt-3 w-full rounded-xl bg-brasa py-2.5 font-semibold text-carvao hover:bg-mostarda disabled:opacity-60">
+        {estado === "enviando" ? "Criando…" : estado === "existe" ? "Gerar nova senha provisória" : "Criar acesso do dono"}
+      </button>
+    </div>
+  );
+}
+
 function NovoClienteModal({ a, fechar }: { a: ReturnType<typeof useAdmin>; fechar: () => void }) {
   const [n, setN] = useState<NovoCliente>({ empresa: "", loja: "", slug: "", bairro: "", plano: "completo", responsavel: "", telefone: "", email: "", dias_teste: 14 });
   const [erro, setErro] = useState("");
-  const [ok, setOk] = useState(false);
+  const [ok, setOk] = useState<string | null>(null);
   const set = (p: Partial<NovoCliente>) => setN((x) => ({ ...x, ...p }));
   const slugDe = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 60);
   const inp = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={fechar}>
       <div role="dialog" aria-label="Novo cliente" className="scroll-thin max-h-[92vh] w-full max-w-[640px] overflow-y-auto rounded-3xl border border-linha bg-forno p-6" onClick={(e) => e.stopPropagation()}>
-        {ok ? (
+        {ok !== null ? (
           <div className="py-6 text-center">
             <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-manjericao text-carvao">
               <Check className="h-7 w-7" />
             </span>
             <h2 className="mt-4 font-display text-[24px] font-extrabold">{n.loja} entrou na carteira</h2>
-            <p className="mt-2 text-[15px] text-areia">Mande para {n.responsavel.split(" ")[0] || "o dono"} criar o acesso com o e-mail {n.email || "dele"}. Ao entrar, o painel da loja abre direto. Você também pode abrir e configurar agora, como suporte.</p>
-            <a href={`${LINK_BASE}?r=${n.slug}#painel`} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brasa px-4 py-2 text-[14px] font-semibold text-carvao">Abrir painel do dono <ArrowUpRight className="h-4 w-4" /></a>
-            <div className="mt-4 rounded-2xl bg-carvao p-3 text-left text-[14px]">
-              <p className="text-areia">Painel do restaurante</p>
-              <p className="break-all font-semibold">{`${LINK_BASE}?r=${n.slug}#painel`}</p>
-              <p className="mt-2 text-areia">Loja para os clientes dele</p>
+            <p className="mt-2 text-[15px] text-areia">Agora crie o login do dono e mande para ele no WhatsApp.</p>
+            {ok && <AcessoDono a={a} org_id={ok} loja={n.loja} slug={n.slug} email={n.email} responsavel={n.responsavel} telefone={n.telefone} />}
+            <div className="mt-3 rounded-2xl bg-carvao p-3 text-left text-[14px]">
+              <p className="text-areia">Loja para os clientes dele</p>
               <p className="break-all font-semibold">{`${LINK_BASE}?r=${n.slug}#loja`}</p>
             </div>
+            <a href={`${LINK_BASE}?r=${n.slug}#painel`} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-linha px-4 py-2 text-[14px] font-semibold">
+              Abrir painel do dono (suporte) <ArrowUpRight className="h-4 w-4" />
+            </a>
+            <br />
             <button onClick={fechar} className="mt-5 rounded-full bg-papel px-6 py-3 font-semibold text-carvao">
               Fechar
             </button>
@@ -118,8 +197,8 @@ function NovoClienteModal({ a, fechar }: { a: ReturnType<typeof useAdmin>; fecha
               e.preventDefault();
               setErro("");
               const r = await a.acoes.criarCliente(n);
-              if (r) setErro(r);
-              else setOk(true);
+              if (r.erro) setErro(r.erro);
+              else setOk(r.id ?? "");
             }}
           >
             <div className="flex items-start justify-between">
@@ -425,6 +504,7 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
               <Copy className="h-3.5 w-3.5" /> Link do painel do dono
             </button>
           </div>
+          {!c.demo && <AcessoDono key={c.org_id} a={a} org_id={c.org_id} loja={c.loja} slug={c.slug} email={c.email} responsavel={c.responsavel} telefone={c.telefone} temAcesso={c.usuarios > 0} />}
         </section>
 
         {hist.length > 0 && (

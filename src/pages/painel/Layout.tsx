@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Activity, Armchair, Calculator, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, LogOut, Map as MapIcon, MessagesSquare, Sparkles, Users, Workflow, X } from "lucide-react";
+import { Activity, Armchair, Calculator, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, LogOut, Map as MapIcon, UserRound, MessagesSquare, Sparkles, Users, Workflow, X } from "lucide-react";
 import { useCrescer } from "../../data/crescer";
 import { useAtendimentoPainel } from "../../data/atendimento";
 import { useFormulariosPainel } from "../../data/formularios";
@@ -21,6 +21,7 @@ import { MapaAtuacao } from "./Mapa";
 import { Fregueses } from "./Fregueses";
 import { Cardapio } from "./Cardapio";
 import { Copiloto } from "./Copiloto";
+import { MinhaConta } from "./MinhaConta";
 
 type Item = { rota: Rota; rotulo: string; curto: string; icone: React.ReactNode; grupo: "Operação" | "Crescer" };
 const ITENS: Item[] = [
@@ -39,6 +40,7 @@ const ITENS: Item[] = [
 
 export function PainelLayout({ rota }: { rota: Rota }) {
   const [copiloto, setCopiloto] = useState(false);
+  const [conta, setConta] = useState(false);
   const d = useDados();
   const [assin, setAssin] = useState<{ status: string; plano_nome: string; teste_ate: string | null; proximo_vencimento: string | null; valor: number } | null>(null);
   useEffect(() => {
@@ -107,6 +109,11 @@ export function PainelLayout({ rota }: { rota: Rota }) {
           </a>
           <BotaoTema rotulo />
           {d.sessao && (
+            <button onClick={() => setConta(true)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] text-areia hover:text-papel">
+              <UserRound className="h-4 w-4" /> Minha conta
+            </button>
+          )}
+          {d.sessao && (
             <button onClick={() => d.acoes.sair()} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] text-areia hover:text-papel">
               <LogOut className="h-4 w-4" /> Sair
             </button>
@@ -119,12 +126,25 @@ export function PainelLayout({ rota }: { rota: Rota }) {
           <Logo />
           <span className="flex items-center gap-2">
           <BotaoTema />
+          {d.sessao && (
+            <button onClick={() => setConta(true)} aria-label="Minha conta" className="grid h-9 w-9 place-items-center rounded-full border border-linha text-areia">
+              <UserRound className="h-4 w-4" />
+            </button>
+          )}
           <button onClick={() => setCopiloto(true)} className="flex items-center gap-2 rounded-full bg-brasa px-3 py-2 text-[14px] font-semibold text-carvao">
             <Sparkles className="h-4 w-4" /> Copiloto
           </button>
           </span>
         </header>
         <main className="mx-auto max-w-[1280px] px-4 py-6 md:px-8 md:py-8">
+          {d.sessao?.user.user_metadata?.trocar_senha && (
+            <p className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-[#fcefd9] p-4 text-[15px] text-[#7a4600]">
+              Você entrou com a senha provisória. Crie uma senha só sua.
+              <button onClick={() => setConta(true)} className="rounded-full bg-[#7a4600] px-4 py-1.5 text-[14px] font-semibold text-[#fcefd9]">
+                Trocar senha
+              </button>
+            </p>
+          )}
           {assin && assin.status !== "ativa" && (
             <p className={`mb-4 rounded-2xl p-4 text-[15px] ${assin.status === "teste" ? "bg-[#dff1ee] text-[#1f5f59]" : "bg-[#fcefd9] text-[#7a4600]"}`}>
               {assin.status === "teste" && `Você está no período de teste do plano ${assin.plano_nome} até ${assin.teste_ate ? new Date(assin.teste_ate + "T12:00:00").toLocaleDateString("pt-BR") : "breve"}.`}
@@ -166,6 +186,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
         ))}
       </nav>
 
+      {conta && <MinhaConta fechar={() => setConta(false)} />}
       {copiloto && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={() => setCopiloto(false)}>
           <div

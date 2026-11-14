@@ -106,6 +106,10 @@ type Dados = {
   acoes: {
     entrar: (email: string, senha: string) => Promise<string | null>;
     sair: () => Promise<void>;
+    /** Minha conta: troca a senha (e tira o aviso de senha provisória). */
+    trocarSenha: (nova: string) => Promise<string | null>;
+    /** Minha conta: troca o e-mail de login (o Supabase manda confirmação). */
+    trocarEmail: (novo: string) => Promise<string | null>;
     moverBairro: (bairroId: string, destino: string | null) => Promise<void>;
     atenderMunicipio: (cod: string, destino: string | null) => Promise<void>;
     editarZona: (id: string, campo: "taxa" | "minimo" | "t1", valor: number) => Promise<void>;
@@ -367,6 +371,21 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         if (!supabase) return null;
         const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
         return error ? "E-mail ou senha incorretos." : null;
+      },
+      async trocarSenha(nova) {
+        if (!supabase) return null;
+        if (nova.length < 8) return "A senha precisa ter pelo menos 8 caracteres.";
+        const { error } = await supabase.auth.updateUser({ password: nova, data: { trocar_senha: false } });
+        if (!error) return null;
+        return /different from the old/i.test(error.message) ? "A nova senha precisa ser diferente da atual." : /weak|short/i.test(error.message) ? "Senha fraca: use pelo menos 8 caracteres, misturando letras e números." : error.message;
+      },
+      async trocarEmail(novo) {
+        if (!supabase) return null;
+        const em = novo.trim().toLowerCase();
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return "Informe um e-mail válido.";
+        const { error } = await supabase.auth.updateUser({ email: em }, { emailRedirectTo: window.location.origin + window.location.pathname + window.location.search + "#painel" });
+        if (!error) return null;
+        return /already|registered|exists/i.test(error.message) ? "Esse e-mail já é usado por outra conta." : error.message;
       },
       async sair() {
         await supabase?.auth.signOut();

@@ -231,14 +231,14 @@ export function useAdmin() {
     async sair() {
       await supabase?.auth.signOut();
     },
-    async criarCliente(n: NovoCliente): Promise<string | null> {
+    async criarCliente(n: NovoCliente): Promise<{ erro?: string; id?: string }> {
       if (supabase) {
-        const { error } = await supabase.rpc("admin_criar_cliente", { p_empresa: n.empresa, p_loja: n.loja, p_slug: n.slug, p_bairro: n.bairro, p_plano: n.plano, p_responsavel: n.responsavel, p_telefone: n.telefone, p_email: n.email, p_dias_teste: n.dias_teste });
-        if (error) return error.message;
+        const { data, error } = await supabase.rpc("admin_criar_cliente", { p_empresa: n.empresa, p_loja: n.loja, p_slug: n.slug, p_bairro: n.bairro, p_plano: n.plano, p_responsavel: n.responsavel, p_telefone: n.telefone, p_email: n.email, p_dias_teste: n.dias_teste });
+        if (error) return { erro: error.message };
         await recarregar();
-        return null;
+        return { id: data as string };
       }
-      if (clientes.some((c) => c.slug === n.slug)) return "Esse endereço já está em uso";
+      if (clientes.some((c) => c.slug === n.slug)) return { erro: "Esse endereço já está em uso" };
       const p = planos.find((x) => x.id === n.plano)!;
       const id = `org${Date.now()}`;
       setClientes((cs) => [
@@ -246,7 +246,21 @@ export function useAdmin() {
         ...cs,
       ]);
       log(id, "criou cliente");
-      return null;
+      return { id };
+    },
+    /** Cria o login do dono com senha provisória (ou vincula um login que já existe). */
+    async criarAcesso(org_id: string, email: string, senha: string, redefinir = false): Promise<{ erro?: string; ja_existia?: boolean; senha_trocada?: boolean }> {
+      if (!supabase) return { senha_trocada: true };
+      const { data } = await supabase.auth.getSession();
+      const r = await fetch("/api/admin/acesso", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+        body: JSON.stringify({ org_id, email, senha, redefinir }),
+      }).catch(() => null);
+      const c = r ? await r.json().catch(() => ({})) : {};
+      if (!r || !r.ok) return { erro: c.erro || "Não consegui criar o acesso agora. Tente de novo." };
+      await recarregar();
+      return c;
     },
     async mudarStatus(id: string, status: StatusAssin, motivo = "") {
       if (supabase) {
