@@ -3,6 +3,7 @@ import { createClient, type Session, type SupabaseClient } from "@supabase/supab
 import * as M from "./mock";
 import type { Freguês, Pedido, Produto, StatusPedido, Zona } from "./mock";
 import { nomeBairro } from "../components/GeoMap";
+import { dentroDoHorario, textoHorario, type Horarios } from "../lib/horario";
 
 const URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -26,7 +27,7 @@ export const supabase: SupabaseClient | null = URL && KEY ? createClient(URL, KE
 export const supabaseAdmin: SupabaseClient | null = URL && KEY ? createClient(URL, KEY, { auth: { storageKey: "fregues-admin-auth" } }) : null;
 export const MODO: "real" | "demo" = supabase ? "real" : "demo";
 
-export type Loja = typeof M.LOJA & { id?: string; publicada?: boolean; demonstracao?: boolean; pix_chave?: string | null; pix_nome?: string | null; pix_cidade?: string | null; descricao?: string | null; whatsapp?: string | null; instagram?: string | null; logo_url?: string | null; capa_url?: string | null; rua?: string | null; numero?: string | null; cep?: string | null; lon?: number | null; lat?: number | null };
+export type Loja = typeof M.LOJA & { id?: string; publicada?: boolean; demonstracao?: boolean; pix_chave?: string | null; pix_nome?: string | null; pix_cidade?: string | null; descricao?: string | null; whatsapp?: string | null; instagram?: string | null; logo_url?: string | null; capa_url?: string | null; rua?: string | null; numero?: string | null; cep?: string | null; lon?: number | null; lat?: number | null; ligada?: boolean; horarios?: Horarios | null; pausa_ate?: string | null; extra_min?: number; extra_ate?: string | null };
 export type Pulso = { risco: number; recuperado: number; voltaram: number; ritmo: number; atrasado: number; sumindo: number; total: number; comissao: number };
 export type DiaSemana = { dia: string; propria: number; marketplace: number };
 export type Entrega = {
@@ -111,7 +112,7 @@ type Dados = {
     entrar: (email: string, senha: string) => Promise<string | null>;
     sair: () => Promise<void>;
     /** Grava campos da loja (configurações do dono). */
-    salvarLoja: (c: Partial<Pick<Loja, "nome" | "pix_chave" | "pix_nome" | "pix_cidade" | "descricao" | "whatsapp" | "instagram" | "logo_url" | "capa_url" | "cidade" | "bairro" | "rua" | "numero" | "cep" | "lon" | "lat">>) => Promise<string | null>;
+    salvarLoja: (c: Partial<Pick<Loja, "nome" | "pix_chave" | "pix_nome" | "pix_cidade" | "descricao" | "whatsapp" | "instagram" | "logo_url" | "capa_url" | "cidade" | "bairro" | "rua" | "numero" | "cep" | "lon" | "lat" | "horarios" | "pausa_ate" | "extra_min" | "extra_ate">>) => Promise<string | null>;
     /** Coloca a loja no ar (ou tira). Devolve o erro, ou null. */
     publicarLoja: (noAr: boolean) => Promise<string | null>;
     /** Minha conta: troca a senha (e tira o aviso de senha provisória). */
@@ -197,13 +198,13 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   // ---------- leitura pública: loja, zonas, cardápio ----------
   const carregarPublico = useCallback(async () => {
     if (!supabase) return;
-    const { data: s, error } = await supabase.from("stores").select("id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep").eq("slug", SLUG).single();
+    const { data: s, error } = await supabase.from("stores").select("id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate").eq("slug", SLUG).single();
     if (error || !s) {
       setErro("Não foi possível abrir a loja agora.");
       return;
     }
     const coord: [number, number] = s.lon != null && s.lat != null ? [Number(s.lon), Number(s.lat)] : M.LOJA.coord;
-    setLoja({ ...M.LOJA, ...s, cidade: s.cidade || M.LOJA.cidade, coord, nota: Number(s.nota), aberto: s.aberta } as Loja);
+    setLoja({ ...M.LOJA, ...s, cidade: s.cidade || M.LOJA.cidade, coord, nota: Number(s.nota), ligada: s.aberta, aberto: s.aberta } as Loja);
     const [{ data: zs }, { data: zb }, { data: zm }, { data: cats }, { data: prods }] = await Promise.all([
       supabase.from("delivery_zones").select("*").eq("store_id", s.id).order("ordem"),
       supabase.from("zone_bairros").select("zone_id, bairro_id, taxa, cor").eq("store_id", s.id),
@@ -824,7 +825,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         return null;
       },
       async setAberta(v) {
-        setLoja((l) => ({ ...l, aberto: v }));
+        setLoja((l) => ({ ...l, aberto: v, ligada: v }));
         if (supabase && loja.id) await supabase.from("stores").update({ aberta: v }).eq("id", loja.id);
       },
       async resolverEntrega(coord, bairroLocalId) {
@@ -885,6 +886,22 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     [loja.id, zonas, cardapio, categorias, pedidos, demanda, recarregar],
   );
 
-  const valor: Dados = { modo: MODO, carregando, erro, sessao, semAcesso, loja, zonas, cardapio, categorias, fregueses, pedidos, pulso, semana, demanda, acoes };
+  const [minuto, setMinuto] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setMinuto((m) => m + 1), 60000);
+    return () => clearInterval(t);
+  }, []);
+  const lojaAgora = useMemo(() => {
+    if (MODO === "demo" || loja.ligada === undefined) return loja;
+    const pausada = !!loja.pausa_ate && new Date(loja.pausa_ate).getTime() > Date.now();
+    const aberto = !!loja.ligada && !pausada && dentroDoHorario(loja.horarios);
+    const extra = loja.extra_ate && new Date(loja.extra_ate).getTime() > Date.now() ? loja.extra_min ?? 0 : 0;
+    const horario = pausada
+      ? `Pausada até ${new Date(loja.pausa_ate!).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+      : textoHorario(loja.horarios) || loja.horario;
+    return { ...loja, aberto, horario, extra_min: extra };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loja, minuto]);
+  const valor: Dados = { modo: MODO, carregando, erro, sessao, semAcesso, loja: lojaAgora, zonas, cardapio, categorias, fregueses, pedidos, pulso, semana, demanda, acoes };
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
 }

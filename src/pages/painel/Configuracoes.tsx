@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { CheckCircle2, ImagePlus, MapPin, Store, Wallet } from "lucide-react";
+import { CheckCircle2, Clock, ImagePlus, MapPin, Store, Wallet } from "lucide-react";
+import { DIAS, linhaDoDia, type Faixa, type Horarios } from "../../lib/horario";
 import { EnderecoLoja, type Endereco as End } from "../admin/EnderecoLoja";
 import { useDados } from "../../data/dados";
 import { codigoPix, normalizarChave, tipoChave } from "../../lib/pix";
@@ -17,6 +18,7 @@ export function Configuracoes() {
       <p className="text-[15px] text-areia">Tudo o que você ajusta aqui muda na hora na sua loja.</p>
       <div className="mt-6 space-y-5">
         <DadosLoja key={"dados" + d.loja.id} />
+        <Funcionamento key={"hor" + d.loja.id} />
         <Endereco key={"end" + d.loja.id} />
         <Pagamentos key={d.loja.id} />
       </div>
@@ -180,6 +182,147 @@ function Endereco() {
       <button onClick={salvar} className="mt-3 w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda">
         Salvar endereço
       </button>
+    </Secao>
+  );
+}
+
+const ORDEM = [1, 2, 3, 4, 5, 6, 0]; // segunda primeiro
+
+function Funcionamento() {
+  const d = useDados();
+  const inicial: Horarios = d.loja.horarios ?? {};
+  const [h, setH] = useState<Horarios>(() => Object.fromEntries(ORDEM.map((i) => [String(i), inicial[String(i)] ?? []])));
+  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const set = (dia: number, f: Faixa[]) => (setH((x) => ({ ...x, [String(dia)]: f })), setMsg(null));
+  const hora = "rounded-lg border border-linha bg-carvao px-2 py-1.5 text-[14px] text-papel";
+  const agora = Date.now();
+  const pausada = d.loja.pausa_ate && new Date(d.loja.pausa_ate).getTime() > agora;
+  const extraAtivo = (d.loja.extra_min ?? 0) > 0;
+
+  async function salvar() {
+    for (const f of Object.values(h)) for (const [a, b] of f) if (!a || !b || a === b) return setMsg({ ok: false, t: "Confira os horários: início e fim não podem ficar vazios nem iguais." });
+    setOcupado(true);
+    const vazio = Object.values(h).every((f) => !f.length);
+    const r = await d.acoes.salvarLoja({ horarios: vazio ? null : h });
+    setOcupado(false);
+    setMsg(r ? { ok: false, t: r } : { ok: true, t: vazio ? "Sem horário: a loja segue só o botão Loja aberta/desligada." : "Horário salvo. A loja abre e fecha sozinha." });
+  }
+  const acao = async (c: Parameters<typeof d.acoes.salvarLoja>[0], t: string) => {
+    const r = await d.acoes.salvarLoja(c);
+    setMsg(r ? { ok: false, t: r } : { ok: true, t });
+  };
+  const daqui = (min: number) => new Date(Date.now() + min * 60000).toISOString();
+  const amanha6h = () => {
+    const x = new Date();
+    x.setDate(x.getDate() + 1);
+    x.setHours(6, 0, 0, 0);
+    return x.toISOString();
+  };
+
+  return (
+    <Secao icone={<Clock className="h-5 w-5 text-brasa" />} titulo="Horário de funcionamento" sub="A loja abre e fecha sozinha nesses horários (hora de Brasília). Fora deles, o cliente vê o cardápio mas não consegue pedir.">
+      <div className="space-y-2 text-[14px]">
+        {ORDEM.map((dia) => {
+          const f = h[String(dia)] ?? [];
+          return (
+            <div key={dia} className="flex flex-wrap items-center gap-2 rounded-xl bg-grafite px-3 py-2">
+              <label className="flex w-28 items-center gap-2 font-semibold">
+                <input type="checkbox" checked={f.length > 0} onChange={(e) => set(dia, e.target.checked ? [["18:00", "23:00"]] : [])} className="h-4 w-4 accent-[#ff5b1f]" />
+                {DIAS[dia]}
+              </label>
+              {f.length === 0 && <span className="text-areia">Fechado</span>}
+              {f.map(([a, b], i) => (
+                <span key={i} className="flex items-center gap-1">
+                  <input type="time" value={a} onChange={(e) => set(dia, f.map((x, j) => (j === i ? [e.target.value, x[1]] : x)) as Faixa[])} className={hora} aria-label={`${DIAS[dia]} abre`} />
+                  <span className="text-areia">às</span>
+                  <input type="time" value={b} onChange={(e) => set(dia, f.map((x, j) => (j === i ? [x[0], e.target.value] : x)) as Faixa[])} className={hora} aria-label={`${DIAS[dia]} fecha`} />
+                  {i > 0 && (
+                    <button type="button" onClick={() => set(dia, f.filter((_, j) => j !== i))} className="px-1 text-areia hover:text-papel" aria-label="Tirar turno">
+                      ×
+                    </button>
+                  )}
+                </span>
+              ))}
+              {f.length === 1 && (
+                <button type="button" onClick={() => set(dia, [...f, ["18:00", "23:00"]])} className="text-[12px] text-areia underline">
+                  + 2º turno
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2 text-[13px]">
+        <button
+          type="button"
+          onClick={() => {
+            const seg = h["1"] ?? [];
+            setH((x) => ({ ...x, "2": seg, "3": seg, "4": seg, "5": seg }));
+          }}
+          className="rounded-full border border-linha px-3 py-1.5 font-semibold"
+        >
+          Copiar segunda para terça a sexta
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            const seg = h["1"] ?? [];
+            setH(Object.fromEntries(ORDEM.map((i) => [String(i), seg])));
+          }}
+          className="rounded-full border border-linha px-3 py-1.5 font-semibold"
+        >
+          Copiar segunda para todos
+        </button>
+      </div>
+      <p className="mt-2 text-[12px] text-areia">Fecha depois da meia-noite? Coloque o fim menor que o início (ex.: 18:00 às 02:00).</p>
+      <button disabled={ocupado} onClick={salvar} className="mt-3 w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda disabled:opacity-60">
+        {ocupado ? "Salvando…" : "Salvar horário"}
+      </button>
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl border border-linha p-3 text-[14px]">
+          <p className="font-semibold">Pausa rápida</p>
+          <p className="text-[12px] text-areia">{pausada ? `Pausada até ${new Date(d.loja.pausa_ate!).toLocaleString("pt-BR", { weekday: "short", hour: "2-digit", minute: "2-digit" })}` : "Para de receber pedidos por um tempo."}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {pausada ? (
+              <button onClick={() => acao({ pausa_ate: null }, "Loja voltou a receber pedidos.")} className="rounded-full bg-manjericao px-3 py-1.5 font-semibold text-carvao">
+                Voltar a receber
+              </button>
+            ) : (
+              <>
+                <button onClick={() => acao({ pausa_ate: daqui(30) }, "Pausada por 30 minutos.")} className="rounded-full border border-linha px-3 py-1.5 font-semibold">
+                  30 min
+                </button>
+                <button onClick={() => acao({ pausa_ate: daqui(60) }, "Pausada por 1 hora.")} className="rounded-full border border-linha px-3 py-1.5 font-semibold">
+                  1 hora
+                </button>
+                <button onClick={() => acao({ pausa_ate: amanha6h() }, "Pausada até amanhã.")} className="rounded-full border border-linha px-3 py-1.5 font-semibold">
+                  Até amanhã
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-linha p-3 text-[14px]">
+          <p className="font-semibold">Cozinha cheia</p>
+          <p className="text-[12px] text-areia">{extraAtivo ? `Somando +${d.loja.extra_min} min na previsão até ${new Date(d.loja.extra_ate!).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : "Aumenta o tempo de entrega mostrado ao cliente por 1 hora."}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {[15, 30, 45].map((m) => (
+              <button key={m} onClick={() => acao({ extra_min: m, extra_ate: daqui(60) }, `+${m} min na previsão pela próxima hora.`)} className={`rounded-full px-3 py-1.5 font-semibold ${d.loja.extra_min === m ? "bg-papel text-carvao" : "border border-linha"}`}>
+                +{m} min
+              </button>
+            ))}
+            {extraAtivo && (
+              <button onClick={() => acao({ extra_min: 0, extra_ate: null }, "Tempo normal de novo.")} className="rounded-full border border-linha px-3 py-1.5 font-semibold">
+                Normal
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+      {msg && <p className={`mt-3 text-[14px] ${msg.ok ? "text-manjericao" : "text-[#e8846f]"}`}>{msg.t}</p>}
+      <p className="mt-3 text-[12px] text-areia">Resumo: {ORDEM.map((i) => `${DIAS[i].slice(0, 3)} ${linhaDoDia(h[String(i)] ?? [])}`).join(" · ")}</p>
     </Secao>
   );
 }

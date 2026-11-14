@@ -273,7 +273,8 @@ export function Loja() {
   const desconto = cashback ? Math.min(saldo, sub) : 0;
   const total = sub + taxa - desconto;
   const abaixoMinimo = modo === "entrega" && atende && sub < (entrega?.pedido_minimo ?? 0);
-  const tempo = modo === "entrega" && atende ? `${entrega?.tempo_min}–${entrega?.tempo_max} min` : "cerca de 20 min";
+  const extra = LOJA.extra_min ?? 0;
+  const tempo = modo === "entrega" && atende ? `${(entrega?.tempo_min ?? 0) + extra}–${(entrega?.tempo_max ?? 0) + extra} min` : `cerca de ${20 + extra} min`;
 
   const ofertaUpsell = CARDAPIO.find((p) => p.nome === "Batata cheddar e bacon" && !p.esgotado);
   const oDeSempreProd = CARDAPIO.find((p) => p.nome === "X-Bacon Duplo");
@@ -428,7 +429,7 @@ export function Loja() {
                 </a>
               )}
               <span className="flex items-center gap-1">
-                <Clock className="h-4 w-4" /> {LOJA.aberto ? LOJA.horario : "Fechado agora"}
+                <Clock className="h-4 w-4" /> {LOJA.aberto ? LOJA.horario || "Aberto agora" : LOJA.horario || "Fechado agora"}
               </span>
             </p>
             <div className="mt-4 inline-flex rounded-full bg-papel/15 p-1 text-[14px] font-semibold backdrop-blur" role="tablist" aria-label="Como receber">
@@ -446,7 +447,7 @@ export function Loja() {
           </div>
         </header>
 
-        {!LOJA.aberto && <p className="mx-4 mt-4 rounded-2xl bg-[#fde7e4] p-4 text-[15px] font-semibold text-[#9b2c1f]">A loja está fechada agora. Você pode olhar o cardápio, mas os pedidos voltam quando abrirmos.</p>}
+        {!LOJA.aberto && <p className="mx-4 mt-4 rounded-2xl bg-[#fde7e4] p-4 text-[15px] font-semibold text-[#9b2c1f]">A loja está fechada agora{LOJA.horario ? ` (${LOJA.horario.toLowerCase()})` : ""}. Você pode olhar o cardápio, mas os pedidos voltam quando abrirmos.</p>}
 
         {d.modo === "demo" && oDeSempreProd && (
           <div className="mx-4 mt-4 flex items-center gap-3 rounded-2xl bg-carvao p-4 text-papel">
@@ -790,7 +791,7 @@ export function Loja() {
                     <p className="font-display text-[26px] font-extrabold leading-tight">
                       {passo >= 4 ? "Entregue. Bom apetite!" : passo === 3 ? "Saiu para entrega" : passo === 2 ? "Na chapa agora" : "Recebemos seu pedido"}
                     </p>
-                    <p className="mt-1 text-[14px] text-areia">Previsão: {pedido ? `${pedido.tempo_min}–${pedido.tempo_max} min` : tempo}</p>
+                    <p className="mt-1 text-[14px] text-areia">Previsão: {pedido ? `${pedido.tempo_min + extra}–${pedido.tempo_max + extra} min` : tempo}</p>
                   </div>
                   <ol className="mt-5 space-y-4">
                     {["Pedido recebido", "Em preparo", modo === "entrega" ? "Saiu para entrega" : "Pronto para retirar", "Entregue"].map((t, i) => (

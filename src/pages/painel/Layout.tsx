@@ -74,7 +74,8 @@ export function PainelLayout({ rota }: { rota: Rota }) {
   useFormulariosPainel(d.loja.id, d.modo === "real" && !!d.sessao, d.loja.nome, [...d.cardapio].sort((a, b) => Number(!!b.maisPedido) - Number(!!a.maisPedido)).map((p) => p.nome));
   const naoLidas = useCrescer((s) => s.conversas.filter((c) => c.naoLida).length);
   const contador = (r: Rota) => (r === "pedidos" ? d.pedidos.filter((p) => p.status === "novo").length : r === "atendimento" ? naoLidas : 0);
-  const aberta = d.loja.aberto;
+  // botão = liga/desliga manual; o texto mostra se está aberta de verdade (horário e pausa)
+  const aberta = d.loja.ligada ?? d.loja.aberto;
   const setAberta = (v: boolean) => d.acoes.setAberta(v);
   if (d.modo === "real" && d.carregando) return <div className="tema-claro grid min-h-screen place-items-center bg-carvao text-areia">Abrindo o painel…</div>;
   if (d.modo === "real" && !d.sessao) return <Login />;
@@ -115,9 +116,12 @@ export function PainelLayout({ rota }: { rota: Rota }) {
           <p className="text-[13px] text-areia">{d.loja.bairro}</p>
           <button
             onClick={() => setAberta(!aberta)}
-            className={`mt-3 flex w-full items-center justify-between rounded-xl px-3 py-2 text-[14px] font-semibold ${aberta ? "bg-[#e2f2ea] text-[#1b6149]" : "bg-[#fbe4e0] text-[#9b3530]"}`}
+            className={`mt-3 flex w-full items-center justify-between rounded-xl px-3 py-2 text-[14px] font-semibold ${aberta && d.loja.aberto ? "bg-[#e2f2ea] text-[#1b6149]" : aberta ? "bg-[#fcefd9] text-[#7a4600]" : "bg-[#fbe4e0] text-[#9b3530]"}`}
           >
-            {aberta ? "Loja aberta" : "Loja pausada"}
+            <span className="text-left">
+              {!aberta ? "Loja desligada" : d.loja.aberto ? "Loja aberta" : "Fora do horário"}
+              {aberta && d.loja.horario && <span className="block text-[11px] font-normal opacity-80">{d.loja.horario}</span>}
+            </span>
             <span className={`relative h-5 w-9 rounded-full ${aberta ? "bg-manjericao" : "bg-tomate"}`}>
               <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${aberta ? "left-[18px]" : "left-0.5"}`} />
             </span>
