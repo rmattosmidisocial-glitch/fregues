@@ -108,8 +108,8 @@ type Dados = {
     sair: () => Promise<void>;
     /** Minha conta: troca a senha (e tira o aviso de senha provisória). */
     trocarSenha: (nova: string) => Promise<string | null>;
-    /** Minha conta: troca o e-mail de login (o Supabase manda confirmação). */
-    trocarEmail: (novo: string) => Promise<string | null>;
+    /** Minha conta: troca o e-mail de login (confirma com a senha atual). */
+    trocarEmail: (novo: string, senhaAtual: string) => Promise<string | null>;
     moverBairro: (bairroId: string, destino: string | null) => Promise<void>;
     atenderMunicipio: (cod: string, destino: string | null) => Promise<void>;
     editarZona: (id: string, campo: "taxa" | "minimo" | "t1", valor: number) => Promise<void>;
@@ -160,20 +160,24 @@ const PAG: Record<string, Pedido["pag"]> = { pix: "Pix pago", cartao: "Cartão o
 const fmtTel = (t: string) => (t.length === 11 ? `(${t.slice(0, 2)}) ${t.slice(2, 7)}-${t.slice(7)}` : t);
 
 const pulsoDemo: Pulso = { ...M.pulsoResumo, voltaram: 41, total: M.FREGUESES.length, comissao: 0.12 };
+// Loja real começa vazia: nada do restaurante de demonstração aparece enquanto carrega (ou se não carregar).
+const REAL = MODO === "real";
+const LOJA_VAZIA: Loja = { ...M.LOJA, nome: "", slug: SLUG, bairro: "", nota: 0, avaliacoes: 0, horario: "" };
+const PULSO_VAZIO: Pulso = { risco: 0, recuperado: 0, voltaram: 0, ritmo: 0, atrasado: 0, sumindo: 0, total: 0, comissao: 0.12 };
 
 export function DadosProvider({ children }: { children: React.ReactNode }) {
   const [sessao, setSessao] = useState<Session | null>(null);
   const [carregando, setCarregando] = useState(MODO === "real");
   const [erro, setErro] = useState<string | null>(null);
-  const [loja, setLoja] = useState<Loja>(M.LOJA);
-  const [zonas, setZonas] = useState<Zona[]>(() => M.ZONAS.map((z) => ({ ...z, bairros: [...z.bairros] })));
-  const [cardapio, setCardapio] = useState<Produto[]>(M.CARDAPIO);
-  const [categorias, setCategorias] = useState<string[]>(M.CATEGORIAS);
-  const [fregueses, setFregueses] = useState<Freguês[]>(M.FREGUESES);
-  const [pedidos, setPedidos] = useState<Pedido[]>(M.PEDIDOS);
-  const [pulso, setPulso] = useState<Pulso>(pulsoDemo);
-  const [semana, setSemana] = useState<DiaSemana[]>(M.VENDAS_SEMANA);
-  const [demanda, setDemanda] = useState<Record<string, number>>(M.DEMANDA_FORA);
+  const [loja, setLoja] = useState<Loja>(REAL ? LOJA_VAZIA : M.LOJA);
+  const [zonas, setZonas] = useState<Zona[]>(() => (REAL ? [] : M.ZONAS).map((z) => ({ ...z, bairros: [...z.bairros] })));
+  const [cardapio, setCardapio] = useState<Produto[]>(REAL ? [] : M.CARDAPIO);
+  const [categorias, setCategorias] = useState<string[]>(REAL ? [] : M.CATEGORIAS);
+  const [fregueses, setFregueses] = useState<Freguês[]>(REAL ? [] : M.FREGUESES);
+  const [pedidos, setPedidos] = useState<Pedido[]>(REAL ? [] : M.PEDIDOS);
+  const [pulso, setPulso] = useState<Pulso>(REAL ? PULSO_VAZIO : pulsoDemo);
+  const [semana, setSemana] = useState<DiaSemana[]>(REAL ? [] : M.VENDAS_SEMANA);
+  const [demanda, setDemanda] = useState<Record<string, number>>(REAL ? {} : M.DEMANDA_FORA);
 
   // ---------- leitura pública: loja, zonas, cardápio ----------
   const carregarPublico = useCallback(async () => {
@@ -327,14 +331,19 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, [carregarPublico]);
 
+  // Entrou (ou saiu): a loja que ainda não está no ar só é lida por quem é dono dela.
+  const usuario = sessao?.user.id;
+  useEffect(() => {
+    if (!supabase || !usuario) return;
+    setErro(null);
+    carregarPublico();
+  }, [usuario, carregarPublico]);
+
   // Ao entrar: aceita convites do e-mail e abre a loja da qual a pessoa é dona ou equipe.
   useEffect(() => {
     if (!supabase || !sessao) return;
     (async () => {
       await supabase.rpc("aceitar_convites");
-      // Administrador do Freguês (suporte) abre o painel de qualquer loja pelo link: não redireciona.
-      const { data: adm } = await supabase.rpc("is_platform_admin");
-      if (adm === true) return;
       const { data: ms } = await supabase.from("memberships").select("org_id").eq("user_id", sessao.user.id);
       if (!ms?.length) return;
       const { data: st } = await supabase.from("stores").select("slug").in("org_id", ms.map((m) => m.org_id)).order("created_at").limit(1);
@@ -379,13 +388,18 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         if (!error) return null;
         return /different from the old/i.test(error.message) ? "A nova senha precisa ser diferente da atual." : /weak|short/i.test(error.message) ? "Senha fraca: use pelo menos 8 caracteres, misturando letras e números." : error.message;
       },
-      async trocarEmail(novo) {
+      async trocarEmail(novo, senhaAtual) {
         if (!supabase) return null;
-        const em = novo.trim().toLowerCase();
-        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return "Informe um e-mail válido.";
-        const { error } = await supabase.auth.updateUser({ email: em }, { emailRedirectTo: window.location.origin + window.location.pathname + window.location.search + "#painel" });
-        if (!error) return null;
-        return /already|registered|exists/i.test(error.message) ? "Esse e-mail já é usado por outra conta." : error.message;
+        const { data } = await supabase.auth.getSession();
+        const r = await fetch("/api/conta/email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+          body: JSON.stringify({ novo, senha: senhaAtual }),
+        }).catch(() => null);
+        const c = r ? await r.json().catch(() => ({})) : {};
+        if (!r || !r.ok) return c.erro || "Não consegui trocar o e-mail agora.";
+        await supabase.auth.refreshSession();
+        return null;
       },
       async sair() {
         await supabase?.auth.signOut();

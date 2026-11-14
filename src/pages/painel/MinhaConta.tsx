@@ -8,10 +8,10 @@ const campo = "mt-1.5 w-full rounded-xl border border-linha bg-grafite px-4 py-3
 export function MinhaConta({ fechar }: { fechar: () => void }) {
   const d = useDados();
   const emailAtual = d.sessao?.user.email ?? "";
-  const provisoria = !!d.sessao?.user.user_metadata?.trocar_senha;
   const [senha, setSenha] = useState("");
   const [senha2, setSenha2] = useState("");
   const [email, setEmail] = useState("");
+  const [senhaAtual, setSenhaAtual] = useState("");
   const [msgSenha, setMsgSenha] = useState<{ ok: boolean; t: string } | null>(null);
   const [msgEmail, setMsgEmail] = useState<{ ok: boolean; t: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -47,7 +47,6 @@ export function MinhaConta({ fechar }: { fechar: () => void }) {
           <h3 className="flex items-center gap-2 text-[17px] font-bold">
             <KeyRound className="h-5 w-5 text-brasa" /> Trocar a senha
           </h3>
-          {provisoria && <p className="mt-1 text-[14px] text-mostarda">Você está com a senha provisória que recebeu. Crie uma só sua.</p>}
           <label className="mt-3 block text-[14px] font-semibold">
             Nova senha <span className="font-normal text-areia">(mínimo 8 caracteres)</span>
             <input type="password" required minLength={8} autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} className={campo} />
@@ -67,9 +66,13 @@ export function MinhaConta({ fechar }: { fechar: () => void }) {
           onSubmit={async (e) => {
             e.preventDefault();
             setOcupado(true);
-            const erro = await d.acoes.trocarEmail(email);
+            const erro = await d.acoes.trocarEmail(email, senhaAtual);
             setOcupado(false);
-            setMsgEmail(erro ? { ok: false, t: erro } : { ok: true, t: `Mandamos um link de confirmação para ${email.trim()}. Abra e confirme (pode chegar também no e-mail atual). Até confirmar, continue entrando com ${emailAtual}.` });
+            setMsgEmail(erro ? { ok: false, t: erro } : { ok: true, t: `Pronto. A partir de agora você entra com ${email.trim().toLowerCase()}.` });
+            if (!erro) {
+              setEmail("");
+              setSenhaAtual("");
+            }
           }}
         >
           <h3 className="flex items-center gap-2 text-[17px] font-bold">
@@ -78,6 +81,10 @@ export function MinhaConta({ fechar }: { fechar: () => void }) {
           <label className="mt-3 block text-[14px] font-semibold">
             Novo e-mail
             <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={campo} />
+          </label>
+          <label className="mt-3 block text-[14px] font-semibold">
+            Sua senha atual <span className="font-normal text-areia">(para confirmar que é você)</span>
+            <input type="password" required autoComplete="current-password" value={senhaAtual} onChange={(e) => setSenhaAtual(e.target.value)} className={campo} />
           </label>
           {msgEmail && <p className={`mt-3 text-[14px] ${msgEmail.ok ? "text-manjericao" : "text-[#e8846f]"}`}>{msgEmail.t}</p>}
           <button disabled={ocupado} className="mt-4 w-full rounded-xl border-2 border-papel py-3 text-[16px] font-semibold text-papel hover:bg-papel hover:text-carvao disabled:opacity-60">
@@ -89,6 +96,49 @@ export function MinhaConta({ fechar }: { fechar: () => void }) {
           <LogOut className="h-4 w-4" /> Sair do painel
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Primeiro acesso: o dono é obrigado a trocar a senha provisória antes de usar o painel. */
+export function PrimeiraSenha() {
+  const d = useDados();
+  const [senha, setSenha] = useState("");
+  const [senha2, setSenha2] = useState("");
+  const [erro, setErro] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  return (
+    <div className="grid min-h-screen place-items-center bg-carvao p-4">
+      <form
+        className="w-full max-w-[440px] rounded-3xl border border-linha bg-forno p-6"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (senha !== senha2) return setErro("As duas senhas não são iguais.");
+          setOcupado(true);
+          const r = await d.acoes.trocarSenha(senha);
+          setOcupado(false);
+          if (r) setErro(r);
+        }}
+      >
+        <KeyRound className="h-8 w-8 text-brasa" />
+        <h1 className="mt-3 font-display text-[28px] font-extrabold leading-tight">Crie a sua senha</h1>
+        <p className="mt-1 text-[15px] text-areia">Você entrou com uma senha provisória. Crie uma senha só sua: a partir de agora, só quem tiver o seu e-mail e a sua senha entra neste painel.</p>
+        <label className="mt-5 block text-[14px] font-semibold">
+          Nova senha <span className="font-normal text-areia">(mínimo 8 caracteres)</span>
+          <input type="password" required minLength={8} autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} className={campo} />
+        </label>
+        <label className="mt-3 block text-[14px] font-semibold">
+          Repita a nova senha
+          <input type="password" required minLength={8} autoComplete="new-password" value={senha2} onChange={(e) => setSenha2(e.target.value)} className={campo} />
+        </label>
+        {erro && <p className="mt-3 text-[14px] text-[#e8846f]">{erro}</p>}
+        <button disabled={ocupado} className="mt-5 w-full rounded-xl bg-brasa py-3.5 text-[17px] font-bold text-carvao hover:bg-mostarda disabled:opacity-60">
+          {ocupado ? "Salvando…" : "Salvar e entrar no painel"}
+        </button>
+        <button type="button" onClick={() => d.acoes.sair()} className="mt-3 w-full py-2 text-[14px] text-areia hover:text-papel">
+          Sair
+        </button>
+      </form>
     </div>
   );
 }

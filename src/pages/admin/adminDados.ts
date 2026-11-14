@@ -248,9 +248,23 @@ export function useAdmin() {
       log(id, "criou cliente");
       return { id };
     },
+    async editarCliente(org_id: string, f: { empresa: string; loja: string; slug: string; bairro: string; responsavel: string; telefone: string; email: string }): Promise<string | null> {
+      if (!f.empresa.trim() || !f.loja.trim()) return "Preencha empresa e nome da loja";
+      if (!/^[a-z0-9-]{3,60}$/.test(f.slug)) return "Endereço inválido: use letras minúsculas, números e hífen";
+      if (supabase) {
+        const { error } = await supabase.rpc("admin_editar_cliente", { p_org: org_id, p_empresa: f.empresa, p_loja: f.loja, p_slug: f.slug, p_bairro: f.bairro, p_responsavel: f.responsavel, p_telefone: f.telefone, p_email: f.email });
+        if (error) return error.message;
+        await recarregar();
+        return null;
+      }
+      if (clientes.some((c) => c.slug === f.slug && c.org_id !== org_id)) return "Esse endereço já está em uso";
+      setC(org_id, f);
+      log(org_id, "editou cadastro");
+      return null;
+    },
     /** Cria o login do dono com senha provisória (ou vincula um login que já existe). */
-    async criarAcesso(org_id: string, email: string, senha: string, redefinir = false): Promise<{ erro?: string; ja_existia?: boolean; senha_trocada?: boolean }> {
-      if (!supabase) return { senha_trocada: true };
+    async criarAcesso(org_id: string, email: string, senha: string, redefinir = false): Promise<{ erro?: string; ja_existia?: boolean; senha_trocada?: boolean; enviado?: boolean; aviso?: string; link?: string }> {
+      if (!supabase) return { senha_trocada: true, enviado: true };
       const { data } = await supabase.auth.getSession();
       const r = await fetch("/api/admin/acesso", {
         method: "POST",

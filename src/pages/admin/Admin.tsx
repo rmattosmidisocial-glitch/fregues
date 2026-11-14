@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, Building2, Check, ChevronRight, CircleDollarSign, Clock, Copy, CreditCard, ExternalLink, History, LayoutDashboard, Layers, LogOut, Pause, Play, Plus, Search, ShieldCheck, Store, TrendingUp, X } from "lucide-react";
+import { ArrowUpRight, Pencil, Building2, Check, ChevronRight, CircleDollarSign, Clock, Copy, CreditCard, ExternalLink, History, LayoutDashboard, Layers, LogOut, Pause, Play, Plus, Search, ShieldCheck, Store, TrendingUp, X } from "lucide-react";
 import { Logo } from "../../components/Logo";
 import { brl } from "../../data/mock";
 import { BotaoTema } from "../../tema";
@@ -19,7 +19,6 @@ const desde = (s?: string | null) => {
   const d = Math.floor((Date.now() - new Date(s).getTime()) / 86400000);
   return d <= 0 ? "hoje" : d === 1 ? "ontem" : `há ${d} dias`;
 };
-const LINK_BASE = typeof window !== "undefined" ? window.location.origin + window.location.pathname : "";
 
 type Aba = "visao" | "clientes" | "financeiro" | "planos" | "atividade";
 
@@ -92,61 +91,57 @@ function senhaProvisoria(loja: string) {
   return base + String(1000 + (n[0] % 9000));
 }
 
-/** Cria o login do dono (e-mail + senha provisória) e monta a mensagem para mandar no WhatsApp. */
-function AcessoDono({ a, org_id, loja, slug, email, responsavel, telefone, temAcesso }: { a: ReturnType<typeof useAdmin>; org_id: string; loja: string; slug: string; email: string; responsavel: string; telefone: string; temAcesso?: boolean }) {
+/** Login do dono: cria e-mail + senha provisória e manda por e-mail para ele. No primeiro acesso ele é obrigado a criar a senha dele. */
+function AcessoDono({ a, org_id, loja, email, temAcesso }: { a: ReturnType<typeof useAdmin>; org_id: string; loja: string; email: string; temAcesso?: boolean }) {
   const [em, setEm] = useState(email);
   const [senha, setSenha] = useState(() => senhaProvisoria(loja));
   const [estado, setEstado] = useState<"" | "enviando" | "pronto" | "existe">(temAcesso ? "existe" : "");
+  const [res, setRes] = useState<{ enviado?: boolean; aviso?: string; link?: string } | null>(null);
   const [erro, setErro] = useState("");
-  const [copiado, setCopiado] = useState(false);
-  const link = `${LINK_BASE}?r=${slug}#painel`;
-  const nome = responsavel.split(" ")[0] || "";
-  const msg = `Olá${nome ? " " + nome : ""}! O painel do Freguês da ${loja} está pronto.\n\nAcesse: ${link}\nE-mail: ${em.trim().toLowerCase()}\nSenha provisória: ${senha}\n\nNo primeiro acesso, toque em "Minha conta" e crie uma senha só sua.`;
   const criar = async (redefinir: boolean) => {
     setErro("");
     setEstado("enviando");
     const r = await a.acoes.criarAcesso(org_id, em, senha, redefinir);
     if (r.erro) {
       setErro(r.erro);
-      setEstado("");
-    } else setEstado(r.ja_existia && !r.senha_trocada ? "existe" : "pronto");
+      setEstado(temAcesso ? "existe" : "");
+    } else if (r.ja_existia && !r.senha_trocada) setEstado("existe");
+    else {
+      setRes(r);
+      setEstado("pronto");
+    }
   };
   const inp = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
 
   if (estado === "pronto")
-    return (
-      <div className="mt-3 rounded-2xl bg-carvao p-3 text-left text-[14px]">
-        <p className="font-semibold text-manjericao">Acesso criado. Mande para {nome || "o dono"}:</p>
-        <p className="mt-2 whitespace-pre-line break-all">{msg}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            onClick={() => {
-              navigator.clipboard?.writeText(msg).catch(() => {});
-              setCopiado(true);
-            }}
-            className="flex items-center gap-1.5 rounded-full border border-linha px-3 py-1.5 text-[13px] font-semibold hover:border-areia"
-          >
-            <Copy className="h-3.5 w-3.5" /> {copiado ? "Copiado" : "Copiar mensagem"}
-          </button>
-          {telefone && (
-            <a href={`https://wa.me/55${telefone.replace(/\D/g, "")}?text=${encodeURIComponent(msg)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full bg-[#e4f3ea] px-3 py-1.5 text-[13px] font-semibold text-[#1b6149]">
-              Enviar no WhatsApp <ArrowUpRight className="h-3.5 w-3.5" />
-            </a>
-          )}
-        </div>
+    return res?.enviado ? (
+      <div className="mt-2 rounded-2xl bg-[#e4f3ea] p-3 text-[14px] text-[#1b6149]">
+        <p className="font-semibold">Login criado e enviado para {em.trim().toLowerCase()}.</p>
+        <p className="mt-1">No primeiro acesso, o sistema obriga o dono a criar a senha dele. Depois disso, só ele sabe a senha.</p>
+      </div>
+    ) : (
+      <div className="mt-2 rounded-2xl bg-[#fcefd9] p-3 text-[14px] text-[#7a4600]">
+        <p className="font-semibold">Login criado, mas o e-mail não saiu.</p>
+        <p className="mt-1">{res?.aviso || "O envio de e-mail ainda não está configurado."} Passe estes dados para o dono por outro meio:</p>
+        <p className="mt-2 break-all font-semibold">
+          {res?.link}
+          <br />
+          E-mail: {em.trim().toLowerCase()}
+          <br />
+          Senha provisória: {senha}
+        </p>
       </div>
     );
 
   return (
-    <div className="mt-3 rounded-2xl border border-linha p-3 text-left text-[14px]">
-      <p className="font-semibold">Login do dono</p>
+    <div className="mt-2 text-[14px]">
       {estado === "existe" ? (
-        <p className="mt-1 text-areia">Esse e-mail já tem login e está ligado a esta loja. Se o dono esqueceu a senha, gere uma nova provisória:</p>
+        <p className="text-areia">Este cliente já tem login. Se o dono esqueceu a senha, mande uma nova senha provisória para o e-mail dele.</p>
       ) : (
-        <p className="mt-1 text-areia">Crie o e-mail e a senha provisória. O dono troca os dois depois, em "Minha conta".</p>
+        <p className="text-areia">Crie o login do dono. Ele recebe o acesso por e-mail e, no primeiro acesso, cria a senha dele.</p>
       )}
       <label className="mt-2 block">
-        E-mail
+        E-mail do dono
         <input type="email" value={em} onChange={(e) => setEm(e.target.value)} className={inp} />
       </label>
       <label className="mt-2 block">
@@ -155,9 +150,55 @@ function AcessoDono({ a, org_id, loja, slug, email, responsavel, telefone, temAc
       </label>
       {erro && <p className="mt-2 text-[#e8846f]">{erro}</p>}
       <button disabled={estado === "enviando" || senha.length < 8 || !em} onClick={() => criar(estado === "existe")} className="mt-3 w-full rounded-xl bg-brasa py-2.5 font-semibold text-carvao hover:bg-mostarda disabled:opacity-60">
-        {estado === "enviando" ? "Criando…" : estado === "existe" ? "Gerar nova senha provisória" : "Criar acesso do dono"}
+        {estado === "enviando" ? "Enviando…" : estado === "existe" ? "Enviar nova senha provisória" : "Criar login e enviar por e-mail"}
       </button>
     </div>
+  );
+}
+
+/** Editar o cadastro do cliente (dados da empresa, da loja e do responsável). */
+function EditarCadastro({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>; fechar: (msg?: string) => void }) {
+  const [f, setF] = useState({ empresa: c.empresa, loja: c.loja, slug: c.slug, bairro: c.bairro ?? "", responsavel: c.responsavel ?? "", telefone: c.telefone ?? "", email: c.email ?? "" });
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const inp = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
+  const campo = (k: keyof typeof f, rotulo: string, tipo = "text") => (
+    <label className="block">
+      {rotulo}
+      <input type={tipo} value={f[k]} onChange={(e) => setF({ ...f, [k]: k === "slug" ? e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") : e.target.value })} className={inp} />
+    </label>
+  );
+  return (
+    <form
+      className="mt-3 space-y-2.5 text-[14px]"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setSalvando(true);
+        const r = await a.acoes.editarCliente(c.org_id, f);
+        setSalvando(false);
+        if (r) setErro(r);
+        else fechar("Cadastro atualizado.");
+      }}
+    >
+      {campo("empresa", "Empresa (razão ou nome fantasia)")}
+      {campo("loja", "Nome da loja")}
+      {campo("slug", "Endereço da loja")}
+      {f.slug !== c.slug && <p className="text-[13px] text-mostarda">Mudar o endereço troca os links da loja e do painel. Os links antigos param de funcionar.</p>}
+      {campo("bairro", "Bairro")}
+      {campo("responsavel", "Responsável")}
+      {campo("telefone", "WhatsApp", "tel")}
+      {campo("email", "E-mail de contato", "email")}
+      <p className="text-[13px] text-areia">O e-mail de contato não muda o login do dono. O login é trocado pelo próprio dono, em "Minha conta".</p>
+      {erro && <p className="text-[#e8846f]">{erro}</p>}
+      <div className="flex gap-2 pt-1">
+        <button disabled={salvando} className="flex-1 rounded-xl bg-brasa py-2.5 font-semibold text-carvao hover:bg-mostarda disabled:opacity-60">
+          {salvando ? "Salvando…" : "Salvar"}
+        </button>
+        <button type="button" onClick={() => fechar()} className="rounded-xl border border-linha px-4 py-2.5 font-semibold">
+          Cancelar
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -177,16 +218,12 @@ function NovoClienteModal({ a, fechar }: { a: ReturnType<typeof useAdmin>; fecha
               <Check className="h-7 w-7" />
             </span>
             <h2 className="mt-4 font-display text-[24px] font-extrabold">{n.loja} entrou na carteira</h2>
-            <p className="mt-2 text-[15px] text-areia">Agora crie o login do dono e mande para ele no WhatsApp.</p>
-            {ok && <AcessoDono a={a} org_id={ok} loja={n.loja} slug={n.slug} email={n.email} responsavel={n.responsavel} telefone={n.telefone} />}
-            <div className="mt-3 rounded-2xl bg-carvao p-3 text-left text-[14px]">
-              <p className="text-areia">Loja para os clientes dele</p>
-              <p className="break-all font-semibold">{`${LINK_BASE}?r=${n.slug}#loja`}</p>
-            </div>
-            <a href={`${LINK_BASE}?r=${n.slug}#painel`} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-linha px-4 py-2 text-[14px] font-semibold">
-              Abrir painel do dono (suporte) <ArrowUpRight className="h-4 w-4" />
-            </a>
-            <br />
+            <p className="mt-2 text-[15px] text-areia">Agora crie o login do dono. Ele recebe o acesso no e-mail.</p>
+            {ok && (
+              <div className="mt-3 rounded-2xl border border-linha p-3 text-left">
+                <AcessoDono a={a} org_id={ok} loja={n.loja} email={n.email} />
+              </div>
+            )}
             <button onClick={fechar} className="mt-5 rounded-full bg-papel px-6 py-3 font-semibold text-carvao">
               Fechar
             </button>
@@ -362,8 +399,7 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
   const hist = a.auditoria.filter((x) => x.org_id === c.org_id);
   const plano = a.planos.find((p) => p.id === c.plano);
   const acao = async (p: Promise<string | null>, ok: string) => setMsg((await p) ?? ok);
-  const linkPainel = `${LINK_BASE}?r=${c.slug}#painel`;
-  const linkLoja = `${LINK_BASE}?r=${c.slug}#loja`;
+  const [editando, setEditando] = useState(false);
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={fechar}>
       <div role="dialog" aria-label={`Cliente ${c.loja}`} className="scroll-thin h-full w-full max-w-[560px] overflow-y-auto border-l border-linha bg-forno p-6" onClick={(e) => e.stopPropagation()}>
@@ -476,36 +512,50 @@ function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>;
         </section>
 
         <section className="mt-4 rounded-2xl border border-linha p-4 text-[14px]">
-          <h3 className="font-semibold">Contato e acesso</h3>
-          <p className="mt-1">
-            {c.responsavel} · {c.telefone}
-          </p>
-          <p className="text-areia">{c.email}</p>
-          {c.observacao && <p className="mt-2 rounded-xl bg-grafite p-2.5">{c.observacao}</p>}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {c.telefone && (
-              <a href={`https://wa.me/55${c.telefone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full bg-[#e4f3ea] px-3 py-1.5 text-[13px] font-semibold text-[#1b6149]">
-                WhatsApp <ArrowUpRight className="h-3.5 w-3.5" />
-              </a>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Cadastro</h3>
+            {!editando && (
+              <button onClick={() => setEditando(true)} className="flex items-center gap-1.5 rounded-full border border-linha px-3 py-1.5 text-[13px] font-semibold hover:border-areia">
+                <Pencil className="h-3.5 w-3.5" /> Editar
+              </button>
             )}
-            <a href={linkLoja} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full border border-linha px-3 py-1.5 text-[13px] font-semibold hover:border-areia">
-              <Store className="h-3.5 w-3.5" /> Abrir a loja
-            </a>
-            <a href={linkPainel} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full bg-brasa px-3 py-1.5 text-[13px] font-semibold text-carvao hover:bg-mostarda">
-              <ArrowUpRight className="h-3.5 w-3.5" /> Abrir painel do dono
-            </a>
-            <button
-              onClick={() => {
-                navigator.clipboard?.writeText(linkPainel).catch(() => {});
-                setMsg("Link do painel copiado. Mande para o dono.");
-              }}
-              className="flex items-center gap-1.5 rounded-full border border-linha px-3 py-1.5 text-[13px] font-semibold hover:border-areia"
-            >
-              <Copy className="h-3.5 w-3.5" /> Link do painel do dono
-            </button>
           </div>
-          {!c.demo && <AcessoDono key={c.org_id} a={a} org_id={c.org_id} loja={c.loja} slug={c.slug} email={c.email} responsavel={c.responsavel} telefone={c.telefone} temAcesso={c.usuarios > 0} />}
+          {editando ? (
+            <EditarCadastro
+              c={c}
+              a={a}
+              fechar={(m) => {
+                setEditando(false);
+                if (m) setMsg(m);
+              }}
+            />
+          ) : (
+            <dl className="mt-2 grid grid-cols-[110px_1fr] gap-x-3 gap-y-1">
+              <dt className="text-areia">Empresa</dt>
+              <dd>{c.empresa}</dd>
+              <dt className="text-areia">Loja</dt>
+              <dd>{c.loja}</dd>
+              <dt className="text-areia">Endereço</dt>
+              <dd className="break-all">?r={c.slug}</dd>
+              <dt className="text-areia">Bairro</dt>
+              <dd>{c.bairro || "—"}</dd>
+              <dt className="text-areia">Responsável</dt>
+              <dd>{c.responsavel || "—"}</dd>
+              <dt className="text-areia">WhatsApp</dt>
+              <dd>{c.telefone || "—"}</dd>
+              <dt className="text-areia">E-mail</dt>
+              <dd className="break-all">{c.email || "—"}</dd>
+            </dl>
+          )}
+          {c.observacao && <p className="mt-2 rounded-xl bg-grafite p-2.5">{c.observacao}</p>}
         </section>
+
+        {!c.demo && (
+          <section className="mt-4 rounded-2xl border border-linha p-4 text-[14px]">
+            <h3 className="font-semibold">Login do dono</h3>
+            <AcessoDono key={c.org_id} a={a} org_id={c.org_id} loja={c.loja} email={c.email} temAcesso={c.usuarios > 0} />
+          </section>
+        )}
 
         {hist.length > 0 && (
           <section className="mt-4 text-[14px]">
