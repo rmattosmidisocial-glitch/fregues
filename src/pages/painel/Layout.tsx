@@ -41,6 +41,13 @@ const ITENS: Item[] = [
 export function PainelLayout({ rota }: { rota: Rota }) {
   const [copiloto, setCopiloto] = useState(false);
   const [conta, setConta] = useState(false);
+  const [suporte, setSuporte] = useState("21967640607");
+  useEffect(() => {
+    supabase?.rpc("config_publica").then(({ data }) => {
+      const w = (data as { whatsapp: string }[] | null)?.[0]?.whatsapp;
+      if (w) setSuporte(w.replace(/\D/g, ""));
+    });
+  }, []);
   const d = useDados();
   const [assin, setAssin] = useState<{ status: string; plano_nome: string; teste_ate: string | null; proximo_vencimento: string | null; valor: number } | null>(null);
   useEffect(() => {
@@ -144,7 +151,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
               {assin.status === "atrasada" && `Sua mensalidade do Freguês está em atraso. Regularize para a loja não sair do ar.`}
               {assin.status === "suspensa" && `Sua loja está fora do ar por falta de pagamento. Fale com a equipe do Freguês para reativar.`}
               {assin.status === "cancelada" && `Sua assinatura do Freguês foi cancelada.`}{" "}
-              <a href="https://wa.me/5521967640607" target="_blank" rel="noreferrer" className="font-semibold underline">
+              <a href={`https://wa.me/55${suporte}`} target="_blank" rel="noreferrer" className="font-semibold underline">
                 Falar com o Freguês
               </a>
             </p>

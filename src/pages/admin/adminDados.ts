@@ -4,6 +4,16 @@ import { useCallback, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { MODO, supabase } from "../../data/dados";
 
+export type Config = { empresa: string; responsavel: string; email: string; whatsapp: string; assinatura: string };
+export const CONFIG_PADRAO: Config = { empresa: "MMATTOS Assessoria de MKT", responsavel: "", email: "", whatsapp: "21967640607", assinatura: "" };
+/** Linha que vai no fim das mensagens para os clientes. */
+export function assinaturaDe(c: Config) {
+  if (c.assinatura.trim()) return c.assinatura.trim();
+  const d = c.whatsapp.replace(/\D/g, "");
+  const tel = d.length === 11 ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}` : d;
+  return [c.responsavel || c.empresa, tel && `WhatsApp ${tel}`].filter(Boolean).join(" · ");
+}
+
 export type StatusAssin = "teste" | "ativa" | "atrasada" | "suspensa" | "cancelada";
 export type Plano = { id: string; nome: string; preco: number; descricao: string; recursos: string[] };
 export type Cliente = {
@@ -168,6 +178,7 @@ export function useAdmin() {
   const [auditoria, setAuditoria] = useState<Auditoria[]>([]);
   const [planos, setPlanos] = useState<Plano[]>(PLANOS_PADRAO);
   const [visao, setVisao] = useState<Visao | null>(null);
+  const [config, setConfig] = useState<Config>(CONFIG_PADRAO);
 
   const recarregar = useCallback(async () => {
     if (!supabase) {
@@ -182,6 +193,8 @@ export function useAdmin() {
       return;
     }
     const [v, c, f, a, p] = await Promise.all([supabase.rpc("admin_visao_geral"), supabase.rpc("admin_clientes"), supabase.rpc("admin_faturas"), supabase.rpc("admin_auditoria"), supabase.from("plans").select("*").order("ordem")]);
+    const { data: cf } = await supabase.from("platform_config").select("*").eq("id", 1).maybeSingle();
+    if (cf) setConfig({ ...CONFIG_PADRAO, ...(cf as Config) });
     const e = v.error ?? c.error ?? f.error;
     if (e) setErro(e.message);
     if (v.data) setVisao(v.data as Visao);
@@ -261,6 +274,19 @@ export function useAdmin() {
       setC(org_id, f);
       log(org_id, "editou cadastro");
       return null;
+    },
+    async salvarConfig(c: Config): Promise<string | null> {
+      setConfig(c);
+      if (!supabase) return null;
+      const { error } = await supabase.from("platform_config").update({ empresa: c.empresa.trim(), responsavel: c.responsavel.trim(), email: c.email.trim().toLowerCase(), whatsapp: c.whatsapp.replace(/\D/g, ""), assinatura: c.assinatura.trim(), atualizado_em: new Date().toISOString() }).eq("id", 1);
+      return error ? error.message : null;
+    },
+    async trocarMinhaSenha(nova: string): Promise<string | null> {
+      if (!supabase) return null;
+      if (nova.length < 8) return "A senha precisa ter pelo menos 8 caracteres.";
+      const { error } = await supabase.auth.updateUser({ password: nova });
+      if (!error) return null;
+      return /different from the old/i.test(error.message) ? "A nova senha precisa ser diferente da atual." : error.message;
     },
     /** Exclui o cliente de vez (assinatura na Asaas, loja, dados e login do dono). */
     async excluirCliente(org_id: string): Promise<{ erro?: string; aviso?: string }> {
@@ -375,5 +401,5 @@ export function useAdmin() {
     recarregar,
   };
 
-  return { modo: MODO, sessao, admin, carregando, erro, clientes, faturas, auditoria, planos, visao: v, acoes };
+  return { modo: MODO, sessao, admin, carregando, erro, clientes, faturas, auditoria, planos, visao: v, config, acoes };
 }

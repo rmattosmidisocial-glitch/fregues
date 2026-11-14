@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, MessageCircle, Pencil, Trash2, Building2, Check, ChevronRight, CircleDollarSign, Clock, Copy, CreditCard, ExternalLink, History, LayoutDashboard, Layers, LogOut, Pause, Play, Plus, Search, ShieldCheck, Store, TrendingUp, X } from "lucide-react";
+import { ArrowUpRight, MessageCircle, Pencil, Settings, Trash2, Building2, Check, ChevronRight, CircleDollarSign, Clock, Copy, CreditCard, ExternalLink, History, LayoutDashboard, Layers, LogOut, Pause, Play, Plus, Search, ShieldCheck, Store, TrendingUp, X } from "lucide-react";
 import { Logo } from "../../components/Logo";
 import { brl } from "../../data/mock";
 import { BotaoTema } from "../../tema";
-import { useAdmin, type Cliente, type Cobranca, type NovoCliente, type StatusAssin } from "./adminDados";
+import { assinaturaDe, useAdmin, type Cliente, type Config, type Cobranca, type NovoCliente, type StatusAssin } from "./adminDados";
 
 const STATUS: Record<StatusAssin, { rotulo: string; cls: string; cor: string }> = {
   ativa: { rotulo: "Ativa", cls: "bg-[#e2f2ea] text-[#1b6149]", cor: "#49c27e" },
@@ -20,7 +20,7 @@ const desde = (s?: string | null) => {
   return d <= 0 ? "hoje" : d === 1 ? "ontem" : `há ${d} dias`;
 };
 
-type Aba = "visao" | "clientes" | "financeiro" | "planos" | "atividade";
+type Aba = "visao" | "clientes" | "financeiro" | "planos" | "atividade" | "config";
 
 function Pill({ s }: { s: StatusAssin }) {
   return (
@@ -170,7 +170,7 @@ function AcessoDono({ a, org_id, loja, slug, email, responsavel, telefone }: { a
 
   // acabou de criar ou renovar: mensagem com a senha, pronta para o WhatsApp
   if (pronto) {
-    const msg = `Olá${nome ? " " + nome : ""}! O painel do Freguês da ${loja} está pronto.\n\nAcesse: ${link}\nE-mail: ${pronto.email}\nSenha provisória: ${pronto.senha}\n\nNo primeiro acesso, o sistema pede para você criar a sua própria senha. Depois disso, só você sabe a senha.`;
+    const msg = `Olá${nome ? " " + nome : ""}! O painel do Freguês da ${loja} está pronto.\n\nAcesse: ${link}\nE-mail: ${pronto.email}\nSenha provisória: ${pronto.senha}\n\nNo primeiro acesso, o sistema pede para você criar a sua própria senha. Depois disso, só você sabe a senha.\n\nQualquer dúvida, fale comigo.\n${assinaturaDe(a.config)}`;
     return (
       <div className="mt-2">
         <p className="font-semibold text-manjericao">Login pronto. Agora mande para {nome || "o dono"}:</p>
@@ -204,7 +204,7 @@ function AcessoDono({ a, org_id, loja, slug, email, responsavel, telefone }: { a
     );
 
   // já tem login
-  const msgLink = `Olá${nome ? " " + nome : ""}! Este é o link do painel do Freguês da ${loja}:\n\n${link}\n\nEntre com o seu e-mail (${dono.email}) e a sua senha.`;
+  const msgLink = `Olá${nome ? " " + nome : ""}! Este é o link do painel do Freguês da ${loja}:\n\n${link}\n\nEntre com o seu e-mail (${dono.email}) e a sua senha.\n\n${assinaturaDe(a.config)}`;
   return (
     <div className="mt-2">
       <div className="rounded-xl bg-carvao p-3">
@@ -531,6 +531,69 @@ function CobrancaAuto({ c, a }: { c: Cliente; a: ReturnType<typeof useAdmin> }) 
   );
 }
 
+/** Configurações básicas: os seus dados (vão nas mensagens para os clientes e no botão de atendimento do painel deles) e a sua senha. */
+function Configuracoes({ a }: { a: ReturnType<typeof useAdmin> }) {
+  const [f, setF] = useState<Config>(a.config);
+  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+  const [senha, setSenha] = useState("");
+  const [msgSenha, setMsgSenha] = useState<{ ok: boolean; t: string } | null>(null);
+  useEffect(() => setF(a.config), [a.config]);
+  const inp = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
+  const campo = (k: keyof Config, rotulo: string, tipo = "text", dica?: string) => (
+    <label className="block text-[14px] font-semibold">
+      {rotulo}
+      {dica && <span className="font-normal text-areia"> {dica}</span>}
+      <input type={tipo} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} className={inp} />
+    </label>
+  );
+  return (
+    <div className="max-w-[640px]">
+      <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Configurações</h1>
+      <p className="text-[15px] text-areia">Seus dados aparecem nas mensagens que você manda aos clientes e no botão "Falar com o Freguês" do painel deles.</p>
+      <form
+        className="mt-5 space-y-3 rounded-3xl border border-linha bg-forno p-5"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const r = await a.acoes.salvarConfig(f);
+          setMsg(r ? { ok: false, t: r } : { ok: true, t: "Salvo." });
+        }}
+      >
+        <h2 className="text-[18px] font-bold">Seus dados</h2>
+        {campo("empresa", "Empresa")}
+        {campo("responsavel", "Seu nome")}
+        {campo("email", "E-mail de contato", "email")}
+        {campo("whatsapp", "WhatsApp de atendimento", "tel", "(os restaurantes falam com você por aqui)")}
+        {campo("assinatura", "Assinatura das mensagens", "text", "(opcional)")}
+        <p className="rounded-xl bg-carvao p-3 text-[14px]">
+          <span className="text-areia">Fim das mensagens que você manda: </span>
+          {assinaturaDe(f) || "—"}
+        </p>
+        {msg && <p className={`text-[14px] ${msg.ok ? "text-manjericao" : "text-[#e8846f]"}`}>{msg.t}</p>}
+        <button className="w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda">Salvar</button>
+      </form>
+
+      <form
+        className="mt-4 space-y-3 rounded-3xl border border-linha bg-forno p-5"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const r = await a.acoes.trocarMinhaSenha(senha);
+          setMsgSenha(r ? { ok: false, t: r } : { ok: true, t: "Senha trocada." });
+          if (!r) setSenha("");
+        }}
+      >
+        <h2 className="text-[18px] font-bold">Seu acesso de administrador</h2>
+        <p className="text-[14px] text-areia">Você entra com {a.sessao?.user.email ?? "o seu e-mail"}.</p>
+        <label className="block text-[14px] font-semibold">
+          Nova senha <span className="font-normal text-areia">(mínimo 8 caracteres)</span>
+          <input type="password" minLength={8} required autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} className={inp} />
+        </label>
+        {msgSenha && <p className={`text-[14px] ${msgSenha.ok ? "text-manjericao" : "text-[#e8846f]"}`}>{msgSenha.t}</p>}
+        <button className="w-full rounded-xl border-2 border-papel py-3 font-semibold text-papel hover:bg-papel hover:text-carvao">Trocar minha senha</button>
+      </form>
+    </div>
+  );
+}
+
 function Detalhe({ c, a, fechar }: { c: Cliente; a: ReturnType<typeof useAdmin>; fechar: () => void }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [motivo, setMotivo] = useState("");
@@ -777,6 +840,7 @@ export function Admin() {
     { id: "financeiro", rotulo: "Financeiro", icone: <CircleDollarSign className="h-5 w-5" /> },
     { id: "planos", rotulo: "Planos", icone: <Layers className="h-5 w-5" /> },
     { id: "atividade", rotulo: "Atividade", icone: <History className="h-5 w-5" /> },
+    { id: "config", rotulo: "Configurações", icone: <Settings className="h-5 w-5" /> },
   ];
   const Alerta = ({ titulo, itens, cor, texto }: { titulo: string; itens: Cliente[]; cor: string; texto: (x: Cliente) => string }) => (
     <section className="rounded-3xl border border-linha bg-forno p-5">
@@ -1074,6 +1138,8 @@ export function Admin() {
               <p className="text-[13px] text-areia">Para mudar o preço de um cliente específico, use a ficha dele. O preço dos planos para novos clientes fica na tabela "plans" do banco.</p>
             </div>
           )}
+
+          {aba === "config" && <Configuracoes a={a} />}
 
           {aba === "atividade" && (
             <div>
