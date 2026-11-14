@@ -74,7 +74,7 @@ export function useLinksPainel(lojaId: string | undefined, ativo: boolean, lojaN
       if (!vivo) return;
       const r = (rz ?? {}) as { visitas?: number; por_botao?: Record<string, number>; por_dia?: number[] };
       const v = (vd ?? {}) as { pedidos?: number; receita?: number };
-      crescer.carregarLinks({
+      const pagina: PaginaLinks = {
         endereco: p.endereco,
         titulo: p.titulo,
         bio: p.bio ?? "",
@@ -91,7 +91,11 @@ export function useLinksPainel(lojaId: string | undefined, ativo: boolean, lojaN
         pedidos: Number(v.pedidos ?? 0),
         receita: Number(v.receita ?? 0),
         cliquesDia: (r.por_dia ?? []).map(Number).length ? (r.por_dia ?? []).map(Number) : Array(30).fill(0),
-      });
+      };
+      crescer.carregarLinks(pagina);
+      // grava já os botões convertidos do formato antigo
+      if (pagina.botoes.some((b, i) => b.url !== p.botoes[i]?.url))
+        sb.from("link_pages").update({ botoes: pagina.botoes.map(({ cliques: _c, ...b }) => b) }).eq("store_id", lojaId).then(() => {});
     })();
 
     persistir.links = (p) => {
