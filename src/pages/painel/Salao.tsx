@@ -43,7 +43,9 @@ function QR({ texto, tamanho = 120 }: { texto: string; tamanho?: number }) {
 // ---------- adicionar itens ----------
 function Cardapio({ adicionar }: { adicionar: (itens: NovoItem[]) => void }) {
   const d = useDados();
-  const [cat, setCat] = useState(d.categorias[0] ?? "");
+  const [catEscolhida, setCat] = useState(d.categorias[0] ?? "");
+  // categoria ainda não carregada (ou removida): usa a primeira que existir
+  const cat = d.categorias.includes(catEscolhida) ? catEscolhida : (d.categorias[0] ?? "");
   const [busca, setBusca] = useState("");
   const [carrinho, setCarrinho] = useState<Record<string, { p: Produto; qtd: number; obs: string }>>({});
   const lista = d.cardapio.filter((p) => (busca ? p.nome.toLowerCase().includes(busca.toLowerCase()) : p.cat === cat));
@@ -64,6 +66,7 @@ function Cardapio({ adicionar }: { adicionar: (itens: NovoItem[]) => void }) {
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fumo" />
         <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar no cardápio" className="w-full rounded-xl border border-linha bg-carvao py-2.5 pl-9 pr-3 text-[15px]" />
       </label>
+      {d.cardapio.length === 0 && <p className="mt-3 rounded-xl bg-grafite p-3 text-[14px] text-areia">O cardápio ainda não carregou ou está vazio. Feche e abra a mesa de novo; se continuar, avise o dono para cadastrar os produtos em Cardápio.</p>}
       {!busca && (
         <div className="scroll-thin mt-2 flex gap-1.5 overflow-x-auto pb-1">
           {d.categorias.map((c) => (
@@ -196,8 +199,12 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
         </div>
         <button
           onClick={async () => {
-            await s.acoes.abrirMesa(mesa.id, pessoas, garcom.trim());
-            show(`Mesa ${mesa.numero} aberta`);
+            try {
+              await s.acoes.abrirMesa(mesa.id, pessoas, garcom.trim());
+              show(`Mesa ${mesa.numero} aberta. Agora é só lançar os itens.`);
+            } catch (e) {
+              show(`Não abriu: ${(e as Error).message}`);
+            }
           }}
           className="w-full rounded-xl bg-brasa py-3.5 text-[16px] font-bold text-carvao hover:bg-mostarda"
         >
@@ -462,7 +469,8 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
       {comanda.status !== "conta" && aba !== "pagar" && (
         <button
           onClick={async () => {
-            await s.acoes.setComanda(comanda.id, { status: "conta" });
+            const r = await s.acoes.setComanda(comanda.id, { status: "conta" });
+            if (r) return show(`Não pediu a conta: ${r}`);
             setAba("pagar");
           }}
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-papel py-3 font-semibold hover:bg-papel hover:text-carvao"
@@ -736,7 +744,7 @@ export function Salao() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Salão</h1>
-          <p className="text-[15px] text-areia">Mesas, comandas e cozinha. Cada conta fechada entra no CRM junto com o delivery.</p>
+          <p className="text-[15px] text-areia">Toque numa mesa para abrir, lançar o pedido pelo cardápio, pedir a conta ou fechar.</p>
         </div>
         <div className="flex rounded-full border border-linha p-1 text-[14px] font-semibold" role="tablist">
           {(

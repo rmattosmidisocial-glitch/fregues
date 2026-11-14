@@ -119,13 +119,15 @@ export function useSalao() {
   }, [real, carregar, d.loja.id]);
 
   const e = real ? rEstado : demoEstado;
-  const err = (x: { error: { message: string } | null }) => (x.error ? x.error.message : null);
+  const err = (x: { error: { message: string } | null }) => (x.error ? x.error.message.replace(/^.*?:\s*/, "") : null);
 
   const acoes = {
     async abrirMesa(mesa: string, pessoas: number, garcom: string): Promise<string | null> {
       if (real) {
         const r = await supabase!.rpc("abrir_mesa", { p_mesa: mesa, p_pessoas: pessoas, p_garcom: garcom || null });
         await carregar();
+        // erro aparece na tela (antes sumia e parecia que a mesa tinha aberto)
+        if (r.error) throw new Error(r.error.message.replace(/^.*?:\s*/, ""));
         return (r.data as string) ?? null;
       }
       const ja = demo.comandas.find((c) => c.table_id === mesa);
