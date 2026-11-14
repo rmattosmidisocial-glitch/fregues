@@ -451,7 +451,7 @@ function Zonas({ avisar }: { avisar: (t: string) => void }) {
           const r = await d.acoes.criarZona(nova, cor);
           if (r) setErro(r);
           else {
-            avisar(`Zona ${nova.trim()} criada. Agora clique nos bairros do mapa para colocar nela`);
+            avisar(/\d\s*km/i.test(nova) ? `Zona ${nova.trim()} criada: já entrega em tudo dentro desse raio (círculo no mapa)` : `Zona ${nova.trim()} criada. Agora clique nos bairros do mapa para colocar nela`);
             setNova("");
             setErro(null);
           }
