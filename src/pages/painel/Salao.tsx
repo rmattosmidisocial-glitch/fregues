@@ -833,6 +833,15 @@ export function Salao() {
 
       {aba === "mesas" && (
         <div className="mt-5 space-y-6">
+          {s.mesas.length === 0 && (
+            <div className="rounded-3xl border-2 border-dashed border-linha p-8 text-center">
+              <p className="font-display text-[22px] font-extrabold">Nenhuma mesa cadastrada ainda</p>
+              <p className="mx-auto mt-2 max-w-[440px] text-[15px] text-areia">Cadastre as mesas da casa uma vez e o garçom já consegue abrir, lançar pedidos e fechar a conta. Cada mesa ganha o QR Code para o cliente pedir sozinho.</p>
+              <button onClick={() => setAba("editar")} className="mt-4 rounded-full bg-brasa px-6 py-3 font-semibold text-carvao hover:bg-mostarda">
+                Cadastrar mesas
+              </button>
+            </div>
+          )}
           {areas.map((a) => (
             <section key={a}>
               <h2 className="mb-2 font-display text-[18px] font-bold">{a}</h2>
