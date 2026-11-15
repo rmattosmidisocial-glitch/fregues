@@ -523,20 +523,20 @@ function ItemLinha({ i, s }: { i: ItemComanda; s: ReturnType<typeof useSalao> })
 
 // ---------- cozinha (itens do salão em preparo) ----------
 function Cozinha({ s }: { s: ReturnType<typeof useSalao> }) {
-  const col: { st: StatusItem; rotulo: string; acao: string; prox: StatusItem }[] = [
-    { st: "novo", rotulo: "Chegou", acao: "Começar a mesa", prox: "preparo" },
-    { st: "preparo", rotulo: "Preparando", acao: "Mesa pronta", prox: "pronto" },
-    { st: "pronto", rotulo: "Pronto para levar", acao: "Levei à mesa", prox: "entregue" },
+  // duas etapas: chegou (inclui o que já estava em preparo) e pronto para levar
+  const col: { st: StatusItem[]; rotulo: string; acao: string; prox: StatusItem }[] = [
+    { st: ["novo", "preparo"], rotulo: "Chegou", acao: "Mesa pronta", prox: "pronto" },
+    { st: ["pronto"], rotulo: "Pronto para levar", acao: "Levei à mesa", prox: "entregue" },
   ];
   const mesaDe = (tab: string) => s.mesas.find((m) => m.id === s.comandas.find((c) => c.id === tab)?.table_id);
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid gap-4 lg:grid-cols-2">
       {col.map((c) => {
-        const its = s.itens.filter((i) => i.status === c.st).sort((a, b) => a.criado_em.localeCompare(b.criado_em));
+        const its = s.itens.filter((i) => c.st.includes(i.status)).sort((a, b) => a.criado_em.localeCompare(b.criado_em));
         // um cartão por mesa, com todos os itens dela nesta etapa
         const grupos = [...its.reduce((mp, i) => mp.set(i.tab_id, [...(mp.get(i.tab_id) ?? []), i]), new Map<string, ItemComanda[]>()).entries()];
         return (
-          <section key={c.st} className="rounded-3xl border border-linha bg-forno p-4">
+          <section key={c.rotulo} className="rounded-3xl border border-linha bg-forno p-4">
             <h3 className="flex items-center justify-between font-display text-[18px] font-bold">
               {c.rotulo} <span className="tabular rounded-full bg-grafite px-2.5 text-[13px]">{grupos.length} {grupos.length === 1 ? "mesa" : "mesas"}</span>
             </h3>
@@ -544,7 +544,7 @@ function Cozinha({ s }: { s: ReturnType<typeof useSalao> }) {
               {grupos.map(([tab, lista]) => {
                 const m = mesaDe(tab);
                 const primeiro = lista[0].criado_em;
-                const atraso = minutos(primeiro) > 20 && c.st !== "pronto";
+                const atraso = minutos(primeiro) > 20 && !c.st.includes("pronto");
                 return (
                   <li key={tab} className={`rounded-2xl p-3 ${atraso ? "bg-[#fbe4e0]" : "bg-grafite"}`}>
                     <div className="flex items-start justify-between gap-2">
