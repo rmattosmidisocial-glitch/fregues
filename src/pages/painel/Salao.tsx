@@ -574,8 +574,6 @@ function EditarMesas({ s }: { s: ReturnType<typeof useSalao> }) {
   const nomeLoja = useDados().loja.nome;
   const { show, Toast } = useToast();
   const [imprimir, setImprimir] = useState(false);
-  const areas = [...new Set(s.mesas.map((m) => m.area))];
-  const prox = Math.max(0, ...s.mesas.map((m) => m.numero)) + 1;
   const garcons = useGarcons();
   const [novoG, setNovoG] = useState("");
   if (imprimir)
@@ -608,21 +606,13 @@ function EditarMesas({ s }: { s: ReturnType<typeof useSalao> }) {
     );
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {[...areas, ...(areas.includes("Varanda") ? [] : ["Varanda"])].map((a) => (
-          <button
-            key={a}
-            onClick={async () => {
-              const r = await s.acoes.salvarMesa({ numero: prox, area: a, lugares: 4, forma: "quadrada" });
-              show(r ?? `Mesa ${prox} criada em ${a}`);
-            }}
-            className="flex items-center gap-1.5 rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia"
-          >
-            <Plus className="h-4 w-4" /> Mesa no(a) {a}
-          </button>
-        ))}
-        <button onClick={() => setImprimir(true)} className="ml-auto flex items-center gap-2 rounded-full bg-papel px-4 py-2 text-[14px] font-semibold text-carvao">
-          <QrCode className="h-4 w-4" /> QR codes para imprimir
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-3xl border border-linha bg-forno p-5">
+        <div>
+          <h3 className="font-display text-[18px] font-bold">QR Code das mesas</h3>
+          <p className="text-[13px] text-areia">Um por mesa. O cliente aponta a câmera, vê o cardápio e pede. As mesas são cadastradas na aba Mesas.</p>
+        </div>
+        <button onClick={() => setImprimir(true)} disabled={!s.mesas.length} className="flex items-center gap-2 rounded-full bg-papel px-4 py-2 text-[14px] font-semibold text-carvao disabled:opacity-50">
+          <QrCode className="h-4 w-4" /> Imprimir QR codes
         </button>
       </div>
       <section className="mb-4 rounded-3xl border border-linha bg-forno p-5">
@@ -670,6 +660,34 @@ function EditarMesas({ s }: { s: ReturnType<typeof useSalao> }) {
           </form>
         </div>
       </section>
+      <Toast />
+    </div>
+  );
+}
+
+/** Cadastro das mesas (fica na aba Mesas): criar, área, lugares, reserva e remover. */
+function CadastroMesas({ s, aberto }: { s: ReturnType<typeof useSalao>; aberto: boolean }) {
+  const { show, Toast } = useToast();
+  const areas = [...new Set(s.mesas.map((m) => m.area))];
+  const prox = Math.max(0, ...s.mesas.map((m) => m.numero)) + 1;
+  return (
+    <details open={aberto} className="mt-6 rounded-3xl border border-linha bg-forno p-5">
+      <summary className="cursor-pointer font-display text-[18px] font-bold">Cadastrar e editar mesas</summary>
+      <div className="mt-4 space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {[...(areas.length ? areas : ["Salão"]), ...(areas.includes("Varanda") ? [] : ["Varanda"])].map((a) => (
+          <button
+            key={a}
+            onClick={async () => {
+              const r = await s.acoes.salvarMesa({ numero: prox, area: a, lugares: 4, forma: "quadrada" });
+              show(r ?? `Mesa ${prox} criada em ${a}`);
+            }}
+            className="flex items-center gap-1.5 rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia"
+          >
+            <Plus className="h-4 w-4" /> Mesa no(a) {a}
+          </button>
+        ))}
+      </div>
       <div className="overflow-x-auto rounded-3xl border border-linha bg-forno">
         <table className="w-full min-w-[560px] text-[14px]">
           <thead>
@@ -711,14 +729,20 @@ function EditarMesas({ s }: { s: ReturnType<typeof useSalao> }) {
           </tbody>
         </table>
       </div>
+      </div>
       <Toast />
-    </div>
+    </details>
   );
 }
 
 // ---------- tela principal ----------
 export function Salao() {
   const s = useSalao();
+  const d = useDados();
+  const papel = d.modo === "demo" ? "dono" : d.papel;
+  // valores vendidos: só o dono e o caixa veem; o garçom vê só o consumo de cada mesa
+  const veValores = papel === "dono" || papel === "caixa";
+  const gerencia = papel === "dono" || papel === "gerente" || papel === "caixa";
   const [aba, setAba] = useState<"mesas" | "cozinha" | "editar">("mesas");
   const [sel, setSel] = useState<string | null>(null);
   const [, tick] = useState(0);
@@ -751,9 +775,11 @@ export function Salao() {
             [
               ["mesas", "Mesas"],
               ["cozinha", `Cozinha${naCozinha ? ` (${naCozinha})` : ""}`],
-              ["editar", "Mesas e QR"],
+              ["editar", "QR e garçons"],
             ] as const
-          ).map(([v, r]) => (
+          )
+            .filter(([v]) => v !== "editar" || gerencia)
+            .map(([v, r]) => (
             <button key={v} role="tab" aria-selected={aba === v} onClick={() => setAba(v)} className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 ${aba === v ? "bg-papel text-carvao" : "text-areia"}`}>
               {v === "editar" && <Pencil className="h-3.5 w-3.5" />}
               {r}
@@ -816,12 +842,16 @@ export function Salao() {
         </div>
       )}
 
-      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className={`mt-4 grid grid-cols-2 gap-3 ${veValores ? "md:grid-cols-4" : ""}`}>
         {[
           ["Mesas ocupadas", `${ocupadas.length} de ${s.mesas.length}`, `${Math.round((pessoas / Math.max(1, lugares)) * 100)}% dos lugares`],
           ["Pessoas agora", String(pessoas), `${naCozinha} itens na cozinha`],
-          ["Consumo em aberto", brl(emAberto), "nas mesas ocupadas"],
-          ["Vendido no salão hoje", brl(vendasHoje), pessoasHoje ? `${brl(vendasHoje / pessoasHoje)} por pessoa` : "nenhuma conta fechada"],
+          ...(veValores
+            ? [
+                ["Consumo em aberto", brl(emAberto), "nas mesas ocupadas"],
+                ["Vendido no salão hoje", brl(vendasHoje), pessoasHoje ? `${brl(vendasHoje / pessoasHoje)} por pessoa` : "nenhuma conta fechada"],
+              ]
+            : []),
         ].map(([k, v, sub]) => (
           <div key={k} className="rounded-2xl border border-linha bg-forno p-4">
             <p className="text-[12px] text-areia">{k}</p>
@@ -837,9 +867,7 @@ export function Salao() {
             <div className="rounded-3xl border-2 border-dashed border-linha p-8 text-center">
               <p className="font-display text-[22px] font-extrabold">Nenhuma mesa cadastrada ainda</p>
               <p className="mx-auto mt-2 max-w-[440px] text-[15px] text-areia">Cadastre as mesas da casa uma vez e o garçom já consegue abrir, lançar pedidos e fechar a conta. Cada mesa ganha o QR Code para o cliente pedir sozinho.</p>
-              <button onClick={() => setAba("editar")} className="mt-4 rounded-full bg-brasa px-6 py-3 font-semibold text-carvao hover:bg-mostarda">
-                Cadastrar mesas
-              </button>
+              {!gerencia && <p className="mt-3 text-[14px] font-semibold">Peça ao dono ou ao caixa para cadastrar as mesas.</p>}
             </div>
           )}
           {areas.map((a) => (
@@ -901,6 +929,7 @@ export function Salao() {
               <span className="h-3 w-3 rounded bg-azulejo" /> Reservada
             </span>
           </div>
+          {gerencia && <CadastroMesas s={s} aberto={s.mesas.length === 0} />}
         </div>
       )}
       {aba === "cozinha" && (
