@@ -17,6 +17,24 @@ const Redefinir = lazy(() => import("./pages/painel/Login").then((m) => ({ defau
 const Admin = lazy(() => import("./pages/admin/Admin").then((m) => ({ default: m.Admin })));
 const Mesa = lazy(() => import("./pages/publico/Mesa").then((m) => ({ default: m.Mesa })));
 
+// Depois de uma atualização do sistema, uma aba que já estava aberta pode pedir um pedaço antigo
+// do app que não existe mais. Nesses casos a página recarrega sozinha (no máximo uma vez por minuto).
+const ERRO_DE_VERSAO = /dynamically imported module|Importing a module script failed|error loading dynamically|Unable to preload CSS/i;
+function recarregarVersaoNova(): boolean {
+  try {
+    const ultima = Number(sessionStorage.getItem("fregues-recarregou") || 0);
+    if (Date.now() - ultima < 60_000) return false;
+    sessionStorage.setItem("fregues-recarregou", String(Date.now()));
+  } catch {
+    /* sem sessionStorage: recarrega mesmo assim */
+  }
+  window.location.reload();
+  return true;
+}
+window.addEventListener("vite:preloadError", (ev) => {
+  if (recarregarVersaoNova()) ev.preventDefault();
+});
+
 iniciarMonitor();
 
 const Abrindo = () => <div className="grid min-h-screen place-items-center bg-carvao text-areia">Abrindo…</div>;
@@ -28,11 +46,7 @@ class Protecao extends React.Component<{ children: React.ReactNode }, { erro: st
   }
   componentDidCatch(e: Error, info: React.ErrorInfo) {
     // depois de uma atualização do sistema, a tela aberta pode pedir um pedaço antigo que não existe mais: recarrega uma vez
-    if (/dynamically imported module|Importing a module script failed|error loading dynamically/i.test(e.message) && !sessionStorage.getItem("fregues-recarregou")) {
-      sessionStorage.setItem("fregues-recarregou", "1");
-      window.location.reload();
-      return;
-    }
+    if (ERRO_DE_VERSAO.test(e.message) && recarregarVersaoNova()) return;
     registrarErro(e, "tela", info.componentStack ?? undefined);
   }
   render() {
