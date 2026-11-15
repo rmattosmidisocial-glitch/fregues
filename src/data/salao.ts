@@ -158,6 +158,17 @@ export function useSalao() {
       setDemo((s) => ({ ...s, itens: s.itens.map((i) => (i.id === id ? { ...i, status } : i)) }));
       return null;
     },
+    /** Vários itens de uma vez (a mesa inteira na cozinha). */
+    async statusItens(ids: string[], status: StatusItem) {
+      if (!ids.length) return null;
+      if (real) {
+        const r = await supabase!.from("tab_items").update({ status, atualizado_em: new Date().toISOString() }).in("id", ids);
+        await carregar();
+        return err(r);
+      }
+      setDemo((s) => ({ ...s, itens: s.itens.map((i) => (ids.includes(i.id) ? { ...i, status } : i)) }));
+      return null;
+    },
     async setConfirmar(v: boolean) {
       if (real) {
         const r = await supabase!.from("stores").update({ mesa_confirmar: v }).eq("id", d.loja.id!);

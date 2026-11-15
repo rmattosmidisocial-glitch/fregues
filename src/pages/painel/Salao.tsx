@@ -524,8 +524,8 @@ function ItemLinha({ i, s }: { i: ItemComanda; s: ReturnType<typeof useSalao> })
 // ---------- cozinha (itens do salão em preparo) ----------
 function Cozinha({ s }: { s: ReturnType<typeof useSalao> }) {
   const col: { st: StatusItem; rotulo: string; acao: string; prox: StatusItem }[] = [
-    { st: "novo", rotulo: "Chegou", acao: "Começar", prox: "preparo" },
-    { st: "preparo", rotulo: "Preparando", acao: "Pronto", prox: "pronto" },
+    { st: "novo", rotulo: "Chegou", acao: "Começar a mesa", prox: "preparo" },
+    { st: "preparo", rotulo: "Preparando", acao: "Mesa pronta", prox: "pronto" },
     { st: "pronto", rotulo: "Pronto para levar", acao: "Levei à mesa", prox: "entregue" },
   ];
   const mesaDe = (tab: string) => s.mesas.find((m) => m.id === s.comandas.find((c) => c.id === tab)?.table_id);
@@ -533,34 +533,39 @@ function Cozinha({ s }: { s: ReturnType<typeof useSalao> }) {
     <div className="grid gap-4 lg:grid-cols-3">
       {col.map((c) => {
         const its = s.itens.filter((i) => i.status === c.st).sort((a, b) => a.criado_em.localeCompare(b.criado_em));
+        // um cartão por mesa, com todos os itens dela nesta etapa
+        const grupos = [...its.reduce((mp, i) => mp.set(i.tab_id, [...(mp.get(i.tab_id) ?? []), i]), new Map<string, ItemComanda[]>()).entries()];
         return (
           <section key={c.st} className="rounded-3xl border border-linha bg-forno p-4">
             <h3 className="flex items-center justify-between font-display text-[18px] font-bold">
-              {c.rotulo} <span className="tabular rounded-full bg-grafite px-2.5 text-[13px]">{its.length}</span>
+              {c.rotulo} <span className="tabular rounded-full bg-grafite px-2.5 text-[13px]">{grupos.length} {grupos.length === 1 ? "mesa" : "mesas"}</span>
             </h3>
             <ul className="mt-3 space-y-2">
-              {its.map((i) => {
-                const m = mesaDe(i.tab_id);
-                const atraso = minutos(i.criado_em) > 20 && c.st !== "pronto";
+              {grupos.map(([tab, lista]) => {
+                const m = mesaDe(tab);
+                const primeiro = lista[0].criado_em;
+                const atraso = minutos(primeiro) > 20 && c.st !== "pronto";
                 return (
-                  <li key={i.id} className={`rounded-2xl p-3 ${atraso ? "bg-[#fbe4e0]" : "bg-grafite"}`}>
+                  <li key={tab} className={`rounded-2xl p-3 ${atraso ? "bg-[#fbe4e0]" : "bg-grafite"}`}>
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-display text-[20px] font-extrabold leading-tight">Mesa {m?.numero}</p>
-                        <p className="text-[15px] font-semibold">
-                          {i.qtd}x {i.nome}
-                        </p>
-                        {i.obs && <p className="text-[14px] font-semibold text-mostarda">⚠ {i.obs}</p>}
-                      </div>
-                      <span className={`tabular text-[13px] ${atraso ? "font-bold text-[#9b3530]" : "text-areia"}`}>{tempo(i.criado_em)}</span>
+                      <p className="font-display text-[22px] font-extrabold leading-tight">Mesa {m?.numero}</p>
+                      <span className={`tabular text-[13px] ${atraso ? "font-bold text-[#9b3530]" : "text-areia"}`}>{tempo(primeiro)}</span>
                     </div>
-                    <button onClick={() => s.acoes.statusItem(i.id, c.prox)} className="mt-2 w-full rounded-xl bg-papel py-2 text-[14px] font-semibold text-carvao">
-                      {c.acao}
+                    <ul className="mt-1 space-y-1">
+                      {lista.map((i) => (
+                        <li key={i.id} className="text-[15px]">
+                          <b className="tabular">{i.qtd}x</b> {i.nome}
+                          {i.obs && <span className="block text-[14px] font-semibold text-mostarda">⚠ {i.obs}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                    <button onClick={() => s.acoes.statusItens(lista.map((i) => i.id), c.prox)} className="mt-3 w-full rounded-xl bg-papel py-2.5 text-[14px] font-semibold text-carvao">
+                      {c.acao} ({lista.reduce((n, i) => n + i.qtd, 0)} {lista.reduce((n, i) => n + i.qtd, 0) === 1 ? "item" : "itens"})
                     </button>
                   </li>
                 );
               })}
-              {its.length === 0 && <li className="rounded-2xl border border-dashed border-linha p-4 text-center text-[14px] text-areia">Nada aqui</li>}
+              {grupos.length === 0 && <li className="rounded-2xl border border-dashed border-linha p-4 text-center text-[14px] text-areia">Nada aqui</li>}
             </ul>
           </section>
         );
