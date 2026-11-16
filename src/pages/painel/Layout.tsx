@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Activity, Armchair, Calculator, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, LogOut, Map as MapIcon, UserRound, MessagesSquare, Settings, Sparkles, Users, Workflow, X, BarChart3 } from "lucide-react";
+import { Activity, Armchair, Calculator, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, Lock, LogOut, Map as MapIcon, UserRound, MessagesSquare, Settings, Sparkles, Users, Workflow, X, BarChart3 } from "lucide-react";
 import { useCrescer } from "../../data/crescer";
 import { useAtendimentoPainel } from "../../data/atendimento";
 import { useFormulariosPainel } from "../../data/formularios";
@@ -26,6 +26,8 @@ import { LinkDaLoja } from "./LinkDaLoja";
 import { Configuracoes } from "./Configuracoes";
 import { Relatorios } from "./Relatorios";
 import { AceiteTermos, VERSAO_TERMOS } from "../publico/Legal";
+import { BloqueadoNoPlano } from "../../components/Plano";
+import type { Modulo } from "../../data/dados";
 
 type Item = { rota: Rota; rotulo: string; curto: string; icone: React.ReactNode; grupo: "Operação" | "Crescer" | "Loja" };
 const ITENS: Item[] = [
@@ -60,6 +62,11 @@ export function PainelLayout({ rota }: { rota: Rota }) {
   // Relatórios é opcional: só aparece quando o dono liga em Configurações
   const ITENS_VIS = (restrito ? ITENS.filter((i) => restrito.includes(i.rota)) : ITENS).filter((i) => i.rota !== "relatorios" || d.modo === "demo" || d.loja.relatorios_ativo);
   const chefe = !restrito; // dono e gerente
+  // partes que dependem do plano
+  const MODULO_DA_ROTA: Partial<Record<Rota, Modulo>> = { automacoes: "automacoes", formularios: "formularios", links: "links" };
+  const liberado = (m?: Modulo) => !m || d.modo === "demo" || d.plano.modulos.includes(m);
+  const temIA = liberado("ia");
+  const bloqueio = MODULO_DA_ROTA[rota] && !liberado(MODULO_DA_ROTA[rota]) ? MODULO_DA_ROTA[rota] : undefined;
   useEffect(() => {
     if (restrito && !restrito.includes(rota)) window.location.hash = "#" + restrito[0];
   }, [restrito, rota]);
@@ -158,6 +165,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
                 <a key={i.rota} href={`#${i.rota}`} aria-current={ativo ? "page" : undefined} className={`flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] transition ${ativo ? "bg-papel font-semibold text-carvao" : "text-areia hover:bg-grafite hover:text-papel"}`}>
                   {i.icone}
                   {i.rotulo}
+                  {!liberado(MODULO_DA_ROTA[i.rota]) && <Lock className="ml-auto h-3.5 w-3.5 text-fumo" aria-label="Não incluso no seu plano" />}
                   {n > 0 && <span className="tabular ml-auto rounded-full bg-brasa px-2 text-[12px] font-bold text-carvao">{n}</span>}
                 </a>
               </div>
@@ -217,7 +225,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
             </p>
           )}
           {d.erro && <p className="mb-4 rounded-2xl bg-[#fbe4e0] p-4 text-[#8e2f2a]">{d.erro === "FORA_DO_AR" ? "Loja não encontrada para este login." : d.erro}</p>}
-          {chefe && (rota === "painel" || rota === "cardapio" || rota === "links" || (d.modo === "real" && d.loja.publicada === false)) && <LinkDaLoja />}
+          {chefe && (rota === "painel" || rota === "cardapio" || (rota === "links" && !bloqueio) || (d.modo === "real" && d.loja.publicada === false)) && <LinkDaLoja />}
           {rota === "painel" && <Pulso abrirCopiloto={() => setCopiloto(true)} />}
           {rota === "pedidos" && <Pedidos />}
           {rota === "mapa" && <MapaAtuacao />}
@@ -226,9 +234,10 @@ export function PainelLayout({ rota }: { rota: Rota }) {
           {rota === "caixa" && <Caixa />}
           {rota === "salao" && <Salao />}
           {rota === "atendimento" && <Atendimento />}
-          {rota === "automacoes" && <Automacoes />}
-          {rota === "formularios" && <Formularios />}
-          {rota === "links" && <Links />}
+          {bloqueio && <BloqueadoNoPlano modulo={bloqueio} suporte={suporte} />}
+          {rota === "automacoes" && !bloqueio && <Automacoes />}
+          {rota === "formularios" && !bloqueio && <Formularios />}
+          {rota === "links" && !bloqueio && <Links />}
           {rota === "config" && <Configuracoes />}
           {rota === "relatorios" && chefe && <Relatorios />}
         </main>
@@ -256,7 +265,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <Copiloto />
+            {temIA ? <Copiloto /> : <BloqueadoNoPlano modulo="ia" suporte={suporte} />}
           </div>
         </div>
       )}

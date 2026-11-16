@@ -1,5 +1,5 @@
 // O dono cria o login de alguém da equipe (caixa, garçom, cozinha, entregador, gerente) com senha provisória.
-import { SUPA_URL, rpcServidor, erroServidor } from "../../_lib/base.js";
+import { SUPA_URL, lerServidor, rpcServidor, erroServidor } from "../../_lib/base.js";
 
 const ANON = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -29,16 +29,26 @@ export default async function handler(req, res) {
     method: "POST",
     headers: { apikey: ANON, Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
     body: JSON.stringify({ p_org: org_id }),
-  }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  })
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
   if (p !== "dono") return res.status(403).json({ erro: "Só o dono da loja cadastra a equipe." });
 
-  const em = String(email || "").trim().toLowerCase();
+  const em = String(email || "")
+    .trim()
+    .toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return res.status(400).json({ erro: "Informe um e-mail válido." });
   if (!PAPEIS.includes(papel)) return res.status(400).json({ erro: "Escolha a função." });
   if (String(senha || "").length < 8) return res.status(400).json({ erro: "A senha provisória precisa ter 8 caracteres ou mais." });
 
   try {
     const ja = (await rpcServidor("usuario_por_email", { p_email: em })) || [];
+    // limite de usuários do plano (quem já é da equipe só troca de função)
+    const vagas = await rpcServidor("plano_vagas", { p_org: org_id }).catch(() => null);
+    if (typeof vagas === "number" && vagas <= 0) {
+      const membros = await lerServidor("memberships", `org_id=eq.${encodeURIComponent(org_id)}&select=user_id`);
+      if (!ja.length || !membros.some((m) => m.user_id === ja[0].id)) return res.status(403).json({ erro: "O seu plano já usa todos os usuários. Para cadastrar mais pessoas, tire alguém da equipe ou mude de plano." });
+    }
     let id;
     if (ja.length) {
       if (ja[0].admin) return res.status(409).json({ erro: "Esse e-mail é de um administrador do Freguês." });
@@ -49,6 +59,7 @@ export default async function handler(req, res) {
     await rpcServidor("equipe_vincular_srv", { p_org: org_id, p_user: id, p_papel: papel });
     return res.status(200).json({ ok: true, ja_existia: ja.length > 0 });
   } catch (e) {
+    if (/LIMITE_USUARIOS/.test(e.message)) return res.status(403).json({ erro: e.message.replace(/^.*LIMITE_USUARIOS:\s*/, "").replace(/^o/, "O") });
     await erroServidor("conta/equipe", e);
     return res.status(500).json({ erro: e.message });
   }

@@ -48,10 +48,79 @@ export const supabase: SupabaseClient | null = URL && KEY ? createClient(URL, KE
 export const supabaseAdmin: SupabaseClient | null = URL && KEY ? createClient(URL, KEY, { auth: { storageKey: "fregues-admin-auth" } }) : null;
 export const MODO: "real" | "demo" = supabase ? "real" : "demo";
 
-export type Loja = typeof M.LOJA & { id?: string; publicada?: boolean; demonstracao?: boolean; pix_chave?: string | null; pix_nome?: string | null; pix_cidade?: string | null; descricao?: string | null; whatsapp?: string | null; instagram?: string | null; logo_url?: string | null; capa_url?: string | null; rua?: string | null; numero?: string | null; cep?: string | null; lon?: number | null; lat?: number | null; ligada?: boolean; horarios?: Horarios | null; pausa_ate?: string | null; extra_min?: number; extra_ate?: string | null; aceita_pix?: boolean; aceita_cartao?: boolean; aceita_dinheiro?: boolean; entrega_ativa?: boolean; retirada_ativa?: boolean; pedido_minimo_geral?: number; taxa_embalagem?: number; cashback_ativo?: boolean; cashback_percentual?: number; cashback_minimo_uso?: number; cashback_validade_dias?: number | null; servico_padrao?: number; couvert_padrao?: number; org_id?: string; relatorios_ativo?: boolean; pagamento_online?: boolean; pagamento_online_ok?: boolean; whatsapp_ativo?: boolean; whatsapp_ok?: boolean; whatsapp_eventos?: Record<string, boolean>; nfce_ativo?: boolean; nfce_ok?: boolean; nfce_automatica?: boolean; nfce_cnpj?: string | null; nfce_producao?: boolean; nfce_ncm?: string; cor_marca?: string | null; maquininha_ativo?: boolean; maquininha_provedor?: "mp" | "stone"; maquininha_aparelhos?: Aparelho[] };
+export type Loja = typeof M.LOJA & {
+  id?: string;
+  publicada?: boolean;
+  demonstracao?: boolean;
+  pix_chave?: string | null;
+  pix_nome?: string | null;
+  pix_cidade?: string | null;
+  descricao?: string | null;
+  whatsapp?: string | null;
+  instagram?: string | null;
+  logo_url?: string | null;
+  capa_url?: string | null;
+  rua?: string | null;
+  numero?: string | null;
+  cep?: string | null;
+  lon?: number | null;
+  lat?: number | null;
+  ligada?: boolean;
+  horarios?: Horarios | null;
+  pausa_ate?: string | null;
+  extra_min?: number;
+  extra_ate?: string | null;
+  aceita_pix?: boolean;
+  aceita_cartao?: boolean;
+  aceita_dinheiro?: boolean;
+  entrega_ativa?: boolean;
+  retirada_ativa?: boolean;
+  pedido_minimo_geral?: number;
+  taxa_embalagem?: number;
+  cashback_ativo?: boolean;
+  cashback_percentual?: number;
+  cashback_minimo_uso?: number;
+  cashback_validade_dias?: number | null;
+  servico_padrao?: number;
+  couvert_padrao?: number;
+  org_id?: string;
+  relatorios_ativo?: boolean;
+  pagamento_online?: boolean;
+  pagamento_online_ok?: boolean;
+  whatsapp_ativo?: boolean;
+  whatsapp_ok?: boolean;
+  whatsapp_eventos?: Record<string, boolean>;
+  nfce_ativo?: boolean;
+  nfce_ok?: boolean;
+  nfce_automatica?: boolean;
+  nfce_cnpj?: string | null;
+  nfce_producao?: boolean;
+  nfce_ncm?: string;
+  cor_marca?: string | null;
+  maquininha_ativo?: boolean;
+  maquininha_provedor?: "mp" | "stone";
+  maquininha_aparelhos?: Aparelho[];
+};
 export type Aparelho = { id: string; nome: string };
 export type Integracoes = { mp: boolean; mp_final: string | null; wa: boolean; wa_phone_id: string | null; wa_modelos: Record<string, string>; focus: boolean; focus_final: string | null; stone?: boolean };
-export type Relatorio = { pedidos: number; cancelados: number; valor_cancelado: number; bruto: number; descontos: number; taxas_entrega: number; embalagens: number; total: number; recebido: number; a_receber: number; clientes: number; notas: number; por_forma: Record<string, number>; por_canal: Record<string, { pedidos: number; total: number }>; por_dia: { dia: string; pedidos: number; total: number }[]; produtos: { nome: string; qtd: number; total: number }[] };
+export type Relatorio = {
+  pedidos: number;
+  cancelados: number;
+  valor_cancelado: number;
+  bruto: number;
+  descontos: number;
+  taxas_entrega: number;
+  embalagens: number;
+  total: number;
+  recebido: number;
+  a_receber: number;
+  clientes: number;
+  notas: number;
+  por_forma: Record<string, number>;
+  por_canal: Record<string, { pedidos: number; total: number }>;
+  por_dia: { dia: string; pedidos: number; total: number }[];
+  produtos: { nome: string; qtd: number; total: number }[];
+};
 export type NotaFiscal = { order_id: string; status: "processando" | "autorizada" | "erro" | "cancelada"; numero: string | null; url_danfe: string | null; mensagem: string | null };
 export type Pulso = { risco: number; recuperado: number; voltaram: number; ritmo: number; atrasado: number; sumindo: number; total: number; comissao: number };
 export type DiaSemana = { dia: string; propria: number; marketplace: number };
@@ -119,6 +188,17 @@ async function reduzirFoto(arquivo: File): Promise<Blob> {
 }
 const URL_ = globalThis.URL;
 
+export type Modulo = "ia" | "automacoes" | "formularios" | "links";
+export type PlanoLoja = { plano: string | null; nome?: string; usuarios_max?: number | null; lojas_max?: number | null; usuarios: number; modulos: Modulo[] };
+const PLANO_COMPLETO: PlanoLoja = { plano: null, usuarios: 0, modulos: ["ia", "automacoes", "formularios", "links"] };
+/** Nome do plano que libera cada parte (para o aviso de "disponível no plano…"). */
+export const MODULO_INFO: Record<Modulo, { nome: string; plano: string }> = {
+  ia: { nome: "Atendimento com IA e Copiloto", plano: "Completo" },
+  automacoes: { nome: "Automações", plano: "Completo" },
+  formularios: { nome: "Formulários", plano: "Completo" },
+  links: { nome: "Links da bio", plano: "Completo" },
+};
+
 export type PedidoCriado = { id: string; numero: number; total: number; desconto: number; taxa: number; tempo_min: number; tempo_max: number; erro?: string; fora_da_area?: boolean };
 
 type Dados = {
@@ -129,6 +209,8 @@ type Dados = {
   /** Entrou com um login que não é desta loja (por exemplo, o do administrador). */
   semAcesso: boolean;
   papel: Papel;
+  /** O que o plano da loja libera (Essencial, Completo, Rede). */
+  plano: PlanoLoja;
   loja: Loja;
   zonas: Zona[];
   cardapio: Produto[];
@@ -142,7 +224,62 @@ type Dados = {
     entrar: (email: string, senha: string) => Promise<string | null>;
     sair: () => Promise<void>;
     /** Grava campos da loja (configurações do dono). */
-    salvarLoja: (c: Partial<Pick<Loja, "maquininha_ativo" | "maquininha_provedor" | "maquininha_aparelhos" | "cor_marca" | "relatorios_ativo" | "pagamento_online" | "pagamento_online_ok" | "whatsapp_ativo" | "whatsapp_ok" | "whatsapp_eventos" | "nfce_ativo" | "nfce_ok" | "nfce_automatica" | "nfce_cnpj" | "nfce_producao" | "nfce_ncm" | "nome" | "pix_chave" | "pix_nome" | "pix_cidade" | "descricao" | "whatsapp" | "instagram" | "logo_url" | "capa_url" | "cidade" | "bairro" | "rua" | "numero" | "cep" | "lon" | "lat" | "horarios" | "pausa_ate" | "extra_min" | "extra_ate" | "aceita_pix" | "aceita_cartao" | "aceita_dinheiro" | "entrega_ativa" | "retirada_ativa" | "pedido_minimo_geral" | "taxa_embalagem" | "cashback_ativo" | "cashback_percentual" | "cashback_minimo_uso" | "cashback_validade_dias" | "servico_padrao" | "couvert_padrao">>) => Promise<string | null>;
+    salvarLoja: (
+      c: Partial<
+        Pick<
+          Loja,
+          | "maquininha_ativo"
+          | "maquininha_provedor"
+          | "maquininha_aparelhos"
+          | "cor_marca"
+          | "relatorios_ativo"
+          | "pagamento_online"
+          | "pagamento_online_ok"
+          | "whatsapp_ativo"
+          | "whatsapp_ok"
+          | "whatsapp_eventos"
+          | "nfce_ativo"
+          | "nfce_ok"
+          | "nfce_automatica"
+          | "nfce_cnpj"
+          | "nfce_producao"
+          | "nfce_ncm"
+          | "nome"
+          | "pix_chave"
+          | "pix_nome"
+          | "pix_cidade"
+          | "descricao"
+          | "whatsapp"
+          | "instagram"
+          | "logo_url"
+          | "capa_url"
+          | "cidade"
+          | "bairro"
+          | "rua"
+          | "numero"
+          | "cep"
+          | "lon"
+          | "lat"
+          | "horarios"
+          | "pausa_ate"
+          | "extra_min"
+          | "extra_ate"
+          | "aceita_pix"
+          | "aceita_cartao"
+          | "aceita_dinheiro"
+          | "entrega_ativa"
+          | "retirada_ativa"
+          | "pedido_minimo_geral"
+          | "taxa_embalagem"
+          | "cashback_ativo"
+          | "cashback_percentual"
+          | "cashback_minimo_uso"
+          | "cashback_validade_dias"
+          | "servico_padrao"
+          | "couvert_padrao"
+        >
+      >,
+    ) => Promise<string | null>;
     /** Coloca a loja no ar (ou tira). Devolve o erro, ou null. */
     publicarLoja: (noAr: boolean) => Promise<string | null>;
     /** Minha conta: troca a senha (e tira o aviso de senha provisória). */
@@ -232,21 +369,38 @@ function relatorioDemo(ps: Pedido[], de: string, ate: string): Relatorio {
     por_canal[c] = { pedidos: (por_canal[c]?.pedidos ?? 0) + 1, total: (por_canal[c]?.total ?? 0) + p.total };
   }
   const dias: { dia: string; pedidos: number; total: number }[] = [];
-  const ini = new Date(de + "T12:00:00"), fim = new Date(ate + "T12:00:00");
+  const ini = new Date(de + "T12:00:00"),
+    fim = new Date(ate + "T12:00:00");
   for (let d = new Date(ini), k = 0; d <= fim && k < 400; d.setDate(d.getDate() + 1), k++) {
     const n = 8 + ((d.getDate() * 7) % 13);
     dias.push({ dia: d.toISOString().slice(0, 10), pedidos: n, total: Math.round(n * 58.9 * 100) / 100 });
   }
-  const total = dias.reduce((s, x) => s + x.total, 0), pedidosN = dias.reduce((s, x) => s + x.pedidos, 0);
+  const total = dias.reduce((s, x) => s + x.total, 0),
+    pedidosN = dias.reduce((s, x) => s + x.pedidos, 0);
   const fator = soma((p) => p.total) ? total / soma((p) => p.total) : 1;
   return {
-    pedidos: pedidosN, cancelados: Math.round(pedidosN * 0.02), valor_cancelado: Math.round(total * 0.02), bruto: Math.round(total * 0.93), descontos: Math.round(total * 0.03),
-    taxas_entrega: Math.round(total * 0.08), embalagens: Math.round(total * 0.02), total: Math.round(total * 100) / 100, recebido: Math.round(total * 0.97), a_receber: Math.round(total * 0.03),
-    clientes: Math.round(pedidosN * 0.6), notas: 0,
+    pedidos: pedidosN,
+    cancelados: Math.round(pedidosN * 0.02),
+    valor_cancelado: Math.round(total * 0.02),
+    bruto: Math.round(total * 0.93),
+    descontos: Math.round(total * 0.03),
+    taxas_entrega: Math.round(total * 0.08),
+    embalagens: Math.round(total * 0.02),
+    total: Math.round(total * 100) / 100,
+    recebido: Math.round(total * 0.97),
+    a_receber: Math.round(total * 0.03),
+    clientes: Math.round(pedidosN * 0.6),
+    notas: 0,
     por_forma: Object.fromEntries(Object.entries(por_forma).map(([k, v]) => [k, Math.round(v * fator)])),
-    por_canal: Object.fromEntries(Object.entries(por_canal).map(([k, v]) => [k, { pedidos: Math.round(v.pedidos * fator / 60) || 1, total: Math.round(v.total * fator) }])),
+    por_canal: Object.fromEntries(Object.entries(por_canal).map(([k, v]) => [k, { pedidos: Math.round((v.pedidos * fator) / 60) || 1, total: Math.round(v.total * fator) }])),
     por_dia: dias,
-    produtos: [["X-Bacon Duplo", 0.22], ["Smash Bacon", 0.17], ["Combo Casal", 0.14], ["Batata Rústica", 0.09], ["Milkshake", 0.06]].map(([n, f]) => ({ nome: n as string, qtd: Math.round(pedidosN * (f as number) * 1.4), total: Math.round(total * (f as number)) })),
+    produtos: [
+      ["X-Bacon Duplo", 0.22],
+      ["Smash Bacon", 0.17],
+      ["Combo Casal", 0.14],
+      ["Batata Rústica", 0.09],
+      ["Milkshake", 0.06],
+    ].map(([n, f]) => ({ nome: n as string, qtd: Math.round(pedidosN * (f as number) * 1.4), total: Math.round(total * (f as number)) })),
   };
 }
 
@@ -274,6 +428,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   const [semAcesso, setSemAcesso] = useState(false);
   // função de quem entrou: dono, gerente, caixa, cozinha, garcom ou entregador
   const [papel, setPapel] = useState<Papel>(MODO === "demo" ? "dono" : null);
+  const [plano, setPlano] = useState<PlanoLoja>(PLANO_COMPLETO);
   const [loja, setLoja] = useState<Loja>(REAL ? LOJA_VAZIA : M.LOJA);
   const [zonas, setZonas] = useState<Zona[]>(() => (REAL ? [] : M.ZONAS).map((z) => ({ ...z, bairros: [...z.bairros] })));
   const [cardapio, setCardapio] = useState<Produto[]>(REAL ? [] : M.CARDAPIO);
@@ -287,7 +442,13 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   // ---------- leitura pública: loja, zonas, cardápio ----------
   const carregarPublico = useCallback(async () => {
     if (!supabase) return;
-    const { data: s, error } = await supabase.from("stores").select("id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem,cashback_ativo,cashback_percentual,cashback_minimo_uso,cashback_validade_dias,servico_padrao,couvert_padrao,org_id,relatorios_ativo,pagamento_online,pagamento_online_ok,whatsapp_ativo,whatsapp_ok,whatsapp_eventos,nfce_ativo,nfce_ok,nfce_automatica,nfce_cnpj,nfce_producao,nfce_ncm,cor_marca,maquininha_ativo,maquininha_provedor,maquininha_aparelhos").eq("slug", SLUG).single();
+    const { data: s, error } = await supabase
+      .from("stores")
+      .select(
+        "id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem,cashback_ativo,cashback_percentual,cashback_minimo_uso,cashback_validade_dias,servico_padrao,couvert_padrao,org_id,relatorios_ativo,pagamento_online,pagamento_online_ok,whatsapp_ativo,whatsapp_ok,whatsapp_eventos,nfce_ativo,nfce_ok,nfce_automatica,nfce_cnpj,nfce_producao,nfce_ncm,cor_marca,maquininha_ativo,maquininha_provedor,maquininha_aparelhos",
+      )
+      .eq("slug", SLUG)
+      .single();
     if (error || !s) {
       // sem linha = endereço errado ou loja fora do ar (só a equipe vê loja fora do ar)
       setErro(error && error.code !== "PGRST116" ? "Não foi possível abrir a loja agora. Tente de novo em instantes." : "FORA_DO_AR");
@@ -295,17 +456,25 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     const coord: [number, number] = s.lon != null && s.lat != null ? [Number(s.lon), Number(s.lat)] : M.LOJA.coord;
-    setLoja({ ...M.LOJA, ...s, cidade: s.cidade || M.LOJA.cidade, coord, nota: Number(s.nota), ligada: s.aberta, aberto: s.aberta, pedido_minimo_geral: Number(s.pedido_minimo_geral ?? 0), taxa_embalagem: Number(s.taxa_embalagem ?? 0), cashback_percentual: Number(s.cashback_percentual ?? 0), cashback_minimo_uso: Number(s.cashback_minimo_uso ?? 0) } as Loja);
+    setLoja({
+      ...M.LOJA,
+      ...s,
+      cidade: s.cidade || M.LOJA.cidade,
+      coord,
+      nota: Number(s.nota),
+      ligada: s.aberta,
+      aberto: s.aberta,
+      pedido_minimo_geral: Number(s.pedido_minimo_geral ?? 0),
+      taxa_embalagem: Number(s.taxa_embalagem ?? 0),
+      cashback_percentual: Number(s.cashback_percentual ?? 0),
+      cashback_minimo_uso: Number(s.cashback_minimo_uso ?? 0),
+    } as Loja);
     const [{ data: zs }, { data: zb }, { data: zm }, { data: cats }, { data: prods }] = await Promise.all([
       supabase.from("delivery_zones").select("*").eq("store_id", s.id).order("ordem"),
       supabase.from("zone_bairros").select("zone_id, bairro_id, taxa, cor").eq("store_id", s.id),
       supabase.from("zone_municipios").select("zone_id, municipio_cod").eq("store_id", s.id),
       supabase.from("categories").select("id,nome,ordem").eq("store_id", s.id).order("ordem"),
-      supabase
-        .from("products")
-        .select("id,nome,descricao,preco,preco_promo,foto_url,arte,tags,esgotado,mais_pedido,ordem,categories(nome),option_groups(id,nome,min,max,ordem,options(id,nome,preco,ordem))")
-        .eq("store_id", s.id)
-        .order("ordem"),
+      supabase.from("products").select("id,nome,descricao,preco,preco_promo,foto_url,arte,tags,esgotado,mais_pedido,ordem,categories(nome),option_groups(id,nome,min,max,ordem,options(id,nome,preco,ordem))").eq("store_id", s.id).order("ordem"),
     ]);
     setZonas(
       (zs ?? []).map((z) => ({
@@ -351,13 +520,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     const [{ data: cp, error: e1 }, { data: ps }, { data: ords }, { data: dem }] = await Promise.all([
       supabase.from("customer_lista").select("*").order("gasto", { ascending: false }).limit(2000),
       supabase.rpc("pulse_summary", { p_store: storeId }),
-      supabase
-        .from("orders")
-        .select("id,numero,status,modo,mesa,total,pagamento,pago,motoboy,observacao,created_at,endereco,troco_para,customers(nome,telefone),order_items(nome,qtd,escolhas)")
-        .eq("store_id", storeId)
-        .gte("created_at", desde)
-        .order("created_at", { ascending: false })
-        .limit(80),
+      supabase.from("orders").select("id,numero,status,modo,mesa,total,pagamento,pago,motoboy,observacao,created_at,endereco,troco_para,customers(nome,telefone),order_items(nome,qtd,escolhas)").eq("store_id", storeId).gte("created_at", desde).order("created_at", { ascending: false }).limit(80),
       supabase.rpc("demanda_fora", { p_store: storeId }),
     ]);
     if (e1) {
@@ -400,29 +563,28 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       );
     }
     setPedidos(
-      (ords ?? []).filter((o) => o.status !== "cancelado").map((o) => ({
-        id: o.id,
-        num: o.numero,
-        cliente: o.modo === "mesa" ? `Mesa ${o.mesa ?? ""}` : (o.customers as unknown as { nome: string } | null)?.nome ?? (o.modo === "balcao" ? o.observacao || "Balcão" : "Cliente"),
-        bairro: o.modo === "retirada" ? "Retirada" : o.modo === "balcao" ? "Balcão" : o.modo === "mesa" ? "Salão" : ((o.endereco as { bairro?: string } | null)?.bairro ?? ""),
-        itens: ((o.order_items as unknown as { nome: string; qtd: number; escolhas: string[] }[]) ?? []).flatMap((i) => [
-          `${i.qtd}x ${i.nome}`,
-          ...(i.escolhas?.length ? [`+ ${i.escolhas.join(", ")}`] : []),
-        ]),
-        total: Number(o.total),
-        pag: o.pagamento === "pix" && !o.pago ? ("Pix pendente" as Pedido["pag"]) : o.pagamento === "dinheiro" ? ((o.troco_para ? `Dinheiro (troco p/ ${Number(o.troco_para)})` : "Dinheiro") as Pedido["pag"]) : PAG[o.pagamento],
-        troco: o.troco_para ? Number(o.troco_para) : undefined,
-        modo: o.modo === "entrega" ? "Entrega" : o.modo === "retirada" ? "Retirada" : o.modo === "balcao" ? "Balcão" : (`Mesa ${o.mesa ?? ""}` as Pedido["modo"]),
-        min: Math.max(0, Math.round((Date.now() - new Date(o.created_at).getTime()) / 60000)),
-        status: o.status,
-        motoboy: o.motoboy ?? undefined,
-        nota: o.observacao ?? undefined,
-        tel: (o.customers as unknown as { telefone?: string } | null)?.telefone ? fmtTel((o.customers as unknown as { telefone: string }).telefone) : undefined,
-        endereco: (o.endereco as Pedido["endereco"]) ?? undefined,
-        pago: o.pago,
-        forma: o.pagamento,
-        criadoEm: o.created_at,
-      })),
+      (ords ?? [])
+        .filter((o) => o.status !== "cancelado")
+        .map((o) => ({
+          id: o.id,
+          num: o.numero,
+          cliente: o.modo === "mesa" ? `Mesa ${o.mesa ?? ""}` : ((o.customers as unknown as { nome: string } | null)?.nome ?? (o.modo === "balcao" ? o.observacao || "Balcão" : "Cliente")),
+          bairro: o.modo === "retirada" ? "Retirada" : o.modo === "balcao" ? "Balcão" : o.modo === "mesa" ? "Salão" : ((o.endereco as { bairro?: string } | null)?.bairro ?? ""),
+          itens: ((o.order_items as unknown as { nome: string; qtd: number; escolhas: string[] }[]) ?? []).flatMap((i) => [`${i.qtd}x ${i.nome}`, ...(i.escolhas?.length ? [`+ ${i.escolhas.join(", ")}`] : [])]),
+          total: Number(o.total),
+          pag: o.pagamento === "pix" && !o.pago ? ("Pix pendente" as Pedido["pag"]) : o.pagamento === "dinheiro" ? ((o.troco_para ? `Dinheiro (troco p/ ${Number(o.troco_para)})` : "Dinheiro") as Pedido["pag"]) : PAG[o.pagamento],
+          troco: o.troco_para ? Number(o.troco_para) : undefined,
+          modo: o.modo === "entrega" ? "Entrega" : o.modo === "retirada" ? "Retirada" : o.modo === "balcao" ? "Balcão" : (`Mesa ${o.mesa ?? ""}` as Pedido["modo"]),
+          min: Math.max(0, Math.round((Date.now() - new Date(o.created_at).getTime()) / 60000)),
+          status: o.status,
+          motoboy: o.motoboy ?? undefined,
+          nota: o.observacao ?? undefined,
+          tel: (o.customers as unknown as { telefone?: string } | null)?.telefone ? fmtTel((o.customers as unknown as { telefone: string }).telefone) : undefined,
+          endereco: (o.endereco as Pedido["endereco"]) ?? undefined,
+          pago: o.pago,
+          forma: o.pagamento,
+          criadoEm: o.created_at,
+        })),
     );
     setDemanda(Object.fromEntries(((dem as { bairro_id: string; tentativas: number }[]) ?? []).filter((d) => d.bairro_id).map((d) => [d.bairro_id, Number(d.tentativas)])));
   }, []);
@@ -462,8 +624,9 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       const { data: atual } = await supabase.from("stores").select("org_id").eq("slug", SLUG).maybeSingle();
       if (atual && orgs.includes(atual.org_id as string)) {
         setSemAcesso(false);
-        const { data: pp } = await supabase.rpc("meu_papel", { p_org: atual.org_id });
+        const [{ data: pp }, { data: pl }] = await Promise.all([supabase.rpc("meu_papel", { p_org: atual.org_id }), supabase.rpc("meu_plano", { p_org: atual.org_id })]);
         setPapel((pp as Papel) ?? null);
+        if (pl) setPlano(pl as PlanoLoja);
         return;
       }
       // tem loja, mas o endereço é de outra: vai para a dele (só no painel; nas telas públicas, como a loja de outro restaurante, fica onde está)
@@ -626,9 +789,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       async salvarFregueses(lista) {
         if (!lista.length) return { erro: "Nenhum freguês para salvar" };
         if (!supabase) {
-          const novos = lista
-            .map((x) => ({ ...x, tel: x.telefone.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "") }))
-            .filter((x) => x.nome.trim() && x.tel.length >= 10 && x.tel.length <= 11);
+          const novos = lista.map((x) => ({ ...x, tel: x.telefone.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "") })).filter((x) => x.nome.trim() && x.tel.length >= 10 && x.tel.length <= 11);
           setFregueses((fs) => {
             const porTel = new Map(fs.map((f) => [f.tel.replace(/\D/g, ""), f]));
             for (const x of novos) {
@@ -680,9 +841,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
               : {
                   ...f,
                   ...c,
-                  ...(c.aniversarioISO !== undefined
-                    ? { aniversario: c.aniversarioISO ? new Date(c.aniversarioISO + "T12:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" }) : undefined }
-                    : {}),
+                  ...(c.aniversarioISO !== undefined ? { aniversario: c.aniversarioISO ? new Date(c.aniversarioISO + "T12:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" }) : undefined } : {}),
                 },
           ),
         );
@@ -815,9 +974,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         if (!cat) return "Escolha uma categoria";
         if (!(p.preco >= 0)) return "Preço inválido";
         if (p.promo != null && p.promo >= p.preco) return "O preço promocional precisa ser menor que o preço normal";
-        const grupos = p.grupos
-          .filter((g) => g.nome.trim())
-          .map((g) => ({ ...g, nome: g.nome.trim(), itens: g.itens.filter((o) => o.nome.trim()) }));
+        const grupos = p.grupos.filter((g) => g.nome.trim()).map((g) => ({ ...g, nome: g.nome.trim(), itens: g.itens.filter((o) => o.nome.trim()) }));
         if (!supabase) {
           setCategorias((cs) => (cs.some((c) => c.toLowerCase() === cat.toLowerCase()) ? cs : [...cs, cat]));
           const catFinal = categorias.find((c) => c.toLowerCase() === cat.toLowerCase()) ?? cat;
@@ -899,7 +1056,11 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       async avancarPedido(num, status, motoboy) {
         setPedidos((l) => l.map((p) => (p.num === num ? { ...p, status, motoboy: motoboy ?? p.motoboy } : p)));
         if (supabase && loja.id) {
-          const { error } = await supabase.from("orders").update({ status, ...(motoboy ? { motoboy } : {}) }).eq("store_id", loja.id).eq("numero", num);
+          const { error } = await supabase
+            .from("orders")
+            .update({ status, ...(motoboy ? { motoboy } : {}) })
+            .eq("store_id", loja.id)
+            .eq("numero", num);
           const p = pedidos.find((x) => x.num === num);
           if (error || !p?.id) return;
           // WhatsApp oficial: avisa o cliente da nova etapa (só sai se o dono ligou esse aviso)
@@ -942,9 +1103,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         }
         const z = bairroLocalId ? zonas.find((x) => x.bairros.includes(bairroLocalId)) : undefined;
         const bairro = bairroLocalId ? nomeBairro(bairroLocalId) : null;
-        return z
-          ? { atende: true, bairro, zona: z.nome, taxa: (bairroLocalId ? z.taxasBairro?.[bairroLocalId] : undefined) ?? z.taxa, tempo_min: z.tempo[0], tempo_max: z.tempo[1], pedido_minimo: z.minimo, gratis_acima: z.gratisAcima ?? null }
-          : { atende: false, bairro };
+        return z ? { atende: true, bairro, zona: z.nome, taxa: (bairroLocalId ? z.taxasBairro?.[bairroLocalId] : undefined) ?? z.taxa, tempo_min: z.tempo[0], tempo_max: z.tempo[1], pedido_minimo: z.minimo, gratis_acima: z.gratisAcima ?? null } : { atende: false, bairro };
       },
       servidorLoja: chamarServidor,
       async integracoes() {
@@ -1019,10 +1178,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       },
       async listarCupons() {
         if (!supabase || !loja.id) return [];
-        const [{ data: cs }, { data: rs }] = await Promise.all([
-          supabase.from("cupons").select("*").eq("store_id", loja.id).order("criado_em", { ascending: false }),
-          supabase.rpc("cupons_resumo", { p_store: loja.id }),
-        ]);
+        const [{ data: cs }, { data: rs }] = await Promise.all([supabase.from("cupons").select("*").eq("store_id", loja.id).order("criado_em", { ascending: false }), supabase.rpc("cupons_resumo", { p_store: loja.id })]);
         const res = new Map(((rs as { id: string; usos: number; desconto: number; vendas: number }[]) ?? []).map((r) => [r.id, r]));
         return ((cs as Cupom[]) ?? []).map((c) => ({ ...c, valor: Number(c.valor), minimo: Number(c.minimo), usos: Number(res.get(c.id)?.usos ?? 0), desconto: Number(res.get(c.id)?.desconto ?? 0), vendas: Number(res.get(c.id)?.vendas ?? 0) }));
       },
@@ -1061,13 +1217,11 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     if (MODO === "demo" || loja.ligada === undefined) return loja;
     const pausada = !!loja.pausa_ate && new Date(loja.pausa_ate).getTime() > Date.now();
     const aberto = !!loja.ligada && !pausada && dentroDoHorario(loja.horarios);
-    const extra = loja.extra_ate && new Date(loja.extra_ate).getTime() > Date.now() ? loja.extra_min ?? 0 : 0;
-    const horario = pausada
-      ? `Pausada até ${new Date(loja.pausa_ate!).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
-      : textoHorario(loja.horarios) || loja.horario;
+    const extra = loja.extra_ate && new Date(loja.extra_ate).getTime() > Date.now() ? (loja.extra_min ?? 0) : 0;
+    const horario = pausada ? `Pausada até ${new Date(loja.pausa_ate!).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : textoHorario(loja.horarios) || loja.horario;
     return { ...loja, aberto, horario, extra_min: extra };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loja, minuto]);
-  const valor: Dados = { modo: MODO, carregando, erro, sessao, semAcesso, papel, loja: lojaAgora, zonas, cardapio, categorias, fregueses, pedidos, pulso, semana, demanda, acoes };
+  const valor: Dados = { modo: MODO, carregando, erro, sessao, semAcesso, papel, plano, loja: lojaAgora, zonas, cardapio, categorias, fregueses, pedidos, pulso, semana, demanda, acoes };
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
 }

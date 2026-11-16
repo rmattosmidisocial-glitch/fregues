@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, AtSign as Instagram, Bot, CheckCheck, MapPin, MessageCircle, Search, Send, Settings2, ShoppingBag, Smile, Frown, Meh, Store, UserRound } from "lucide-react";
 import { ATALHOS_PADRAO, RESPOSTAS_PADRAO, crescer, quandoTxt, responder, useCrescer, type Atalho, type ChaveResposta, type Conversa, type Humor } from "../../data/crescer";
 import { useDados } from "../../data/dados";
+import { BloqueadoNoPlano, useModulo } from "../../components/Plano";
 import { brl } from "../../data/mock";
 
 const CANAL: Record<Conversa["canal"], React.ReactNode> = {
@@ -30,7 +31,9 @@ function Mensagens() {
   return (
     <div className="space-y-2 rounded-3xl border border-linha bg-forno p-5">
       <h2 className="font-display text-[20px] font-bold">Mensagens automáticas</h2>
-      <p className="text-[14px] text-areia">Toque numa mensagem para reescrever do seu jeito. O que está entre chaves o sistema preenche sozinho (ex.: {"{bairro}"}, {"{taxa}"}).</p>
+      <p className="text-[14px] text-areia">
+        Toque numa mensagem para reescrever do seu jeito. O que está entre chaves o sistema preenche sozinho (ex.: {"{bairro}"}, {"{taxa}"}).
+      </p>
       {chaves.map((k) => {
         const padrao = RESPOSTAS_PADRAO[k];
         const atual = aj.respostas?.[k] ?? "";
@@ -85,23 +88,12 @@ function RespostasRapidas() {
       {lista.map((a, i) => (
         <div key={i} className="space-y-2 rounded-2xl bg-grafite p-3">
           <div className="flex gap-2">
-            <input
-              defaultValue={a.titulo}
-              onBlur={(e) => salvar(lista.map((x, j) => (j === i ? { ...x, titulo: e.target.value.trim() || x.titulo } : x)))}
-              aria-label="Nome do botão"
-              className="min-w-0 flex-1 rounded-lg border border-linha bg-carvao px-3 py-1.5 text-[14px] font-semibold text-papel"
-            />
+            <input defaultValue={a.titulo} onBlur={(e) => salvar(lista.map((x, j) => (j === i ? { ...x, titulo: e.target.value.trim() || x.titulo } : x)))} aria-label="Nome do botão" className="min-w-0 flex-1 rounded-lg border border-linha bg-carvao px-3 py-1.5 text-[14px] font-semibold text-papel" />
             <button onClick={() => salvar(lista.filter((_, j) => j !== i))} className="rounded-lg px-2 text-[13px] text-areia hover:text-tomate">
               Remover
             </button>
           </div>
-          <textarea
-            defaultValue={a.texto}
-            onBlur={(e) => salvar(lista.map((x, j) => (j === i ? { ...x, texto: e.target.value.trim() || x.texto } : x)))}
-            rows={2}
-            aria-label={`Texto de ${a.titulo}`}
-            className="w-full rounded-lg border border-linha bg-carvao px-3 py-2 text-[14px] text-papel"
-          />
+          <textarea defaultValue={a.texto} onBlur={(e) => salvar(lista.map((x, j) => (j === i ? { ...x, texto: e.target.value.trim() || x.texto } : x)))} rows={2} aria-label={`Texto de ${a.titulo}`} className="w-full rounded-lg border border-linha bg-carvao px-3 py-2 text-[14px] text-papel" />
         </div>
       ))}
       <button onClick={() => salvar([...lista, { titulo: "Nova resposta", texto: "{nome}, " }])} className="rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia">
@@ -185,6 +177,7 @@ export function Atendimento() {
   const conversas = useCrescer((s) => s.conversas);
   const atalhos = useCrescer((s) => s.ajustes.atalhos) ?? [];
   const d = useDados();
+  const temIA = useModulo("ia");
   const [aba, setAba] = useState<"conversas" | "ajustes">("conversas");
   const [filtro, setFiltro] = useState<"todas" | "naolidas" | "equipe" | "fechadas">("todas");
   const [busca, setBusca] = useState("");
@@ -203,11 +196,7 @@ export function Atendimento() {
 
   const lista = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return conversas.filter(
-      (c) =>
-        (filtro === "todas" || (filtro === "naolidas" && c.naoLida) || (filtro === "equipe" && c.status === "equipe") || (filtro === "fechadas" && c.status === "fechada")) &&
-        (!q || c.cliente.toLowerCase().includes(q) || c.titulo.toLowerCase().includes(q)),
-    );
+    return conversas.filter((c) => (filtro === "todas" || (filtro === "naolidas" && c.naoLida) || (filtro === "equipe" && c.status === "equipe") || (filtro === "fechadas" && c.status === "fechada")) && (!q || c.cliente.toLowerCase().includes(q) || c.titulo.toLowerCase().includes(q)));
   }, [conversas, filtro, busca]);
 
   const resolvidasIA = conversas.filter((c) => c.status !== "equipe" && !c.mensagens.some((m) => m.de === "equipe")).length;
@@ -251,10 +240,13 @@ export function Atendimento() {
         ))}
       </div>
 
+      {!temIA && (
+        <p className="mt-4 rounded-2xl bg-grafite p-4 text-[14px] text-areia">
+          No seu plano, as conversas da loja chegam direto para a equipe responder por aqui. A atendente com IA, que responde sozinha, vem a partir do plano <b className="text-papel">Completo</b>.
+        </p>
+      )}
       {aba === "ajustes" ? (
-        <div className="mt-5">
-          <Ajustes />
-        </div>
+        <div className="mt-5">{temIA ? <Ajustes /> : <BloqueadoNoPlano modulo="ia" />}</div>
       ) : (
         <div className="mt-5 grid h-[calc(100vh-260px)] min-h-[560px] overflow-hidden rounded-3xl border border-linha bg-forno lg:grid-cols-[320px_1fr_300px]">
           <div className={`flex min-h-0 flex-col border-r border-linha ${sel ? "hidden lg:flex" : "flex"}`}>
@@ -372,14 +364,7 @@ export function Atendimento() {
                 <div className="border-t border-linha p-3">
                   {sel.status === "ia" && <p className="mb-2 text-[12px] text-areia">A IA está respondendo esta conversa. Se você escrever, assume no lugar dela.</p>}
                   <div className="flex gap-2">
-                    <input
-                      value={texto}
-                      onChange={(e) => setTexto(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && enviar()}
-                      placeholder={`Responder ${sel.cliente.split(" ")[0]}…`}
-                      className="min-w-0 flex-1 rounded-full border border-linha bg-carvao px-4 py-2.5 text-[15px]"
-                      aria-label="Sua resposta"
-                    />
+                    <input value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => e.key === "Enter" && enviar()} placeholder={`Responder ${sel.cliente.split(" ")[0]}…`} className="min-w-0 flex-1 rounded-full border border-linha bg-carvao px-4 py-2.5 text-[15px]" aria-label="Sua resposta" />
                     <button onClick={enviar} className="flex items-center gap-2 rounded-full bg-brasa px-4 text-[14px] font-semibold text-carvao hover:bg-mostarda">
                       <Send className="h-4 w-4" /> {sel.status === "ia" ? "Assumir e enviar" : "Enviar"}
                     </button>
@@ -443,11 +428,7 @@ export function Atendimento() {
                 <div className="space-y-1.5">
                   <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-areia">Respostas rápidas</p>
                   {(atalhos.length ? atalhos : ATALHOS_PADRAO).map((a) => (
-                    <button
-                      key={a.titulo}
-                      onClick={() => setTexto(a.texto.replace(/\{nome\}/g, sel.cliente.split(" ")[0]))}
-                      className="w-full rounded-xl border border-linha px-3 py-2 text-left text-[14px] font-semibold hover:border-areia"
-                    >
+                    <button key={a.titulo} onClick={() => setTexto(a.texto.replace(/\{nome\}/g, sel.cliente.split(" ")[0]))} className="w-full rounded-xl border border-linha px-3 py-2 text-left text-[14px] font-semibold hover:border-areia">
                       {a.titulo}
                     </button>
                   ))}

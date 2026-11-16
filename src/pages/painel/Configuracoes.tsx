@@ -853,11 +853,21 @@ function Equipe() {
     if (error) setErro(error.message);
     carregar();
   }
+  const limite = d.modo === "real" ? (d.plano.usuarios_max ?? null) : null;
+  const cheio = limite != null && !!lista && lista.length >= limite;
   const link = `${window.location.origin}/?r=${d.loja.slug}#pedidos`;
   const msgZap = pronto ? `Seu acesso ao painel da ${d.loja.nome} (${nomePapel(pronto.papel)}):\n\n${link}\nE-mail: ${pronto.email}${pronto.senha ? `\nSenha provisória: ${pronto.senha}\n\nNo primeiro acesso, crie a sua senha.` : "\nUse a senha que você já tem."}` : "";
 
   return (
     <Secao icone={<Users className="h-5 w-5 text-brasa" />} titulo="Equipe" sub="Cada pessoa entra com o próprio e-mail e vê só a parte dela.">
+      {limite != null && lista && (
+        <p className="mb-3 text-[14px] text-areia">
+          <b className="tabular text-papel">
+            {lista.length} de {limite}
+          </b>{" "}
+          usuários do plano {d.plano.nome} (você conta como um).
+        </p>
+      )}
       <ul className="space-y-2 text-[14px]">
         {lista === null && <li className="text-areia">Carregando…</li>}
         {lista?.map((m) => (
@@ -932,6 +942,14 @@ function Equipe() {
             </button>
           </div>
         </div>
+      ) : cheio ? (
+        <p className="mt-3 rounded-xl bg-[#fcefd9] p-3 text-[14px] text-[#7a4600]">
+          O plano {d.plano.nome} permite até {limite} usuários e todos já estão em uso. Para cadastrar mais alguém, tire uma pessoa ou{" "}
+          <a href={`https://wa.me/5521967640607?text=${encodeURIComponent(`Olá! Quero mais usuários no Freguês da ${d.loja.nome} (plano ${d.plano.nome}).`)}`} target="_blank" rel="noreferrer" className="font-semibold underline">
+            fale com o Freguês para mudar de plano
+          </a>
+          .
+        </p>
       ) : (
         <button onClick={() => setNovo({ email: "", papel: "caixa", senha: senhaNova() })} className="mt-3 w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda">
           + Adicionar pessoa

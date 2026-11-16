@@ -409,7 +409,7 @@ function ComoComecar() {
 // os mesmos planos e recursos cadastrados no Admin (aba Planos)
 // os mesmos planos e recursos cadastrados no Admin (aba Planos)
 const PLANOS: { nome: string; frase: string; itens: string[]; destaque?: boolean }[] = [
-  { nome: "Essencial", frase: "Loja própria e CRM para começar.", itens: ["Loja e cardápio digital", "Mapa de atuação", "Fregueses e Pulso", "1 usuário"] },
+  { nome: "Essencial", frase: "Loja própria e CRM para começar.", itens: ["Loja e cardápio digital", "Mapa de atuação", "Fregueses e Pulso", "3 usuários"] },
   { nome: "Completo", frase: "Tudo para vender mais sem marketplace.", itens: ["Tudo do Essencial", "Atendimento com IA", "Automações", "Formulários e links da bio", "5 usuários"], destaque: true },
   { nome: "Rede", frase: "Para quem tem mais de uma loja.", itens: ["Tudo do Completo", "Até 5 lojas", "Usuários ilimitados", "Suporte prioritário"] },
 ];

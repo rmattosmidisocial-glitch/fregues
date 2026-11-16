@@ -150,6 +150,11 @@ export type Plano = {
   recursos: string[];
   ordem?: number;
   ativo?: boolean;
+  /** limite de usuários (null = ilimitado) */
+  usuarios?: number | null;
+  lojas?: number | null;
+  /** partes liberadas além do básico: ia, automacoes, formularios, links */
+  modulos?: string[];
 };
 export type Cliente = {
   org_id: string;
@@ -257,7 +262,10 @@ export const PLANOS_PADRAO: Plano[] = [
     nome: "Essencial",
     preco: 149,
     descricao: "Loja própria e CRM para começar.",
-    recursos: ["Loja e cardápio digital", "Mapa de atuação", "Fregueses e Pulso", "1 usuário"],
+    recursos: ["Loja e cardápio digital", "Mapa de atuação", "Fregueses e Pulso", "3 usuários"],
+    usuarios: 3,
+    lojas: 1,
+    modulos: [],
   },
   {
     id: "completo",
@@ -265,6 +273,9 @@ export const PLANOS_PADRAO: Plano[] = [
     preco: 249,
     descricao: "Tudo para vender mais sem marketplace.",
     recursos: ["Tudo do Essencial", "Atendimento com IA", "Automações", "Formulários e links da bio", "5 usuários"],
+    usuarios: 5,
+    lojas: 1,
+    modulos: ["ia", "automacoes", "formularios", "links"],
   },
   {
     id: "rede",
@@ -272,6 +283,9 @@ export const PLANOS_PADRAO: Plano[] = [
     preco: 499,
     descricao: "Para quem tem mais de uma loja.",
     recursos: ["Tudo do Completo", "Até 5 lojas", "Usuários ilimitados", "Suporte prioritário"],
+    usuarios: null,
+    lojas: 5,
+    modulos: ["ia", "automacoes", "formularios", "links"],
   },
 ];
 
@@ -698,6 +712,8 @@ export function useAdmin() {
         p_ativo: p.ativo !== false,
       });
       if (error) return error.message;
+      const { error: e2 } = await supabase.rpc("admin_plano_limites", { p_id: p.id, p_usuarios: p.usuarios ?? null, p_lojas: p.lojas ?? null, p_modulos: p.modulos ?? [] });
+      if (e2) return e2.message;
       await recarregar();
       return null;
     },

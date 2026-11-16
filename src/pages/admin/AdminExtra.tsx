@@ -13,11 +13,21 @@ const Aviso = ({ m }: { m: { ok: boolean; t: string } | null }) => (m ? <p class
 
 /* ---------------- 19. Planos e preços ---------------- */
 
+export const MODULOS: [string, string][] = [
+  ["ia", "Atendimento com IA e Copiloto"],
+  ["automacoes", "Automações"],
+  ["formularios", "Formulários"],
+  ["links", "Links da bio"],
+];
+
 function EditarPlano({ a, p, novo, fechar }: { a: A; p: Plano; novo: boolean; fechar: () => void }) {
   const [f, setF] = useState({
     ...p,
     recursosTxt: p.recursos.join("\n"),
     precoTxt: String(p.preco).replace(".", ","),
+    usuariosTxt: p.usuarios == null ? "" : String(p.usuarios),
+    lojasTxt: p.lojas == null ? "" : String(p.lojas),
+    mods: p.modulos ?? [],
   });
   const [m, setM] = useState<{ ok: boolean; t: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -48,6 +58,9 @@ function EditarPlano({ a, p, novo, fechar }: { a: A; p: Plano; novo: boolean; fe
         .filter(Boolean),
       ordem: f.ordem ?? a.planos.length + 1,
       ativo: f.ativo !== false,
+      usuarios: f.usuariosTxt.trim() ? Math.max(1, Math.round(Number(f.usuariosTxt))) : null,
+      lojas: f.lojasTxt.trim() ? Math.max(1, Math.round(Number(f.lojasTxt))) : null,
+      modulos: f.mods,
     });
     setOcupado(false);
     if (r) return setM({ ok: false, t: r });
@@ -88,6 +101,28 @@ function EditarPlano({ a, p, novo, fechar }: { a: A; p: Plano; novo: boolean; fe
               <input type="checkbox" checked={f.ativo !== false} onChange={(e) => setF({ ...f, ativo: e.target.checked })} className="h-5 w-5 accent-[#f06a3a]" />
               Disponível para novos clientes
             </label>
+          </div>
+          <div className="rounded-2xl border border-linha p-3">
+            <p className="font-semibold">Acessos que o plano libera</p>
+            <p className="text-[12px] text-areia">Loja, pedidos, caixa, salão, cozinha, cardápio, mapa, fregueses e Pulso vêm em todos. Marque o que este plano libera a mais. Vale na hora para todos os clientes do plano.</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {MODULOS.map(([id, rot]) => (
+                <label key={id} className="flex items-center gap-2 rounded-xl bg-grafite px-3 py-2">
+                  <input type="checkbox" checked={f.mods.includes(id)} onChange={(e) => setF({ ...f, mods: e.target.checked ? [...f.mods, id] : f.mods.filter((x) => x !== id) })} className="h-4 w-4 accent-[#f06a3a]" />
+                  {rot}
+                </label>
+              ))}
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <label className="block font-semibold">
+                Usuários <span className="font-normal text-areia">(vazio = ilimitado)</span>
+                <input type="number" min={1} value={f.usuariosTxt} onChange={(e) => setF({ ...f, usuariosTxt: e.target.value })} className={`${inp} tabular`} />
+              </label>
+              <label className="block font-semibold">
+                Lojas <span className="font-normal text-areia">(vazio = ilimitado)</span>
+                <input type="number" min={1} value={f.lojasTxt} onChange={(e) => setF({ ...f, lojasTxt: e.target.value })} className={`${inp} tabular`} />
+              </label>
+            </div>
           </div>
           {!novo && nClientes > 0 && (
             <p className="rounded-xl bg-grafite p-3 text-areia">
@@ -166,6 +201,14 @@ export function PlanosAdmin({ a }: { a: A }) {
             <p className="tabular mt-3 font-display text-[34px] font-extrabold">
               {brl(p.preco)}
               <span className="text-[15px] font-normal text-areia">/mês</span>
+            </p>
+            <p className="mt-2 text-[12px] text-areia">
+              Acessos: {p.usuarios == null ? "usuários ilimitados" : `${p.usuarios} usuário${p.usuarios > 1 ? "s" : ""}`}
+              {(p.modulos ?? []).length
+                ? ` · ${MODULOS.filter(([id]) => p.modulos!.includes(id))
+                    .map(([, r]) => r)
+                    .join(", ")}`
+                : " · só o básico"}
             </p>
             <ul className="mt-3 flex-1 space-y-1.5 text-[14px]">
               {p.recursos.map((r) => (
