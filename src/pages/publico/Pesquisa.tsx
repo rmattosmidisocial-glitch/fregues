@@ -26,6 +26,18 @@ export function Pesquisa() {
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
 
+  // link mandado pela loja já vem com o nome e o WhatsApp do cliente (&n= e &t=)
+  const campos = f?.campos;
+  useEffect(() => {
+    if (!campos) return;
+    const q = new URLSearchParams(location.search);
+    const n = q.get("n"),
+      t = q.get("t");
+    const nome = campos.find((c) => c.tipo === "nome"),
+      tel = campos.find((c) => c.tipo === "telefone");
+    setV((x) => ({ ...(n && nome && !x[nome.id] ? { [nome.id]: n.slice(0, 80) } : {}), ...(t && tel && !x[tel.id] ? { [tel.id]: t.replace(/\D/g, "").slice(0, 13) } : {}), ...x }));
+  }, [campos]);
+
   useEffect(() => {
     if (!real) return;
     supabase!.rpc("form_publico", { p_slug: SLUG, p_id: fid }).then(({ data }) => setRemoto(data ? ({ ...(data as object), respostas: [], estado: "no ar" } as unknown as Formulario & { loja: string }) : "erro"));
@@ -132,14 +144,7 @@ export function Pesquisa() {
                   <div className="mt-2">
                     <div className="grid grid-cols-11 gap-1" role="radiogroup" aria-label={c.rotulo}>
                       {Array.from({ length: 11 }, (_, k) => (
-                        <button
-                          key={k}
-                          role="radio"
-                          aria-checked={v[c.id] === k}
-                          onClick={() => setV({ ...v, [c.id]: k })}
-                          className={`tabular rounded-lg py-2.5 text-[14px] font-semibold ${v[c.id] === k ? "text-carvao" : "bg-[#efe3d3]"}`}
-                          style={v[c.id] === k ? { background: f.cor } : undefined}
-                        >
+                        <button key={k} role="radio" aria-checked={v[c.id] === k} onClick={() => setV({ ...v, [c.id]: k })} className={`tabular rounded-lg py-2.5 text-[14px] font-semibold ${v[c.id] === k ? "text-carvao" : "bg-[#efe3d3]"}`} style={v[c.id] === k ? { background: f.cor } : undefined}>
                           {k}
                         </button>
                       ))}

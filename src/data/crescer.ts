@@ -46,8 +46,7 @@ export type Automacao = {
 };
 
 const fs = FREGUESES;
-const exec = (n: number, base: number, notas: [Execucao["resultado"], string, number?][]) =>
-  notas.slice(0, n).map(([resultado, nota, valor], i) => ({ id: uid(), quando: agora - base * (i + 1) - i * 1700_000, cliente: fs[(i * 7 + base / H) % 300 | 0].nome, resultado, nota, valor }));
+const exec = (n: number, base: number, notas: [Execucao["resultado"], string, number?][]) => notas.slice(0, n).map(([resultado, nota, valor], i) => ({ id: uid(), quando: agora - base * (i + 1) - i * 1700_000, cliente: fs[((i * 7 + base / H) % 300) | 0].nome, resultado, nota, valor }));
 
 export const MODELOS: Omit<Automacao, "id" | "estado" | "disparos" | "conversoes" | "receita" | "execucoes" | "editada">[] = [
   {
@@ -72,7 +71,7 @@ export const MODELOS: Omit<Automacao, "id" | "estado" | "disparos" | "conversoes
       { id: "d", tipo: "whatsapp", titulo: "Mandar o de sempre", detalhe: "Carrinho já montado + 10% por 48h", texto: "Fala, {nome}! Faz um tempinho 🍔 Separamos seu {favorito} do jeitinho de sempre, com 10% até amanhã: {link_o_de_sempre}" },
       { id: "e", tipo: "espera", titulo: "Esperar 2 dias", detalhe: "", horas: 48 },
       { id: "f", tipo: "filtro", titulo: "Ainda não pediu?", detalhe: "Confere se voltou a pedir" },
-      { id: "g", tipo: "etiqueta", titulo: "Marcar \"Precisa de atenção\"", detalhe: "Aparece no seu Pulso" },
+      { id: "g", tipo: "etiqueta", titulo: 'Marcar "Precisa de atenção"', detalhe: "Aparece no seu Pulso" },
     ],
   },
   {
@@ -81,7 +80,7 @@ export const MODELOS: Omit<Automacao, "id" | "estado" | "disparos" | "conversoes
     nos: [
       { id: "a", tipo: "gatilho", titulo: "Aniversário chegando", detalhe: "3 dias antes" },
       { id: "b", tipo: "whatsapp", titulo: "Mandar o presente", detalhe: "Batata rústica grátis na semana do aniversário", texto: "{nome}, seu aniversário tá chegando 🎉 A batata é por nossa conta na semana do seu dia: {cupom}" },
-      { id: "c", tipo: "etiqueta", titulo: "Marcar \"Aniversariante\"", detalhe: "Fica visível no pedido para a cozinha" },
+      { id: "c", tipo: "etiqueta", titulo: 'Marcar "Aniversariante"', detalhe: "Fica visível no pedido para a cozinha" },
     ],
   },
   {
@@ -124,12 +123,12 @@ const AUTOS_INICIAIS: Automacao[] = [
     receita: 0,
     editada: agora - 6 * D,
     execucoes: exec(8, 2 * H, [
-      ["enviado", "Nota 5 · \"chegou quentinho\""],
+      ["enviado", 'Nota 5 · "chegou quentinho"'],
       ["enviado", "Nota 4"],
       ["parou", "Nota 2 · você foi avisado, cupom enviado"],
       ["enviado", "Nota 5"],
       ["enviado", "Sem resposta"],
-      ["enviado", "Nota 5 · \"melhor smash da região\""],
+      ["enviado", 'Nota 5 · "melhor smash da região"'],
       ["enviado", "Nota 4"],
       ["enviado", "Nota 5"],
     ]),
@@ -262,7 +261,13 @@ export function responder(texto: string, ctx: { zonas?: Zona[]; ajustes?: Ajuste
   const CARD = ctx.cardapio ?? CARDAPIO;
   const LJ = ctx.loja ?? LOJA;
   const aj = ctx.ajustes ?? store.get().ajustes;
-  const e = (s: string) => (aj.emojis ? s : s.replace(/[\u{1F300}-\u{1FAFF}☀-➿]️?/gu, "").replace(/\s+([.!?,])/g, "$1").trim());
+  const e = (s: string) =>
+    aj.emojis
+      ? s
+      : s
+          .replace(/[\u{1F300}-\u{1FAFF}☀-➿]️?/gu, "")
+          .replace(/\s+([.!?,])/g, "$1")
+          .trim();
   const t = norm(texto);
   const tem = (...ps: string[]) => ps.some((p) => t.includes(p));
   const R = (k: ChaveResposta, v: Record<string, string> = {}) => e(preencher(aj.respostas?.[k]?.trim() || RESPOSTAS_PADRAO[k].texto, { atendente: aj.nomeAtendente || "atendente", loja: LJ.nome, bairro_loja: LJ.bairro, ...v }));
@@ -300,7 +305,14 @@ export function responder(texto: string, ctx: { zonas?: Zona[]; ajustes?: Ajuste
     };
   }
 
-  const prod = disponiveis.find((p) => t.includes(norm(p.nome))) ?? disponiveis.find((p) => norm(p.nome).split(" ").filter((w) => w.length > 4).some((w) => t.includes(w)));
+  const prod =
+    disponiveis.find((p) => t.includes(norm(p.nome))) ??
+    disponiveis.find((p) =>
+      norm(p.nome)
+        .split(" ")
+        .filter((w) => w.length > 4)
+        .some((w) => t.includes(w)),
+    );
   if (prod && !tem("cardapio")) {
     const preco = prod.promo ? `${brl(prod.promo)} (de ${brl(prod.preco)})` : brl(prod.preco);
     return { texto: e(`O ${prod.nome} sai por ${preco}. ${prod.desc} Quer pedir? É só tocar em "Fazer pedido" 😉`), humor: "positivo", equipe: false, titulo: prod.nome };
@@ -374,7 +386,14 @@ function conversaDe(cliente: string, canal: Conversa["canal"], falas: string[], 
 const AJUSTES_INICIAIS: Ajustes = { tom: "amigavel", emojis: true, recomendar: true, passarReclamacao: true, nomeAtendente: "Bia" };
 
 export function resumir(c: Conversa) {
-  const temas = [...new Set(c.mensagens.filter((m) => m.de === "cliente").map((m) => responder(m.texto, { ajustes: AJUSTES_INICIAIS }).titulo).filter((x) => x !== "Saudação" && x !== "Agradecimento"))];
+  const temas = [
+    ...new Set(
+      c.mensagens
+        .filter((m) => m.de === "cliente")
+        .map((m) => responder(m.texto, { ajustes: AJUSTES_INICIAIS }).titulo)
+        .filter((x) => x !== "Saudação" && x !== "Agradecimento"),
+    ),
+  ];
   const fim = c.status === "equipe" ? "A IA passou para a equipe." : c.pedidoGerado ? `Virou o pedido #${c.pedidoGerado}.` : "A IA resolveu sozinha.";
   return `${c.cliente.split(" ")[0]} perguntou sobre ${temas.join(", ").toLowerCase() || "a loja"}. ${fim}`;
 }
@@ -396,8 +415,9 @@ CONVERSAS_INICIAIS[3].humor = "positivo";
 // ---------------- Formulários ----------------
 export type TipoCampo = "estrelas" | "nps" | "texto" | "escolha" | "data" | "hora" | "numero" | "telefone" | "nome";
 export type Campo = { id: string; rotulo: string; tipo: TipoCampo; opcoes?: string[]; obrigatorio?: boolean };
-export type RespostaForm = { id: string; quando: number; cliente: string; valores: Record<string, string | number> };
-export type Formulario = { id: string; nome: string; descricao: string; estado: "no ar" | "pausado" | "rascunho"; campos: Campo[]; respostas: RespostaForm[]; obrigado: string; cor: string };
+/** situacao: só em formulários que pedem o ok da equipe (nova → confirmada ou recusada). origem: quem preencheu. */
+export type RespostaForm = { id: string; quando: number; cliente: string; valores: Record<string, string | number>; situacao?: "nova" | "confirmada" | "recusada" | null; origem?: "cliente" | "equipe"; telefone?: string | null };
+export type Formulario = { id: string; nome: string; descricao: string; estado: "no ar" | "pausado" | "rascunho"; campos: Campo[]; respostas: RespostaForm[]; obrigado: string; cor: string; /** respostas precisam do ok da equipe */ confirmar?: boolean };
 
 const nomesResp = fs.slice(3, 80).map((f) => f.nome);
 function respostasPesquisa(n: number): RespostaForm[] {
@@ -439,6 +459,7 @@ const FORMS_INICIAIS: Formulario[] = [
     estado: "no ar",
     cor: "#ffc03a",
     obrigado: "Pedido de reserva recebido! A gente confirma pelo WhatsApp em até 1 hora.",
+    confirmar: true,
     campos: [
       { id: "nome", rotulo: "Seu nome", tipo: "nome", obrigatorio: true },
       { id: "tel", rotulo: "WhatsApp", tipo: "telefone", obrigatorio: true },
@@ -448,9 +469,9 @@ const FORMS_INICIAIS: Formulario[] = [
       { id: "ocasiao", rotulo: "É alguma ocasião especial?", tipo: "escolha", opcoes: ["Aniversário", "Encontro", "Trabalho", "Só vontade de comer bem"] },
     ],
     respostas: [
-      { id: uid(), quando: agora - 2 * H, cliente: "Diego Martins", valores: { nome: "Diego Martins", tel: "(21) 97004-1932", data: "14/11", hora: "20:00", pessoas: 12, ocasiao: "Aniversário" } },
-      { id: uid(), quando: agora - 26 * H, cliente: "Juliana Lima", valores: { nome: "Juliana Lima", tel: "(21) 98220-5512", data: "15/11", hora: "21:00", pessoas: 4, ocasiao: "Encontro" } },
-      { id: uid(), quando: agora - 50 * H, cliente: "Thiago Gomes", valores: { nome: "Thiago Gomes", tel: "(21) 96612-0081", data: "13/11", hora: "19:30", pessoas: 8, ocasiao: "Trabalho" } },
+      { id: uid(), quando: agora - 2 * H, cliente: "Diego Martins", valores: { nome: "Diego Martins", tel: "(21) 97004-1932", data: "14/11", hora: "20:00", pessoas: 12, ocasiao: "Aniversário" }, situacao: "nova", origem: "cliente" },
+      { id: uid(), quando: agora - 26 * H, cliente: "Juliana Lima", valores: { nome: "Juliana Lima", tel: "(21) 98220-5512", data: "15/11", hora: "21:00", pessoas: 4, ocasiao: "Encontro" }, situacao: "confirmada", origem: "cliente" },
+      { id: uid(), quando: agora - 50 * H, cliente: "Thiago Gomes", valores: { nome: "Thiago Gomes", tel: "(21) 96612-0081", data: "13/11", hora: "19:30", pessoas: 8, ocasiao: "Trabalho" }, situacao: "confirmada", origem: "equipe" },
     ],
   },
   {
@@ -466,7 +487,12 @@ const FORMS_INICIAIS: Formulario[] = [
       { id: "aniv", rotulo: "Data de aniversário", tipo: "data" },
       { id: "fav", rotulo: "Seu favorito da casa", tipo: "escolha", opcoes: ["Smash", "Burger da casa", "Frango", "Vegetariano"] },
     ],
-    respostas: Array.from({ length: 41 }, (_, i) => ({ id: uid(), quando: agora - i * 9 * H, cliente: nomesResp[(i * 3) % nomesResp.length], valores: { nome: nomesResp[(i * 3) % nomesResp.length], tel: "(21) 9••••-••••", aniv: `${(i % 27) + 1}/${(i % 12) + 1}`, fav: ["Smash", "Burger da casa", "Frango", "Vegetariano"][i % 4] } })),
+    respostas: Array.from({ length: 41 }, (_, i) => ({
+      id: uid(),
+      quando: agora - i * 9 * H,
+      cliente: nomesResp[(i * 3) % nomesResp.length],
+      valores: { nome: nomesResp[(i * 3) % nomesResp.length], tel: "(21) 9••••-••••", aniv: `${(i % 27) + 1}/${(i % 12) + 1}`, fav: ["Smash", "Burger da casa", "Frango", "Vegetariano"][i % 4] },
+    })),
   },
 ];
 
@@ -531,6 +557,9 @@ export const persistir: {
   ajustes?: (a: Ajustes) => void;
   form?: (f: Formulario) => void;
   formApagar?: (id: string) => void;
+  /** grava a resposta preenchida pela equipe; devolve o id ou o erro */
+  formEquipe?: (formId: string, valores: Record<string, string | number>) => Promise<{ id?: string; erro?: string }>;
+  formSituacao?: (respostaId: string, situacao: "nova" | "confirmada" | "recusada") => Promise<string | null>;
   links?: (p: PaginaLinks) => void;
 } = {};
 
@@ -603,6 +632,9 @@ export const crescer = {
     const atual = store.get().forms.find((x) => x.id === id);
     if (atual) persistir.form?.(atual);
   },
+  lerForm(id: string) {
+    return store.get().forms.find((x) => x.id === id);
+  },
   carregarForms(forms: Formulario[]) {
     store.set((s) => ({ ...s, forms, formPublico: forms[0]?.id ?? s.formPublico }));
   },
@@ -618,7 +650,34 @@ export const crescer = {
   },
   responderForm(id: string, valores: Record<string, string | number>) {
     const nome = String(valores.nome ?? "Cliente da loja");
-    crescer.setForm(id, (f) => ({ ...f, respostas: [{ id: uid(), quando: Date.now(), cliente: nome, valores }, ...f.respostas] }));
+    crescer.setForm(id, (f) => ({ ...f, respostas: [{ id: uid(), quando: Date.now(), cliente: nome, valores, origem: "cliente", situacao: f.confirmar ? "nova" : null }, ...f.respostas] }));
+  },
+  /** A equipe preenche pelo cliente (no balcão ou por telefone). Já entra confirmada. */
+  async responderPelaEquipe(id: string, valores: Record<string, string | number>): Promise<string | null> {
+    const f = store.get().forms.find((x) => x.id === id);
+    if (!f) return "Formulário não encontrado";
+    const falta = f.campos.find((c) => c.obrigatorio && String(valores[c.id] ?? "").trim() === "");
+    if (falta) return `Falta preencher: ${falta.rotulo}`;
+    const nomeCampo = f.campos.find((c) => c.tipo === "nome");
+    const telCampo = f.campos.find((c) => c.tipo === "telefone");
+    const nome = String((nomeCampo && valores[nomeCampo.id]) || "Cliente da loja");
+    let rid = uid();
+    if (persistir.formEquipe) {
+      const r = await persistir.formEquipe(id, valores);
+      if (r.erro) return r.erro;
+      rid = r.id ?? rid;
+    }
+    const nova: RespostaForm = { id: rid, quando: Date.now(), cliente: nome, valores, origem: "equipe", situacao: f.confirmar ? "confirmada" : null, telefone: telCampo ? String(valores[telCampo.id] ?? "").replace(/\D/g, "") : null };
+    store.set((s) => ({ ...s, forms: s.forms.map((x) => (x.id === id ? { ...x, respostas: [nova, ...x.respostas] } : x)) }));
+    return null;
+  },
+  async situacaoResposta(formId: string, respostaId: string, situacao: "nova" | "confirmada" | "recusada"): Promise<string | null> {
+    if (persistir.formSituacao) {
+      const e = await persistir.formSituacao(respostaId, situacao);
+      if (e) return e;
+    }
+    store.set((s) => ({ ...s, forms: s.forms.map((x) => (x.id === formId ? { ...x, respostas: x.respostas.map((r) => (r.id === respostaId ? { ...r, situacao } : r)) } : x)) }));
+    return null;
   },
   abrirPublico(id: string) {
     store.set((s) => ({ ...s, formPublico: id }));

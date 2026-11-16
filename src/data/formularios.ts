@@ -1,11 +1,12 @@
 import { useEffect } from "react";
 import { SLUG, supabase } from "./dados";
-import { crescer, persistir, type Campo, type Formulario } from "./crescer";
+import { crescer, persistir, type Campo, type Formulario, type RespostaForm } from "./crescer";
 
-type LinhaForm = { id: string; nome: string; descricao: string; estado: Formulario["estado"]; cor: string; obrigado: string; campos: Campo[] };
+type LinhaForm = { id: string; nome: string; descricao: string; estado: Formulario["estado"]; cor: string; obrigado: string; campos: Campo[]; confirmar?: boolean };
+type LinhaResp = { id: string; form_id: string; cliente: string | null; valores: Record<string, string | number>; created_at: string; situacao: RespostaForm["situacao"]; origem: RespostaForm["origem"]; telefone: string | null };
 
 /** Link público de um formulário desta loja. */
-export const linkForm = (id: string) => `${location.origin}/?r=${encodeURIComponent(SLUG)}&f=${id}#pesquisa`;
+export const linkForm = (id: string, pre?: { nome?: string; tel?: string }) => `${location.origin}/?r=${encodeURIComponent(SLUG)}&f=${id}${pre?.nome ? `&n=${encodeURIComponent(pre.nome)}` : ""}${pre?.tel ? `&t=${encodeURIComponent(pre.tel.replace(/\D/g, ""))}` : ""}#pesquisa`;
 
 /** Modelos com que toda loja nova começa (sem respostas inventadas). */
 function modelos(loja: string, pratos: string[]): Omit<Formulario, "id" | "respostas">[] {
@@ -28,6 +29,7 @@ function modelos(loja: string, pratos: string[]): Omit<Formulario, "id" | "respo
       nome: "Reserva de mesa",
       descricao: "Para aniversários e grupos. A equipe confirma pelo WhatsApp.",
       estado: "rascunho",
+      confirmar: true,
       cor: "#ffc03a",
       obrigado: "Pedido de reserva recebido! A gente confirma pelo WhatsApp.",
       campos: [
@@ -64,21 +66,20 @@ export function useFormulariosPainel(lojaId: string | undefined, ativo: boolean,
     crescer.carregarForms([]); // nada de formulário de exemplo na loja real
 
     (async () => {
-      let { data: fs } = await sb.from("forms").select("id,nome,descricao,estado,cor,obrigado,campos").eq("store_id", lojaId).order("created_at");
+      let { data: fs } = await sb.from("forms").select("id,nome,descricao,estado,cor,obrigado,campos,confirmar").eq("store_id", lojaId).order("created_at");
       if (fs && fs.length === 0) {
         const novos = modelos(loja, pratos).map((m) => ({ ...m, store_id: lojaId }));
-        const { data } = await sb.from("forms").insert(novos).select("id,nome,descricao,estado,cor,obrigado,campos");
+        const { data } = await sb.from("forms").insert(novos).select("id,nome,descricao,estado,cor,obrigado,campos,confirmar");
         fs = data ?? [];
       }
-      const { data: rs } = await sb.from("form_respostas").select("id,form_id,cliente,valores,created_at").eq("store_id", lojaId).order("created_at", { ascending: false }).limit(2000);
+      const { data: rs } = await sb.from("form_respostas").select("id,form_id,cliente,valores,created_at,situacao,origem,telefone").eq("store_id", lojaId).order("created_at", { ascending: false }).limit(2000);
       if (!vivo) return;
       crescer.carregarForms(
         ((fs as LinhaForm[]) ?? []).map((f) => ({
           ...f,
           descricao: f.descricao ?? "",
-          respostas: ((rs as { id: string; form_id: string; cliente: string | null; valores: Record<string, string | number>; created_at: string }[]) ?? [])
-            .filter((r) => r.form_id === f.id)
-            .map((r) => ({ id: r.id, quando: new Date(r.created_at).getTime(), cliente: r.cliente ?? "Cliente", valores: r.valores })),
+          confirmar: !!f.confirmar,
+          respostas: ((rs as LinhaResp[]) ?? []).filter((r) => r.form_id === f.id).map((r) => ({ id: r.id, quando: new Date(r.created_at).getTime(), cliente: r.cliente ?? "Cliente", valores: r.valores, situacao: r.situacao, origem: r.origem, telefone: r.telefone })),
         })),
       );
     })();
@@ -89,18 +90,38 @@ export function useFormulariosPainel(lojaId: string | undefined, ativo: boolean,
         f.id,
         setTimeout(() => {
           sb.from("forms")
-            .upsert({ id: f.id, store_id: lojaId, nome: f.nome || "Sem nome", descricao: f.descricao, estado: f.estado, cor: f.cor, obrigado: f.obrigado, campos: f.campos, updated_at: new Date().toISOString() })
+            .upsert({ id: f.id, store_id: lojaId, nome: f.nome || "Sem nome", descricao: f.descricao, estado: f.estado, cor: f.cor, obrigado: f.obrigado, campos: f.campos, confirmar: !!f.confirmar, updated_at: new Date().toISOString() })
             .then(() => {});
         }, 600),
       );
     };
     persistir.formApagar = (id) => {
-      sb.from("forms").delete().eq("id", id).then(() => {});
+      sb.from("forms")
+        .delete()
+        .eq("id", id)
+        .then(() => {});
+    };
+    persistir.formEquipe = async (formId, valores) => {
+      // o formulário pode ter sido criado agora: garante que já está gravado antes da resposta
+      const f = crescer.lerForm(formId);
+      if (f) await sb.from("forms").upsert({ id: f.id, store_id: lojaId, nome: f.nome || "Sem nome", descricao: f.descricao, estado: f.estado, cor: f.cor, obrigado: f.obrigado, campos: f.campos, confirmar: !!f.confirmar, updated_at: new Date().toISOString() });
+      const { data, error } = await sb.rpc("form_responder_equipe", { p_id: formId, p_valores: valores });
+      if (error) return { erro: error.message.replace(/^.*?: /, "") };
+      return { id: (data as { id?: string } | null)?.id };
+    };
+    persistir.formSituacao = async (id, situacao) => {
+      const { error } = await sb
+        .from("form_respostas")
+        .update({ situacao, decidido_em: situacao === "nova" ? null : new Date().toISOString() })
+        .eq("id", id);
+      return error ? error.message : null;
     };
     return () => {
       vivo = false;
       persistir.form = undefined;
       persistir.formApagar = undefined;
+      persistir.formEquipe = undefined;
+      persistir.formSituacao = undefined;
     };
     // pratos/loja só servem para o primeiro cadastro
     // eslint-disable-next-line react-hooks/exhaustive-deps
