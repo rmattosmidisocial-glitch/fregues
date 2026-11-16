@@ -81,7 +81,7 @@ function LoginAdmin({ a }: { a: ReturnType<typeof useAdmin> }) {
         <p className="mt-1 text-[15px] text-areia">{criar ? "Use o e-mail que vai administrar o Freguês." : "Área só para a equipe do Freguês."}</p>
         <label className="mt-5 block text-[15px] font-semibold text-papel">
           E-mail
-          <input type="email" required autoComplete="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-carvao outline-none placeholder:text-[#8f7b6c] focus:border-brasa" />
+          <input type="email" required autoComplete="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-[#2b211d] outline-none placeholder:text-[#8f7b6c] focus:border-brasa" />
         </label>
         <label className="mt-4 block text-[15px] font-semibold text-papel">
           Senha {criar && <span className="font-normal text-areia">(mínimo 8 caracteres)</span>}
@@ -93,7 +93,7 @@ function LoginAdmin({ a }: { a: ReturnType<typeof useAdmin> }) {
             placeholder="••••••••"
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
-            className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-carvao outline-none placeholder:text-[#8f7b6c] focus:border-brasa"
+            className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-[#2b211d] outline-none placeholder:text-[#8f7b6c] focus:border-brasa"
           />
         </label>
         {msg && <p className="mt-4 rounded-xl bg-[#fde9df] p-3 text-[15px] text-[#8e2f2a]">{msg}</p>}

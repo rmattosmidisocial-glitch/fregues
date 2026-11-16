@@ -52,13 +52,13 @@ function Abrir({ c }: { c: ReturnType<typeof useCaixa> }) {
       <p className="text-[15px] text-areia">Abra o caixa para vender no balcão. O delivery e o salão continuam funcionando.</p>
       <label className="mt-5 block text-left text-[15px] font-semibold">
         Dinheiro na gaveta para troco
-        <span className="mt-1.5 flex items-center rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 text-carvao focus-within:border-brasa">
+        <span className="mt-1.5 flex items-center rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 text-[#2b211d] focus-within:border-brasa">
           <span className="text-[#8f7b6c]">R$</span>
           <input inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value.replace(/[^\d,.]/g, ""))} className="tabular min-w-0 flex-1 bg-transparent px-2 py-3 text-[20px] font-bold outline-none" />
         </span>
       </label>
       <p className="mt-4 text-left text-[15px] font-semibold">Quem está no caixa</p>
-      <input value={op} onChange={(e) => setOp(e.target.value)} placeholder="Nome de quem abre o caixa" aria-label="Quem está no caixa" className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[17px] text-carvao focus:border-brasa focus:outline-none" />
+      <input value={op} onChange={(e) => setOp(e.target.value)} placeholder="Nome de quem abre o caixa" aria-label="Quem está no caixa" className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[17px] text-[#2b211d] focus:border-brasa focus:outline-none" />
       {ops.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
           {ops.map((o) => (
@@ -674,7 +674,7 @@ function ResumoCaixa({ c, aoFechar }: { c: ReturnType<typeof useCaixa>; aoFechar
             <p className="text-[14px] text-areia">Conte o dinheiro da gaveta e digite o valor. O sistema confere com o que deveria ter.</p>
             <label className="mt-4 block text-[15px] font-semibold">
               Dinheiro contado
-              <span className="mt-1.5 flex items-center rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 text-carvao focus-within:border-brasa">
+              <span className="mt-1.5 flex items-center rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 text-[#2b211d] focus-within:border-brasa">
                 <span className="text-[#8f7b6c]">R$</span>
                 <input autoFocus inputMode="decimal" value={contado} onChange={(e) => setContado(e.target.value.replace(/[^\d,.]/g, ""))} className="tabular min-w-0 flex-1 bg-transparent px-2 py-3 text-[22px] font-bold outline-none" />
               </span>

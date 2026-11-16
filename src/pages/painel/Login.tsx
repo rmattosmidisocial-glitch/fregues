@@ -45,7 +45,7 @@ export function Login() {
                 setEmail(e.target.value);
                 setErro("");
               }}
-              className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-carvao outline-none focus:border-brasa"
+              className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-[#2b211d] outline-none focus:border-brasa"
             />
           </label>
           <label className="block text-[15px] font-semibold text-papel">
@@ -58,7 +58,7 @@ export function Login() {
                 setSenha(e.target.value);
                 setErro("");
               }}
-              className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-carvao outline-none focus:border-brasa"
+              className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-[#2b211d] outline-none focus:border-brasa"
             />
           </label>
           {erro && (
@@ -129,7 +129,7 @@ function Esqueci({ emailInicial }: { emailInicial: string }) {
           }}
         >
           <p className="font-semibold">Esqueci minha senha</p>
-          <input type="email" required value={em} onChange={(e) => setEm(e.target.value)} placeholder="seu@email.com" className="mt-2 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-carvao outline-none" />
+          <input type="email" required value={em} onChange={(e) => setEm(e.target.value)} placeholder="seu@email.com" className="mt-2 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-[#2b211d] outline-none" />
           {erro && <p className="mt-2 text-[#9b3530]">{erro}</p>}
           <button disabled={estado === "enviando"} className="mt-3 w-full rounded-full border border-linha py-2.5 font-semibold hover:border-areia disabled:opacity-60">
             {estado === "enviando" ? "Enviando…" : "Mandar link por e-mail"}
@@ -173,11 +173,11 @@ export function Redefinir() {
           <>
             <label className="mt-4 block text-[14px] font-semibold">
               Nova senha (mínimo 8 caracteres)
-              <input type="password" required minLength={8} value={s1} onChange={(e) => setS1(e.target.value)} autoComplete="new-password" className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-carvao outline-none" />
+              <input type="password" required minLength={8} value={s1} onChange={(e) => setS1(e.target.value)} autoComplete="new-password" className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-[#2b211d] outline-none" />
             </label>
             <label className="mt-3 block text-[14px] font-semibold">
               Repita a senha
-              <input type="password" required minLength={8} value={s2} onChange={(e) => setS2(e.target.value)} autoComplete="new-password" className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-carvao outline-none" />
+              <input type="password" required minLength={8} value={s2} onChange={(e) => setS2(e.target.value)} autoComplete="new-password" className="mt-1.5 w-full rounded-xl border-2 border-[#6b5546] bg-[#fff6e9] px-4 py-3 text-[16px] text-[#2b211d] outline-none" />
             </label>
             {msg && <p className="mt-3 text-[14px] text-[#e8846f]">{msg.t}</p>}
             <button disabled={enviando || !token} className="mt-5 w-full rounded-full bg-brasa py-3.5 font-semibold text-carvao disabled:opacity-60">
