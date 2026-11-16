@@ -1,11 +1,12 @@
 import { brl } from "../data/mock";
 
-export function Comanda({ className = "" }: { className?: string }) {
-  const itens: [string, number][] = [
-    ["2x Smash da Penha", 55.8],
-    ["1x Batata rústica", 18.9],
-    ["2x Refrigerante lata", 13],
-  ];
+const PADRAO: [string, number][] = [
+  ["2x Smash da Penha", 55.8],
+  ["1x Batata rústica", 18.9],
+  ["2x Refrigerante lata", 13],
+];
+
+export function Comanda({ className = "", itens = PADRAO, numero = "#1047", cliente = "Larissa G. — primeira compra" }: { className?: string; itens?: [string, number][]; numero?: string; cliente?: string }) {
   const sub = itens.reduce((s, [, v]) => s + v, 0);
   return (
     <div className={`w-[248px] rotate-[2.5deg] text-carvao drop-shadow-[0_24px_40px_rgba(0,0,0,.45)] ${className}`}>
@@ -13,11 +14,11 @@ export function Comanda({ className = "" }: { className?: string }) {
       <div className="bg-papel px-5 pb-5 pt-2 font-mono text-[12px] leading-[1.55]">
         <div className="flex items-baseline justify-between">
           <span className="font-display text-[22px] font-extrabold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
-            #1047
+            {numero}
           </span>
           <span className="text-[11px] text-fumo">20:41</span>
         </div>
-        <p className="mt-1">Larissa G. — primeira compra</p>
+        <p className="mt-1">{cliente}</p>
         <p className="text-brasa-escura">Vista Alegre · zona Vizinhança</p>
         <div className="my-3 border-t border-dashed border-carvao/40" />
         {itens.map(([n, v]) => (

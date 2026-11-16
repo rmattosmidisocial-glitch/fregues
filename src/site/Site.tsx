@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
-import { ArrowUpRight, Bell, Bike, BarChart3, Calculator, ChefHat, ChevronDown, Clock, CreditCard, FileText, Gift, Map, MessageCircle, MessagesSquare, Palette, Printer, QrCode, Smartphone, Sparkles, Store, Check, Users, Workflow, Link2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowUpRight, Bell, Play, Volume2, VolumeX, Bike, BarChart3, Calculator, ChefHat, ChevronDown, Clock, CreditCard, FileText, Gift, Map, MessageCircle, MessagesSquare, Palette, Printer, QrCode, Smartphone, Sparkles, Store, Check, Users, Workflow, Link2 } from "lucide-react";
 import { Logo } from "../components/Logo";
 import { BotaoTema } from "../tema";
 import { Comanda } from "../components/Comanda";
 import { GeoMap, BAIRROS, nomeBairro, vizinhos, type Layer } from "../components/GeoMap";
 import { Foto } from "../components/Foto";
-import { LOJA, ZONAS, CARDAPIO, brl, chamarHoje } from "../data/mock";
+import { MarcaDagua } from "../components/MarcaDagua";
+import { LOJA, ZONAS, brl, chamarHoje } from "../data/mock";
 
 // Todo contato de venda vai para o WhatsApp da MMATTOS
 const NUMERO = "5521967640607";
@@ -57,6 +58,7 @@ function Nav() {
         <Logo />
       </a>
       <nav className="hidden items-center gap-8 text-[15px] font-semibold text-areia md:flex">
+        <a href="#video" className="hover:text-papel">Vídeo</a>
         <a href="#como" className="hover:text-papel">Como funciona</a>
         <a href="#recursos" className="hover:text-papel">Recursos</a>
         <a href="#planos" className="hover:text-papel">Planos</a>
@@ -72,7 +74,29 @@ function Nav() {
   );
 }
 
+// Cada setor da gastronomia passa no destaque do topo, com a comanda e o cliente do mesmo tipo de casa.
+const SETORES: { setor: string; foto: string; numero: string; cliente: string; itens: [string, number][]; quem: string; pedia: string; dias: number }[] = [
+  { setor: "Pizzaria", foto: "pizza", numero: "#2318", cliente: "Larissa G. — primeira compra", itens: [["1x Pizza grande calabresa", 62.9], ["1x Borda de catupiry", 9.9], ["1x Refrigerante 2 L", 14]], quem: "Carlos", pedia: "Pedia Pizza calabresa a cada 7 dias", dias: 23 },
+  { setor: "Hamburgueria", foto: "smashbacon", numero: "#1047", cliente: "Bruno M. — cliente da casa", itens: [["2x Smash da Penha", 55.8], ["1x Batata rústica", 18.9], ["2x Refrigerante lata", 13]], quem: "Juliana", pedia: "Pedia X-Bacon duplo a cada 9 dias", dias: 31 },
+  { setor: "Japonês", foto: "sushi", numero: "#0874", cliente: "Renata S. — 5º pedido", itens: [["1x Combinado 30 peças", 89.9], ["1x Temaki salmão", 26], ["1x Chá gelado", 9]], quem: "Felipe", pedia: "Pedia Combinado 30 peças a cada 14 dias", dias: 38 },
+  { setor: "Bar e boteco", foto: "chopp", numero: "Mesa 6", cliente: "Comanda aberta às 19:12", itens: [["6x Chopp 300 ml", 59.4], ["1x Porção de aipim", 32], ["1x Bolinho de bacalhau", 38]], quem: "Marcos", pedia: "Vinha toda sexta-feira", dias: 21 },
+  { setor: "Restaurante", foto: "prato", numero: "#3120", cliente: "Patrícia L. — almoço", itens: [["2x Prato executivo", 59.8], ["1x Suco natural", 9.9], ["1x Pudim", 12]], quem: "Ana", pedia: "Almoçava 3 vezes por semana", dias: 12 },
+  { setor: "Açaí e café", foto: "acai", numero: "#0559", cliente: "Diego R. — retirada", itens: [["1x Açaí 500 ml", 24.9], ["2x Adicional", 6], ["1x Água de coco", 7]], quem: "Camila", pedia: "Pedia Açaí 500 ml a cada 5 dias", dias: 19 },
+];
+
+function useGiro(total: number, ms = 3800) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const t = window.setInterval(() => setI((v) => (v + 1) % total), ms);
+    return () => window.clearInterval(t);
+  }, [total, ms]);
+  return [i, setI] as const;
+}
+
 function Hero() {
+  const [i, setI] = useGiro(SETORES.length);
+  const atual = SETORES[i];
   return (
     <section id="topo" className="relative overflow-hidden">
       <div className="mx-auto grid max-w-[1240px] items-center gap-6 px-5 pb-16 pt-6 md:grid-cols-[1.05fr_1fr] md:px-8 md:pb-24 md:pt-10">
@@ -83,33 +107,50 @@ function Hero() {
           </p>
           <h1 className="font-display text-[clamp(3rem,7.6vw,6.4rem)] font-extrabold leading-[0.95] tracking-[-0.015em] text-papel">Cliente vira freguês.</h1>
           <p className="mt-6 max-w-[34rem] text-[clamp(1.05rem,1.6vw,1.3rem)] leading-relaxed text-areia">
-            Quem compra hoje pode voltar amanhã. Conheça o ritmo de cada cliente, facilite o próximo pedido e enxergue oportunidades para sua casa crescer.
+            O sistema para toda a gastronomia: pedidos, salão, caixa e relacionamento num lugar só. Conheça o ritmo de cada cliente, facilite o próximo pedido e veja onde a sua casa pode crescer.
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
             <a href={WHATS} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-full bg-brasa px-6 py-3.5 text-[16px] font-bold text-carvao transition hover:bg-mostarda">
               Veja o Freguês na sua casa <ArrowUpRight className="h-5 w-5" />
             </a>
-            <a href={DEMO} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-full border border-linha px-6 py-3.5 text-[16px] font-semibold text-papel transition hover:border-areia">
-              Ver loja de demonstração <Store className="h-5 w-5" />
+            <a href="#video" className="flex items-center gap-2 rounded-full border border-linha px-6 py-3.5 text-[16px] font-semibold text-papel transition hover:border-areia">
+              Assistir em 20 segundos <Play className="h-5 w-5" />
             </a>
           </div>
-          <p className="mt-5 text-[14px] text-fumo">Para restaurantes, hamburguerias, pizzarias, bares e muito mais.</p>
+          <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="Tipos de casa">
+            {SETORES.map((s, k) => (
+              <button
+                key={s.setor}
+                role="tab"
+                aria-selected={k === i}
+                onClick={() => setI(k)}
+                className={`rounded-full px-3 py-1.5 text-[13px] font-semibold transition ${k === i ? "bg-papel text-carvao" : "border border-linha text-areia hover:text-papel"}`}
+              >
+                {s.setor}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="relative h-[460px] md:h-[600px]" aria-hidden="true">
-          <div className="absolute inset-y-0 left-6 right-0 overflow-hidden rounded-[36px] md:left-16">
-            <Foto chave="smashbacon" eager alt="" className="h-full w-full scale-[1.02]" />
-            <div className="absolute inset-0 bg-gradient-to-tr from-black/50 via-transparent to-transparent" />
+          <div className="absolute inset-y-0 left-6 right-0 overflow-hidden rounded-[36px] bg-[#2B211D] md:left-16">
+            {SETORES.map((s, k) => (
+              <div key={s.setor} className={`absolute inset-0 transition-opacity duration-700 ${k === i ? "opacity-100" : "opacity-0"}`}>
+                <Foto chave={s.foto} eager={k < 2} alt="" className="h-full w-full scale-[1.02]" />
+              </div>
+            ))}
+            <div className="absolute inset-0 bg-gradient-to-tr from-black/55 via-transparent to-transparent" />
+            <span className="absolute bottom-5 right-5 rounded-full bg-black/55 px-3 py-1.5 text-[13px] font-semibold text-[#FFF6EB] backdrop-blur">{atual.setor}</span>
           </div>
-          <div className="comanda-sai absolute -bottom-6 left-0 md:-bottom-4 md:-left-6">
-            <Comanda />
+          <div key={atual.numero} className="comanda-sai absolute -bottom-6 left-0 md:-bottom-4 md:-left-6">
+            <Comanda itens={atual.itens} numero={atual.numero} cliente={atual.cliente} />
           </div>
           <div className="absolute right-0 top-4 w-[230px] rounded-2xl border border-linha bg-forno/95 p-4 text-[13px] shadow-2xl backdrop-blur md:right-2 md:top-10">
             <div className="flex items-center gap-2">
               <span className="pulso h-2.5 w-2.5 rounded-full bg-tomate" />
-              <span className="text-areia">Saiu do ritmo há 34 dias</span>
+              <span className="text-areia">Saiu do ritmo há {atual.dias} dias</span>
             </div>
-            <p className="mt-1.5 font-display text-[18px] font-bold leading-tight">Carlos</p>
-            <p className="text-areia">Pedia X-Bacon Duplo a cada 9 dias</p>
+            <p className="mt-1.5 font-display text-[18px] font-bold leading-tight">{atual.quem}</p>
+            <p className="text-areia">{atual.pedia}</p>
             <span className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-brasa py-2 font-semibold text-carvao">
               <MessageCircle className="h-4 w-4" /> Revisar mensagem
             </span>
@@ -129,26 +170,90 @@ function Hero() {
   );
 }
 
+function Video() {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [mudo, setMudo] = useState(true);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || !("IntersectionObserver" in window)) return;
+    const o = new IntersectionObserver(([e]) => (e.isIntersecting ? v.play().catch(() => {}) : v.pause()), { threshold: 0.35 });
+    o.observe(v);
+    return () => o.disconnect();
+  }, []);
+  return (
+    <section id="video" className="mx-auto max-w-[1240px] px-5 py-24 md:px-8">
+      <div className="grid items-center gap-12 md:grid-cols-[1fr_auto] md:gap-20">
+        <div>
+          <p className="text-[15px] font-semibold text-brasa">Em 20 segundos</p>
+          <h2 className="mt-2 max-w-[36rem] font-display text-[clamp(2rem,4.4vw,3.4rem)] font-extrabold leading-[0.98] tracking-[-0.015em]">Seu cliente sumiu. E você nem percebeu.</h2>
+          <p className="mt-5 max-w-[32rem] text-[18px] leading-relaxed text-areia">
+            Pizzaria, bar, restaurante, hamburgueria, japonês ou açaí: toda casa tem cliente que some sem avisar. O Freguês mostra quem é, o que costumava pedir e ajuda a chamar de volta, do jeito da sua casa.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <a href={WHATS} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-full bg-brasa px-6 py-3.5 text-[16px] font-bold text-carvao transition hover:bg-mostarda">
+              Quero ver na minha casa <ArrowUpRight className="h-5 w-5" />
+            </a>
+            <a href={DEMO} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-full border border-linha px-6 py-3.5 text-[16px] font-semibold text-papel transition hover:border-areia">
+              Ver loja de demonstração <Store className="h-5 w-5" />
+            </a>
+          </div>
+        </div>
+        <div className="relative mx-auto w-[min(78vw,330px)]">
+          <div className="absolute -inset-6 -z-10 rounded-[48px] bg-brasa/25 blur-2xl" aria-hidden="true" />
+          <div className="overflow-hidden rounded-[36px] border-[8px] border-[#0c0907] bg-[#2B211D] shadow-[0_30px_80px_rgba(0,0,0,.45)]">
+            <video
+              ref={ref}
+              src="/video/fregues-manifesto.mp4"
+              poster="/video/fregues-manifesto.webp"
+              muted={mudo}
+              loop
+              playsInline
+              preload="metadata"
+              className="block aspect-[9/16] w-full object-cover"
+              aria-label="Vídeo de apresentação do Freguês"
+            />
+          </div>
+          <button
+            onClick={() => {
+              const v = ref.current;
+              setMudo((m) => !m);
+              v?.play().catch(() => {});
+            }}
+            className="absolute bottom-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/80"
+            aria-label={mudo ? "Ligar o som" : "Desligar o som"}
+          >
+            {mudo ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function MiniLoja() {
-  const itens = CARDAPIO.filter((p) => ["p1", "p4", "p11"].includes(p.id));
+  const itens: [string, string, number][] = [
+    ["Pizza grande margherita", "pizza", 58.9],
+    ["Prato executivo do dia", "prato", 29.9],
+    ["Combinado 20 peças", "sushi", 64.9],
+  ];
   return (
     <div className="mx-auto w-[290px] rounded-[38px] border-[10px] border-[#0c0907] bg-[#FFF6EB] p-3 text-[#2B211D] shadow-[0_30px_80px_rgba(0,0,0,.5)]">
       <div className="rounded-2xl bg-[#B73D14] p-4 text-white">
-        <p className="font-display text-[22px] font-extrabold leading-none">Brasa Burger</p>
+        <p className="font-display text-[22px] font-extrabold leading-none">Sua Casa</p>
         <p className="mt-1 text-[12px]">Aberto · entrega em 25–35 min</p>
       </div>
       <div className="mt-3 space-y-2">
-        {itens.map((p) => (
-          <div key={p.id} className="flex items-center gap-3 rounded-xl bg-white p-2">
-            <Foto nome={p.nome} arte={p.arte} className="h-14 w-14 shrink-0 rounded-lg" />
+        {itens.map(([nome, foto, preco]) => (
+          <div key={nome} className="flex items-center gap-3 rounded-xl bg-white p-2">
+            <Foto chave={foto} alt="" className="h-14 w-14 shrink-0 rounded-lg" />
             <div className="min-w-0">
-              <p className="truncate text-[14px] font-semibold text-[#2B211D]">{p.nome}</p>
-              <p className="text-[13px] font-semibold text-[#B73D14]">{brl(p.preco)}</p>
+              <p className="truncate text-[14px] font-semibold text-[#2B211D]">{nome}</p>
+              <p className="text-[13px] font-semibold text-[#B73D14]">{brl(preco)}</p>
             </div>
           </div>
         ))}
       </div>
-      <div className="mt-3 rounded-xl bg-[#2B211D] px-4 py-3 text-center text-[14px] font-semibold text-white">Ver sacola · {brl(84.6)}</div>
+      <div className="mt-3 rounded-xl bg-[#2B211D] px-4 py-3 text-center text-[14px] font-semibold text-white">Ver sacola · {brl(153.7)}</div>
     </div>
   );
 }
@@ -478,7 +583,9 @@ function Duvidas() {
 
 export function Site() {
   return (
-    <div className="tema-claro min-h-screen bg-carvao text-papel">
+    <div className="tema-claro relative min-h-screen bg-carvao text-papel">
+      <MarcaDagua />
+      <div className="relative z-[1]">
       <Nav />
       <Hero />
 
@@ -496,6 +603,8 @@ export function Site() {
           ))}
         </div>
       </section>
+
+      <Video />
 
       <section id="como" className="mx-auto max-w-[1240px] px-5 md:px-8">
         <div className="max-w-[46rem] pt-24">
@@ -637,6 +746,7 @@ export function Site() {
           </p>
         </div>
       </footer>
+      </div>
     </div>
   );
 }
