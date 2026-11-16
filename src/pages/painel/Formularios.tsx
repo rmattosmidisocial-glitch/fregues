@@ -68,6 +68,89 @@ function linkAviso(f: Formulario, r: RespostaForm, loja: string, ok: boolean) {
   return `https://wa.me/${tel}?text=${encodeURIComponent(txt)}`;
 }
 
+/** Dá o ok (ou recusa) e já abre o WhatsApp com o aviso pronto para o cliente. */
+async function decidirResposta(f: Formulario, r: RespostaForm, sit: "confirmada" | "recusada" | "nova", loja: string, show: (t: string) => void) {
+  const e = await crescer.situacaoResposta(f.id, r.id, sit);
+  if (e) return show(e);
+  if (sit === "nova") return show("Voltou para confirmar");
+  const link = linkAviso(f, r, loja, sit === "confirmada");
+  show(sit === "confirmada" ? `Confirmado: ${r.cliente}` : `Recusado: ${r.cliente}`);
+  if (link) window.open(link, "_blank", "noopener");
+}
+
+/** Respostas que esperam o ok, de todos os formulários, num lugar só. */
+function Caixinha({ forms, abrir }: { forms: Formulario[]; abrir: (id: string) => void }) {
+  const d = useDados();
+  const { show, Toast } = useToast();
+  const pend = forms.flatMap((f) => (f.confirmar ? f.respostas.filter((r) => r.situacao === "nova").map((r) => ({ f, r })) : [])).sort((a, b) => b.r.quando - a.r.quando);
+  const ultimas = forms
+    .flatMap((f) => f.respostas.filter((r) => r.situacao !== "nova").map((r) => ({ f, r })))
+    .sort((a, b) => b.r.quando - a.r.quando)
+    .slice(0, 5);
+  return (
+    <div className="mt-5 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+      <section className="rounded-3xl border border-linha bg-forno p-5">
+        <h2 className="flex items-center gap-2 font-display text-[20px] font-bold">
+          Esperando seu ok <span className="tabular rounded-full bg-brasa px-2.5 text-[14px] text-carvao">{pend.length}</span>
+        </h2>
+        <p className="text-[13px] text-areia">Quando o cliente preenche o link, a resposta chega aqui na hora. Dê o ok ou recuse: o WhatsApp abre com o aviso pronto.</p>
+        {pend.length === 0 ? (
+          <p className="mt-4 rounded-2xl border border-dashed border-linha p-5 text-center text-[14px] text-areia">Nada esperando agora.</p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {pend.slice(0, 12).map(({ f, r }) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-grafite p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">
+                    {r.cliente} <span className="font-normal text-areia">· {f.nome}</span>
+                  </p>
+                  <p className="text-[13px] text-areia">
+                    {resumo(f, r) || "Abra para ver as respostas"} · {quandoTxt(r.quando)}
+                  </p>
+                </div>
+                <button onClick={() => decidirResposta(f, r, "confirmada", d.loja.nome, show)} className="flex items-center gap-1 rounded-full bg-manjericao px-3.5 py-2 text-[13px] font-bold text-carvao hover:opacity-90">
+                  <Check className="h-4 w-4" /> Dar ok
+                </button>
+                <button onClick={() => decidirResposta(f, r, "recusada", d.loja.nome, show)} className="rounded-full border border-linha px-3.5 py-2 text-[13px] font-semibold text-areia hover:text-papel">
+                  Recusar
+                </button>
+                <button onClick={() => abrir(f.id)} className="text-[13px] text-areia underline-offset-4 hover:text-papel hover:underline">
+                  Ver tudo
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section className="rounded-3xl border border-linha bg-forno p-5">
+        <h2 className="font-display text-[20px] font-bold">Últimas respostas</h2>
+        {ultimas.length === 0 ? (
+          <p className="mt-4 text-[14px] text-areia">Ainda ninguém respondeu.</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-linha">
+            {ultimas.map(({ f, r }) => (
+              <li key={r.id}>
+                <button onClick={() => abrir(f.id)} className="flex w-full items-center gap-2 py-2.5 text-left">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">{r.cliente}</span>
+                    <span className="block truncate text-[13px] text-areia">
+                      {f.nome} · {quandoTxt(r.quando)}
+                      {r.origem === "equipe" ? " · pela equipe" : ""}
+                    </span>
+                  </span>
+                  {r.situacao === "confirmada" && <span className="rounded-full bg-[#e2f2ea] px-2 py-0.5 text-[11px] font-bold text-[#1b6149]">Confirmada</span>}
+                  {r.situacao === "recusada" && <span className="rounded-full bg-[#fbe4e0] px-2 py-0.5 text-[11px] font-bold text-[#8e2f2a]">Recusada</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <Toast />
+    </div>
+  );
+}
+
 /** A equipe preenche o formulário pelo cliente (no balcão ou por telefone). */
 function PreencherEquipe({ f, fechar, aoSalvar }: { f: Formulario; fechar: () => void; aoSalvar: (nome: string) => void }) {
   const [v, setV] = useState<Record<string, string | number>>({});
@@ -226,14 +309,7 @@ function Abrir({ f, voltar }: { f: Formulario; voltar: () => void }) {
   const novas = f.respostas.filter((r) => r.situacao === "nova").length;
   const [filtro, setFiltro] = useState<"nova" | "confirmada" | "recusada" | "todas">(f.confirmar && novas > 0 ? "nova" : "todas");
   const lista = f.confirmar && filtro !== "todas" ? f.respostas.filter((r) => (filtro === "nova" ? r.situacao === "nova" || !r.situacao : r.situacao === filtro)) : f.respostas;
-  async function decidir(r: RespostaForm, sit: "confirmada" | "recusada" | "nova") {
-    const e = await crescer.situacaoResposta(f.id, r.id, sit);
-    if (e) return show(e);
-    if (sit === "nova") return show("Voltou para confirmar");
-    const link = linkAviso(f, r, d.loja.nome, sit === "confirmada");
-    show(sit === "confirmada" ? `Confirmado: ${r.cliente}` : `Recusado: ${r.cliente}`);
-    if (link) window.open(link, "_blank", "noopener");
-  }
+  const decidir = (r: RespostaForm, sit: "confirmada" | "recusada" | "nova") => decidirResposta(f, r, sit, d.loja.nome, show);
   useEffect(() => {
     QRCode.toDataURL(link, { margin: 2, width: 720, color: { dark: "#17110e", light: "#ffffff" } }).then(setQr);
   }, [link]);
@@ -262,7 +338,7 @@ function Abrir({ f, voltar }: { f: Formulario; voltar: () => void }) {
             <PenLine className="h-4 w-4" /> Preencher pelo cliente
           </button>
           <a
-            href={real ? link : "#pesquisa"}
+            href={real ? link.replace("#pesquisa", "&previa=1#pesquisa") : "#pesquisa"}
             target={real ? "_blank" : undefined}
             rel="noreferrer"
             onClick={(e) => {
@@ -270,10 +346,11 @@ function Abrir({ f, voltar }: { f: Formulario; voltar: () => void }) {
                 e.preventDefault();
                 show("Coloque no ar primeiro para o link abrir para o cliente");
               } else crescer.abrirPublico(f.id);
+              // a prévia não grava resposta: para testar de verdade, use o link de Compartilhar
             }}
             className="flex items-center gap-2 rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia"
           >
-            <ExternalLink className="h-4 w-4" /> Ver como o cliente vê
+            <ExternalLink className="h-4 w-4" /> Ver prévia
           </a>
           <button onClick={() => set({ estado: f.estado === "no ar" ? "pausado" : "no ar" })} className={`rounded-full px-4 py-2 text-[14px] font-semibold ${f.estado === "no ar" ? "bg-grafite" : "bg-brasa text-carvao hover:bg-mostarda"}`}>
             {f.estado === "no ar" ? "Pausar" : "Colocar no ar"}
@@ -626,7 +703,9 @@ export function Formularios() {
           <Plus className="h-4 w-4" /> Novo formulário
         </button>
       </div>
-      <ul className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <Caixinha forms={forms} abrir={setAberto} />
+      <h2 className="mt-8 font-display text-[22px] font-extrabold">Seus formulários</h2>
+      <ul className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {forms.map((x) => {
           const est = x.campos.find((c) => c.tipo === "estrelas");
           const r = est ? resumoNumerico(x, est) : null;

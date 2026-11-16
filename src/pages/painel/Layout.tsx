@@ -88,9 +88,15 @@ export function PainelLayout({ rota }: { rota: Rota }) {
   }, [d.sessao]);
   useAtendimentoPainel(d.loja.id, d.modo === "real" && !!d.sessao);
   useLinksPainel(d.loja.id, d.modo === "real" && !!d.sessao, d.loja.nome, d.loja.bairro);
-  useFormulariosPainel(d.loja.id, d.modo === "real" && !!d.sessao, d.loja.nome, [...d.cardapio].sort((a, b) => Number(!!b.maisPedido) - Number(!!a.maisPedido)).map((p) => p.nome));
+  useFormulariosPainel(
+    d.loja.id,
+    d.modo === "real" && !!d.sessao,
+    d.loja.nome,
+    [...d.cardapio].sort((a, b) => Number(!!b.maisPedido) - Number(!!a.maisPedido)).map((p) => p.nome),
+  );
   const naoLidas = useCrescer((s) => s.conversas.filter((c) => c.naoLida).length);
-  const contador = (r: Rota) => (r === "pedidos" ? d.pedidos.filter((p) => p.status === "novo").length : r === "atendimento" ? naoLidas : 0);
+  const paraConfirmar = useCrescer((s) => s.forms.reduce((n, f) => n + (f.confirmar ? f.respostas.filter((r) => r.situacao === "nova").length : 0), 0));
+  const contador = (r: Rota) => (r === "pedidos" ? d.pedidos.filter((p) => p.status === "novo").length : r === "atendimento" ? naoLidas : r === "formularios" ? paraConfirmar : 0);
   // botão = liga/desliga manual; o texto mostra se está aberta de verdade (horário e pausa)
   const aberta = d.loja.ligada ?? d.loja.aberto;
   const setAberta = (v: boolean) => d.acoes.setAberta(v);
@@ -131,10 +137,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
         <div className="mt-5 rounded-2xl bg-grafite p-3">
           <p className="font-display text-[17px] font-bold leading-tight">{d.loja.nome}</p>
           <p className="text-[13px] text-areia">{d.loja.bairro}</p>
-          <button
-            onClick={() => setAberta(!aberta)}
-            className={`mt-3 flex w-full items-center justify-between rounded-xl px-3 py-2 text-[14px] font-semibold ${aberta && d.loja.aberto ? "bg-[#e2f2ea] text-[#1b6149]" : aberta ? "bg-[#fcefd9] text-[#7a4600]" : "bg-[#fbe4e0] text-[#9b3530]"}`}
-          >
+          <button onClick={() => setAberta(!aberta)} className={`mt-3 flex w-full items-center justify-between rounded-xl px-3 py-2 text-[14px] font-semibold ${aberta && d.loja.aberto ? "bg-[#e2f2ea] text-[#1b6149]" : aberta ? "bg-[#fcefd9] text-[#7a4600]" : "bg-[#fbe4e0] text-[#9b3530]"}`}>
             <span className="text-left">
               {!aberta ? "Loja desligada" : d.loja.aberto ? "Loja aberta" : "Fora do horário"}
               {aberta && d.loja.horario && <span className="block text-[11px] font-normal opacity-80">{d.loja.horario}</span>}
@@ -151,27 +154,19 @@ export function PainelLayout({ rota }: { rota: Rota }) {
             const titulo = k === 0 || ITENS_VIS[k - 1].grupo !== i.grupo;
             return (
               <div key={i.rota}>
-              {titulo && <p className={`px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-fumo ${k ? "pt-4" : ""}`}>{i.grupo}</p>}
-              <a
-                key={i.rota}
-                href={`#${i.rota}`}
-                aria-current={ativo ? "page" : undefined}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] transition ${ativo ? "bg-papel font-semibold text-carvao" : "text-areia hover:bg-grafite hover:text-papel"}`}
-              >
-                {i.icone}
-                {i.rotulo}
-                {n > 0 && <span className="tabular ml-auto rounded-full bg-brasa px-2 text-[12px] font-bold text-carvao">{n}</span>}
-              </a>
+                {titulo && <p className={`px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-fumo ${k ? "pt-4" : ""}`}>{i.grupo}</p>}
+                <a key={i.rota} href={`#${i.rota}`} aria-current={ativo ? "page" : undefined} className={`flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] transition ${ativo ? "bg-papel font-semibold text-carvao" : "text-areia hover:bg-grafite hover:text-papel"}`}>
+                  {i.icone}
+                  {i.rotulo}
+                  {n > 0 && <span className="tabular ml-auto rounded-full bg-brasa px-2 text-[12px] font-bold text-carvao">{n}</span>}
+                </a>
               </div>
             );
           })}
         </nav>
         <div className="mt-3 space-y-1.5">
           {chefe && (
-            <button
-              onClick={() => setCopiloto(true)}
-              className="flex w-full items-center gap-3 rounded-xl bg-brasa px-3 py-3 text-[15px] font-semibold text-carvao transition hover:bg-mostarda"
-            >
+            <button onClick={() => setCopiloto(true)} className="flex w-full items-center gap-3 rounded-xl bg-brasa px-3 py-3 text-[15px] font-semibold text-carvao transition hover:bg-mostarda">
               <Sparkles className="h-5 w-5" /> Copiloto Chef
             </button>
           )}
@@ -196,17 +191,17 @@ export function PainelLayout({ rota }: { rota: Rota }) {
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-linha bg-carvao/90 px-4 py-3 backdrop-blur md:hidden">
           <Logo />
           <span className="flex items-center gap-2">
-          <BotaoTema />
-          {d.sessao && (
-            <button onClick={() => setConta(true)} aria-label="Minha conta" className="grid h-9 w-9 place-items-center rounded-full border border-linha text-areia">
-              <UserRound className="h-4 w-4" />
-            </button>
-          )}
-          {chefe && (
-            <button onClick={() => setCopiloto(true)} className="flex items-center gap-2 rounded-full bg-brasa px-3 py-2 text-[14px] font-semibold text-carvao">
-              <Sparkles className="h-4 w-4" /> Copiloto
-            </button>
-          )}
+            <BotaoTema />
+            {d.sessao && (
+              <button onClick={() => setConta(true)} aria-label="Minha conta" className="grid h-9 w-9 place-items-center rounded-full border border-linha text-areia">
+                <UserRound className="h-4 w-4" />
+              </button>
+            )}
+            {chefe && (
+              <button onClick={() => setCopiloto(true)} className="flex items-center gap-2 rounded-full bg-brasa px-3 py-2 text-[14px] font-semibold text-carvao">
+                <Sparkles className="h-4 w-4" /> Copiloto
+              </button>
+            )}
           </span>
         </header>
         <main className="mx-auto max-w-[1280px] px-4 py-6 md:px-8 md:py-8">
@@ -241,12 +236,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
 
       <nav className="scroll-thin fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-linha bg-forno md:hidden" aria-label="Painel">
         {ITENS_VIS.map((i) => (
-          <a
-            key={i.rota}
-            href={`#${i.rota}`}
-            aria-current={rota === i.rota ? "page" : undefined}
-            className={`relative flex min-w-[76px] flex-col items-center gap-1 px-1 py-2.5 text-[11px] ${rota === i.rota ? "text-brasa" : "text-areia"}`}
-          >
+          <a key={i.rota} href={`#${i.rota}`} aria-current={rota === i.rota ? "page" : undefined} className={`relative flex min-w-[76px] flex-col items-center gap-1 px-1 py-2.5 text-[11px] ${rota === i.rota ? "text-brasa" : "text-areia"}`}>
             {i.icone}
             {i.curto}
             {contador(i.rota) > 0 && <span className="absolute right-4 top-1.5 h-2 w-2 rounded-full bg-brasa" />}
@@ -257,12 +247,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
       {conta && <MinhaConta fechar={() => setConta(false)} />}
       {copiloto && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={() => setCopiloto(false)}>
-          <div
-            role="dialog"
-            aria-label="Copiloto Chef"
-            className="flex h-full w-full max-w-[460px] flex-col border-l border-linha bg-forno"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div role="dialog" aria-label="Copiloto Chef" className="flex h-full w-full max-w-[460px] flex-col border-l border-linha bg-forno" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-linha px-5 py-4">
               <p className="flex items-center gap-2 font-display text-[20px] font-bold">
                 <Sparkles className="h-5 w-5 text-brasa" /> Copiloto Chef

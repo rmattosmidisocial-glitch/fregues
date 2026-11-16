@@ -23,8 +23,14 @@ function GraficoSemana({ VENDAS_SEMANA }: { VENDAS_SEMANA: DiaSemana[] }) {
         ))}
       </div>
       <div className="mt-3 flex gap-5 text-[13px] text-areia">
-        <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm bg-brasa" /> Loja própria</span>
-        {temMkt && <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm bg-grafite" /> Marketplace</span>}
+        <span className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-sm bg-brasa" /> Loja própria
+        </span>
+        {temMkt && (
+          <span className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-sm bg-grafite" /> Marketplace
+          </span>
+        )}
       </div>
     </div>
   );
@@ -35,13 +41,28 @@ function Atencao() {
   const forms = useCrescer((s) => s.forms);
   const itens: { chave: string; icone: React.ReactNode; texto: string; sub: string; href: string; antes?: () => void; cor: string }[] = [];
   for (const c of conversas.filter((c) => c.status === "equipe" || (c.naoLida && c.humor === "negativo")).slice(0, 3))
-    itens.push({ chave: c.id, icone: c.humor === "negativo" ? <Frown className="h-4 w-4" /> : <MessagesSquare className="h-4 w-4" />, texto: `${c.titulo} · ${c.cliente}`, sub: c.status === "equipe" ? `A IA chamou você ${quandoTxt(c.mensagens[c.mensagens.length - 1].quando)}` : "Cliente chateado", href: "#atendimento", cor: c.humor === "negativo" ? "#f0524a" : "#ffc03a" });
+    itens.push({
+      chave: c.id,
+      icone: c.humor === "negativo" ? <Frown className="h-4 w-4" /> : <MessagesSquare className="h-4 w-4" />,
+      texto: `${c.titulo} · ${c.cliente}`,
+      sub: c.status === "equipe" ? `A IA chamou você ${quandoTxt(c.mensagens[c.mensagens.length - 1].quando)}` : "Cliente chateado",
+      href: "#atendimento",
+      cor: c.humor === "negativo" ? "#f0524a" : "#ffc03a",
+    });
   const pesq = forms.find((f) => f.id === "fo1");
   for (const r of (pesq?.respostas ?? []).filter((r) => Number(r.valores.comida) <= 3 && Date.now() - r.quando < 3 * 86400_000).slice(0, 2))
     itens.push({ chave: r.id, icone: <Star className="h-4 w-4" />, texto: `Nota ${r.valores.comida} de ${r.cliente}`, sub: String(r.valores.comentario || "Sem comentário") + ` · ${quandoTxt(r.quando)}`, href: "#formularios", cor: "#f0524a" });
-  const res = forms.find((f) => f.id === "fo2");
-  for (const r of (res?.respostas ?? []).slice(0, 1))
-    itens.push({ chave: r.id, icone: <CalendarDays className="h-4 w-4" />, texto: `Reserva para ${r.valores.pessoas} pessoas · ${r.cliente}`, sub: `${r.valores.data} às ${r.valores.hora} · ${r.valores.ocasiao ?? ""}`, href: "#formularios", antes: () => crescer.abrirPublico("fo2"), cor: "#ffc03a" });
+  // respostas de formulário esperando o ok (reserva, aniversário, evento)
+  const pendentes = forms.flatMap((f) => (f.confirmar ? f.respostas.filter((r) => r.situacao === "nova").map((r) => ({ f, r })) : [])).sort((a, b) => b.r.quando - a.r.quando);
+  for (const { f, r } of pendentes.slice(0, 3)) {
+    const v = r.valores;
+    const pessoas = f.campos.find((c) => c.tipo === "numero" && /pessoa/i.test(c.rotulo));
+    const dia = f.campos.find((c) => c.tipo === "data" && !/anivers|nasc/i.test(c.rotulo));
+    const hora = f.campos.find((c) => c.tipo === "hora");
+    const fmt = (x: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(x)) ? `${String(x).slice(8, 10)}/${String(x).slice(5, 7)}` : String(x));
+    const detalhe = [dia && v[dia.id] ? fmt(v[dia.id]) : "", hora && v[hora.id] ? `às ${v[hora.id]}` : ""].filter(Boolean).join(" ");
+    itens.push({ chave: r.id, icone: <CalendarDays className="h-4 w-4" />, texto: `${f.nome}${pessoas && v[pessoas.id] ? ` para ${v[pessoas.id]} pessoas` : ""} · ${r.cliente}`, sub: `Esperando seu ok${detalhe ? ` · ${detalhe}` : ""} · ${quandoTxt(r.quando)}`, href: "#formularios", cor: "#ffc03a" });
+  }
   if (!itens.length) return null;
   return (
     <section className="rounded-3xl border border-linha bg-forno p-5" aria-label="Precisa de atenção">
@@ -108,14 +129,15 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
   const VENDAS_SEMANA = d.semana;
   const pulsoResumo = d.pulso;
   const COMISSAO = Number(d.pulso.comissao ?? 0.12);
-  const chamarHoje: Freguês[] = d.fregueses.filter((f) => f.status !== "ritmo").sort((a, b) => b.ticket * b.pedidos - a.ticket * a.pedidos).slice(0, 6);
+  const chamarHoje: Freguês[] = d.fregueses
+    .filter((f) => f.status !== "ritmo")
+    .sort((a, b) => b.ticket * b.pedidos - a.ticket * a.pedidos)
+    .slice(0, 6);
   const propria = VENDAS_SEMANA.reduce((s, x) => s + x.propria, 0);
   const total = pulsoResumo.total;
   const novos = d.pedidos.filter((p) => p.status === "novo").length;
   // quanto os fregueses fora do ritmo costumam gastar no período escolhido
-  const risco = d.fregueses.length
-    ? Math.round(d.fregueses.reduce((s, f) => s + f.ticket * (periodo / Math.max(1, f.intervalo)) * PERDA[f.status] * 1.6, 0))
-    : Math.round(pulsoResumo.risco * (periodo / 7));
+  const risco = d.fregueses.length ? Math.round(d.fregueses.reduce((s, f) => s + f.ticket * (periodo / Math.max(1, f.intervalo)) * PERDA[f.status] * 1.6, 0)) : Math.round(pulsoResumo.risco * (periodo / 7));
   const hoje = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
   const h = new Date().getHours();
   const saudacao = h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
@@ -154,7 +176,9 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
             {pulsoResumo.atrasado + pulsoResumo.sumindo} fregueses saíram do ritmo de pedidos. {`Esse é o valor que eles costumam gastar em ${periodo === 30 ? "um mês" : `${periodo} dias`}. Cada freguês tem o próprio ritmo: quem pede uma vez por mês só sai do ritmo depois de uns 38 dias sem pedir.`}
           </p>
           <div className="relative mt-6 flex flex-wrap gap-3">
-            <a href="#fregueses" className="rounded-full bg-brasa px-5 py-2.5 text-[15px] font-semibold text-carvao hover:bg-mostarda">Ver quem está sumindo</a>
+            <a href="#fregueses" className="rounded-full bg-brasa px-5 py-2.5 text-[15px] font-semibold text-carvao hover:bg-mostarda">
+              Ver quem está sumindo
+            </a>
             <button onClick={abrirCopiloto} className="flex items-center gap-2 rounded-full border border-[#6a3415] px-5 py-2.5 text-[15px] font-semibold text-papel hover:border-brasa">
               <Sparkles className="h-4 w-4" /> Pedir ao Copiloto
             </button>
@@ -176,9 +200,21 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
               <div className="bg-tomate" style={{ flex: pulsoResumo.sumindo }} />
             </div>
             <div className="mt-3 grid grid-cols-3 text-[13px]">
-              <span><b className="tabular text-[17px]">{pulsoResumo.ritmo}</b><br /><span className="text-areia">no ritmo</span></span>
-              <span><b className="tabular text-[17px]">{pulsoResumo.atrasado}</b><br /><span className="text-areia">fora do ritmo</span></span>
-              <span><b className="tabular text-[17px]">{pulsoResumo.sumindo}</b><br /><span className="text-areia">sumindo</span></span>
+              <span>
+                <b className="tabular text-[17px]">{pulsoResumo.ritmo}</b>
+                <br />
+                <span className="text-areia">no ritmo</span>
+              </span>
+              <span>
+                <b className="tabular text-[17px]">{pulsoResumo.atrasado}</b>
+                <br />
+                <span className="text-areia">fora do ritmo</span>
+              </span>
+              <span>
+                <b className="tabular text-[17px]">{pulsoResumo.sumindo}</b>
+                <br />
+                <span className="text-areia">sumindo</span>
+              </span>
             </div>
           </Painelzinho>
         </div>
@@ -188,7 +224,9 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
         <Painelzinho>
           <div className="flex items-center justify-between">
             <h2 className="font-display text-[22px] font-bold">Quem merece atenção hoje</h2>
-            <a href="#fregueses" className="text-[14px] text-areia hover:text-papel">Ver todos</a>
+            <a href="#fregueses" className="text-[14px] text-areia hover:text-papel">
+              Ver todos
+            </a>
           </div>
           <ul className="mt-3 divide-y divide-linha">
             {chamarHoje.map((f) => (
@@ -206,13 +244,7 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
                 {(() => {
                   const link = linkChamar(f, d.loja.nome);
                   return link ? (
-                    <a
-                      href={link}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => show(`Abrindo o WhatsApp de ${f.nome.split(" ")[0]} com o "o de sempre"`)}
-                      className="flex items-center gap-1.5 rounded-full bg-papel px-3 py-2 text-[13px] font-semibold text-carvao hover:bg-mostarda"
-                    >
+                    <a href={link} target="_blank" rel="noreferrer" onClick={() => show(`Abrindo o WhatsApp de ${f.nome.split(" ")[0]} com o "o de sempre"`)} className="flex items-center gap-1.5 rounded-full bg-papel px-3 py-2 text-[13px] font-semibold text-carvao hover:bg-mostarda">
                       <MessageCircle className="h-4 w-4" /> <span className="hidden sm:inline">Chamar</span>
                     </a>
                   ) : (

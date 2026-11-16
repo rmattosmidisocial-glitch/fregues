@@ -632,6 +632,17 @@ export const crescer = {
     const atual = store.get().forms.find((x) => x.id === id);
     if (atual) persistir.form?.(atual);
   },
+  /** Resposta que chegou pelo banco (tempo real): entra no topo ou atualiza a que já existe. */
+  receberResposta(formId: string, r: RespostaForm) {
+    store.set((s) => ({
+      ...s,
+      forms: s.forms.map((x) => {
+        if (x.id !== formId) return x;
+        const tem = x.respostas.some((y) => y.id === r.id);
+        return { ...x, respostas: tem ? x.respostas.map((y) => (y.id === r.id ? { ...y, ...r } : y)) : [r, ...x.respostas] };
+      }),
+    }));
+  },
   lerForm(id: string) {
     return store.get().forms.find((x) => x.id === id);
   },
@@ -643,7 +654,7 @@ export const crescer = {
     persistir.formApagar?.(id);
   },
   novoForm() {
-    const f: Formulario = { id: novoId(), nome: "Novo formulário", descricao: "", estado: "rascunho", cor: "#ff5b1f", obrigado: "Obrigado! Recebemos sua resposta.", campos: [{ id: uid(), rotulo: "Seu nome", tipo: "nome", obrigatorio: true }], respostas: [] };
+    const f: Formulario = { id: novoId(), nome: "Novo formulário", descricao: "", estado: "rascunho", cor: "#ff5b1f", confirmar: true, obrigado: "Obrigado! Recebemos sua resposta.", campos: [{ id: uid(), rotulo: "Seu nome", tipo: "nome", obrigatorio: true }], respostas: [] };
     store.set((s) => ({ ...s, forms: [f, ...s.forms] }));
     persistir.form?.(f);
     return f.id;

@@ -25,6 +25,7 @@ export function Pesquisa() {
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
+  const previa = new URLSearchParams(location.search).get("previa") === "1";
 
   // link mandado pela loja já vem com o nome e o WhatsApp do cliente (&n= e &t=)
   const campos = f?.campos;
@@ -66,7 +67,9 @@ export function Pesquisa() {
       document.getElementById(`campo-${falta.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    if (real) {
+    if (real && previa) {
+      // prévia do dono: mostra como fica, mas não grava
+    } else if (real) {
       setEnviando(true);
       const { error } = await supabase!.rpc("form_responder", { p_slug: SLUG, p_id: f.id, p_valores: v });
       setEnviando(false);
@@ -92,6 +95,7 @@ export function Pesquisa() {
             Feito com <Brasinha className="h-4 w-4" /> freguês
           </span>
         </div>
+        {real && previa && <p className="bg-mostarda px-4 py-2 text-center text-[13px] font-semibold text-carvao">Prévia do dono: o que você enviar aqui não é gravado. Para receber respostas, mande o link de Compartilhar.</p>}
         <header className="relative overflow-hidden px-5 pb-6 pt-20 text-papel">
           <img src={FOTOS.grelha} alt="" className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-carvao via-carvao/75 to-carvao/20" />
@@ -110,6 +114,7 @@ export function Pesquisa() {
               <Check className="h-8 w-8" />
             </span>
             <p className="mt-5 font-display text-[24px] font-bold leading-snug">{f.obrigado}</p>
+            {f.confirmar && <p className="mt-2 text-[15px] text-[#6b5848]">A {lojaNome} vai confirmar pelo WhatsApp.</p>}
             <a href={real ? `?r=${encodeURIComponent(SLUG)}#loja` : "#loja"} className="mt-6 inline-block rounded-full bg-carvao px-6 py-3 font-semibold text-papel">
               Ver o cardápio
             </a>

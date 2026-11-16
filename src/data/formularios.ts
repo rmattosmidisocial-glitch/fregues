@@ -84,6 +84,29 @@ export function useFormulariosPainel(lojaId: string | undefined, ativo: boolean,
       );
     })();
 
+    // resposta nova (cliente preencheu o link) ou mudança de situação: chega na hora
+    const paraResposta = (r: LinhaResp): RespostaForm => ({ id: r.id, quando: new Date(r.created_at).getTime(), cliente: r.cliente ?? "Cliente", valores: r.valores, situacao: r.situacao, origem: r.origem, telefone: r.telefone });
+    const canal = sb
+      .channel("formularios-" + lojaId)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "form_respostas", filter: `store_id=eq.${lojaId}` }, (ev) => {
+        const r = ev.new as LinhaResp;
+        crescer.receberResposta(r.form_id, paraResposta(r));
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "form_respostas", filter: `store_id=eq.${lojaId}` }, (ev) => {
+        const r = ev.new as LinhaResp;
+        crescer.receberResposta(r.form_id, paraResposta(r));
+      })
+      .subscribe();
+    // reserva: confere a cada minuto caso o tempo real falhe
+    const conferir = setInterval(async () => {
+      const { data } = await sb
+        .from("form_respostas")
+        .select("id,form_id,cliente,valores,created_at,situacao,origem,telefone")
+        .eq("store_id", lojaId)
+        .gte("created_at", new Date(Date.now() - 36e5).toISOString());
+      for (const r of (data as LinhaResp[]) ?? []) crescer.receberResposta(r.form_id, paraResposta(r));
+    }, 60000);
+
     persistir.form = (f) => {
       clearTimeout(timers.get(f.id));
       timers.set(
@@ -118,6 +141,8 @@ export function useFormulariosPainel(lojaId: string | undefined, ativo: boolean,
     };
     return () => {
       vivo = false;
+      sb.removeChannel(canal);
+      clearInterval(conferir);
       persistir.form = undefined;
       persistir.formApagar = undefined;
       persistir.formEquipe = undefined;
