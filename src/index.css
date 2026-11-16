@@ -174,3 +174,9 @@ body {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(300%); }
 }
+
+/* marca d'água do painel: o anel pontilhado gira bem devagar */
+@keyframes marca-giro { to { transform: rotate(360deg); } }
+.marca-anel { animation: marca-giro 140s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .marca-anel { animation: none; } }
+@media print { .marca-dagua { display: none; } }

@@ -1,3 +1,4 @@
+import { MarcaDagua } from "../../components/MarcaDagua";
 import { useState } from "react";
 import { Logo } from "../../components/Logo";
 import { useDados } from "../../data/dados";
@@ -26,7 +27,8 @@ export function Login() {
 
   return (
     <div className="tema-claro grid min-h-screen place-items-center bg-carvao px-4">
-      <div className="w-full max-w-[400px]">
+      <MarcaDagua lado="esquerda" />
+      <div className="relative z-[1] w-full max-w-[400px]">
         <a href="#" aria-label="Voltar para o site">
           <Logo />
         </a>

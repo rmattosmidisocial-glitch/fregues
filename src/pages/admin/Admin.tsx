@@ -1,3 +1,4 @@
+import { MarcaDagua } from "../../components/MarcaDagua";
 import { useEffect, useMemo, useState } from "react";
 import { BarChart3, Pencil, Settings, Trash2, Building2, Check, ChevronRight, CircleDollarSign, Clock, CreditCard, ExternalLink, History, LayoutDashboard, Layers, LogOut, Pause, Play, Plus, Search, ShieldCheck, TrendingUp, X } from "lucide-react";
 import { Logo } from "../../components/Logo";
@@ -1022,7 +1023,8 @@ export function Admin() {
 
   return (
     <div className="tema-claro min-h-screen bg-carvao text-papel md:grid md:grid-cols-[240px_1fr]">
-      <aside className="tema-escuro sticky top-0 hidden h-screen flex-col bg-forno px-4 py-5 md:flex">
+      <MarcaDagua />
+      <aside className="tema-escuro sticky top-0 z-[2] hidden h-screen flex-col bg-forno px-4 py-5 md:flex">
         <Logo />
         <p className="mt-2 flex items-center gap-1.5 px-1 text-[12px] font-semibold uppercase tracking-[0.12em] text-brasa">
           <ShieldCheck className="h-3.5 w-3.5" /> Administração
@@ -1064,7 +1066,7 @@ export function Admin() {
         </div>
       </aside>
 
-      <div className="min-w-0 pb-24 md:pb-0">
+      <div className="relative z-[1] min-w-0 pb-24 md:pb-0">
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-linha bg-carvao/90 px-4 py-3 backdrop-blur md:hidden">
           <Logo />
           <span className="flex items-center gap-2">

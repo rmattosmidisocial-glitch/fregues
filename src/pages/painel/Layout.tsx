@@ -26,6 +26,7 @@ import { LinkDaLoja } from "./LinkDaLoja";
 import { Configuracoes } from "./Configuracoes";
 import { Relatorios } from "./Relatorios";
 import { AceiteTermos, VERSAO_TERMOS } from "../publico/Legal";
+import { MarcaDagua } from "../../components/MarcaDagua";
 import { BloqueadoNoPlano } from "../../components/Plano";
 import type { Modulo } from "../../data/dados";
 
@@ -137,7 +138,8 @@ export function PainelLayout({ rota }: { rota: Rota }) {
     );
   return (
     <div className="tema-claro min-h-screen bg-carvao text-papel md:grid md:grid-cols-[248px_1fr]">
-      <aside className="tema-escuro sticky top-0 hidden h-screen flex-col bg-forno px-4 py-5 md:flex">
+      <MarcaDagua />
+      <aside className="tema-escuro sticky top-0 z-[2] hidden h-screen flex-col bg-forno px-4 py-5 md:flex">
         <a href="#painel" aria-label="Freguês, início do painel" className="px-2">
           <Logo />
         </a>
@@ -195,7 +197,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
         </div>
       </aside>
 
-      <div className="min-w-0 pb-24 md:pb-0">
+      <div className="relative z-[1] min-w-0 pb-24 md:pb-0">
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-linha bg-carvao/90 px-4 py-3 backdrop-blur md:hidden">
           <Logo />
           <span className="flex items-center gap-2">
