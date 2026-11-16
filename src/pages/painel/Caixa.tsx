@@ -8,6 +8,7 @@ import type { Pagamento } from "../../data/salao";
 import { Foto } from "../../components/Foto";
 import { useToast } from "../../components/ui";
 import { Couvert } from "../../components/Couvert";
+import { CobrarMaquininha, useMaquininha } from "../../components/Maquininha";
 
 // nomes de quem já abriu o caixa nesta loja, guardados neste aparelho
 const CHAVE_OPS = `fregues-operadores:${SLUG}`;
@@ -102,6 +103,10 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [feito, setFeito] = useState<{ numero: number; total: number; troco: number; comanda: Pedido } | null>(null);
+  const maq = useMaquininha();
+  // cobranças já feitas na maquininha integrada, por linha de pagamento (vale enquanto os pagamentos não mudam)
+  const [cobradas, setCobradas] = useState<{ chave: string; refs: Record<number, string> }>({ chave: "", refs: {} });
+  const [cobrando, setCobrando] = useState<number | null>(null);
 
   const lista = d.cardapio.filter((p) => (busca ? p.nome.toLowerCase().includes(busca.toLowerCase()) : p.cat === cat));
   const linhas = Object.values(itens);
@@ -114,10 +119,44 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
   const pago = r2(pagamentos.reduce((a, p) => a + (Number(p.valor) || 0), 0));
   const falta = Math.max(0, r2(total - pago));
   const troco = Math.max(0, r2(pago - total));
+  const chavePags = JSON.stringify(pagamentos);
+  const refs = cobradas.chave === chavePags ? cobradas.refs : {};
+  const aCobrar = (r: Record<number, string>) => (maq.ativa ? pagamentos.findIndex((p, k) => p.forma === "maquininha" && Number(p.valor) > 0 && !r[k]) : -1);
+  const proxima = aCobrar(refs);
   const f = useMemo(() => {
     const q = digitos(tel);
     return q.length >= 8 ? d.fregueses.find((x) => digitos(x.tel).endsWith(q.slice(-8))) : undefined;
   }, [tel, d.fregueses]);
+
+  async function finalizar(r0: Record<number, string>) {
+    const comRef = pagamentos.map((p, k) => (r0[k] && r0[k] !== "manual" ? { ...p, ref: r0[k] } : p));
+    setErro("");
+    setEnviando(true);
+    const r = await c.acoes.vender(linhas, comRef, tel, nome, desconto, servicoPct, couvert);
+    setEnviando(false);
+    if (r.erro) setErro(r.erro);
+    else
+      setFeito({
+        numero: r.numero!,
+        total: r.total!,
+        troco: r.troco ?? 0,
+        comanda: {
+          num: r.numero!,
+          cliente: nome.trim() || "Balcão",
+          bairro: "Balcão",
+          itens: [...linhas.flatMap((l) => [`${l.qtd}x ${l.nome}`, ...(l.obs ? [`+ ${l.obs}`] : [])]), ...(servico > 0 ? [`+ Serviço ${servicoPct}%: ${brl(servico)}`] : []), ...(couvert > 0 ? [`+ Couvert ${pessoas}x ${brl(couvertP)}: ${brl(couvert)}`] : [])],
+          total: r.total!,
+          pag: "Maquininha",
+          modo: "Balcão",
+          min: 0,
+          status: "novo",
+          tel: tel || undefined,
+          pago: true,
+          forma: pagamentos.length === 1 ? pagamentos[0].forma : pagamentos[0]?.forma,
+          criadoEm: new Date().toISOString(),
+        },
+      });
+  }
 
   const mais = (p: Produto, n: number) =>
     setItens((c) => {
@@ -221,11 +260,29 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
                 <li key={i.produto} className="py-2">
                   <div className="flex items-center gap-2">
                     <span className="min-w-0 flex-1 truncate text-[15px]">{i.nome}</span>
-                    <button onClick={() => mais(d.cardapio.find((p) => p.id === i.produto)!, -1)} aria-label={`Tirar ${i.nome}`} className="grid h-7 w-7 place-items-center rounded-full bg-grafite">
+                    <button
+                      onClick={() =>
+                        mais(
+                          d.cardapio.find((p) => p.id === i.produto)!,
+                          -1,
+                        )
+                      }
+                      aria-label={`Tirar ${i.nome}`}
+                      className="grid h-7 w-7 place-items-center rounded-full bg-grafite"
+                    >
                       <Minus className="h-3.5 w-3.5" />
                     </button>
                     <span className="tabular w-5 text-center font-semibold">{i.qtd}</span>
-                    <button onClick={() => mais(d.cardapio.find((p) => p.id === i.produto)!, 1)} aria-label={`Mais ${i.nome}`} className="grid h-7 w-7 place-items-center rounded-full bg-grafite">
+                    <button
+                      onClick={() =>
+                        mais(
+                          d.cardapio.find((p) => p.id === i.produto)!,
+                          1,
+                        )
+                      }
+                      aria-label={`Mais ${i.nome}`}
+                      className="grid h-7 w-7 place-items-center rounded-full bg-grafite"
+                    >
                       <Plus className="h-3.5 w-3.5" />
                     </button>
                     <span className="tabular w-20 text-right font-semibold">{brl(i.preco * i.qtd)}</span>
@@ -344,44 +401,24 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
 
           {total > 0 && (falta > 0 || troco > 0) && <p className={`tabular mt-3 rounded-xl p-3 text-center text-[18px] font-bold ${falta > 0 ? "bg-[#fcefd9] text-[#7a4600]" : "bg-mostarda text-carvao"}`}>{falta > 0 ? `Falta ${brl(falta)}` : `Troco ${brl(troco)}`}</p>}
           {erro && <p className="mt-3 rounded-xl bg-[#fbe4e0] p-3 text-[14px] text-[#8e2f2a]">{erro}</p>}
-          <button
-            disabled={linhas.length === 0 || falta > 0 || enviando}
-            onClick={async () => {
-              setErro("");
-              setEnviando(true);
-              const r = await c.acoes.vender(linhas, pagamentos, tel, nome, desconto, servicoPct, couvert);
-              setEnviando(false);
-              if (r.erro) setErro(r.erro);
-              else
-                setFeito({
-                  numero: r.numero!,
-                  total: r.total!,
-                  troco: r.troco ?? 0,
-                  comanda: {
-                    num: r.numero!,
-                    cliente: nome.trim() || "Balcão",
-                    bairro: "Balcão",
-                    itens: [
-                      ...linhas.flatMap((l) => [`${l.qtd}x ${l.nome}`, ...(l.obs ? [`+ ${l.obs}`] : [])]),
-                      ...(servico > 0 ? [`+ Serviço ${servicoPct}%: ${brl(servico)}`] : []),
-                      ...(couvert > 0 ? [`+ Couvert ${pessoas}x ${brl(couvertP)}: ${brl(couvert)}`] : []),
-                    ],
-                    total: r.total!,
-                    pag: "Maquininha",
-                    modo: "Balcão",
-                    min: 0,
-                    status: "novo",
-                    tel: tel || undefined,
-                    pago: true,
-                    forma: pagamentos.length === 1 ? pagamentos[0].forma : pagamentos[0]?.forma,
-                    criadoEm: new Date().toISOString(),
-                  },
-                });
-            }}
-            className="mt-3 w-full rounded-xl bg-brasa py-4 text-[18px] font-extrabold text-carvao hover:bg-mostarda disabled:opacity-40"
-          >
-            {enviando ? "Registrando…" : `Finalizar venda ${total > 0 ? brl(total) : ""}`}
+          <button disabled={linhas.length === 0 || falta > 0 || enviando} onClick={() => (proxima >= 0 ? setCobrando(proxima) : finalizar(refs))} className="mt-3 w-full rounded-xl bg-brasa py-4 text-[18px] font-extrabold text-carvao hover:bg-mostarda disabled:opacity-40">
+            {enviando ? "Registrando…" : proxima >= 0 ? `Cobrar ${brl(Number(pagamentos[proxima].valor))} na maquininha` : `Finalizar venda ${total > 0 ? brl(total) : ""}`}
           </button>
+          {cobrando !== null && (
+            <CobrarMaquininha
+              valor={Number(pagamentos[cobrando].valor)}
+              referencia={`Balcão${nome.trim() ? ` · ${nome.trim()}` : ""}`}
+              aoFechar={() => setCobrando(null)}
+              aoPagar={(res) => {
+                const r = { ...refs, [cobrando]: res.ref ?? "manual" };
+                setCobradas({ chave: chavePags, refs: r });
+                setCobrando(null);
+                const prox = aCobrar(r);
+                if (prox >= 0) setCobrando(prox);
+                else finalizar(r);
+              }}
+            />
+          )}
         </div>
       </aside>
     </div>
@@ -642,7 +679,9 @@ function ResumoCaixa({ c, aoFechar }: { c: ReturnType<typeof useCaixa>; aoFechar
                 <input autoFocus inputMode="decimal" value={contado} onChange={(e) => setContado(e.target.value.replace(/[^\d,.]/g, ""))} className="tabular min-w-0 flex-1 bg-transparent px-2 py-3 text-[22px] font-bold outline-none" />
               </span>
             </label>
-            {contado && <p className={`tabular mt-3 rounded-xl p-3 text-center font-bold ${Math.abs(dif) < 0.01 ? "bg-[#e2f2ea] text-[#1b6149]" : dif > 0 ? "bg-[#fcefd9] text-[#7a4600]" : "bg-[#fbe4e0] text-[#8e2f2a]"}`}>{Math.abs(dif) < 0.01 ? "Bateu certinho" : dif > 0 ? `Sobrando ${brl(dif)}` : `Faltando ${brl(-dif)}`}</p>}
+            {contado && (
+              <p className={`tabular mt-3 rounded-xl p-3 text-center font-bold ${Math.abs(dif) < 0.01 ? "bg-[#e2f2ea] text-[#1b6149]" : dif > 0 ? "bg-[#fcefd9] text-[#7a4600]" : "bg-[#fbe4e0] text-[#8e2f2a]"}`}>{Math.abs(dif) < 0.01 ? "Bateu certinho" : dif > 0 ? `Sobrando ${brl(dif)}` : `Faltando ${brl(-dif)}`}</p>
+            )}
             <input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Observação (opcional)" aria-label="Observação" className="mt-3 w-full rounded-xl border border-linha bg-carvao px-3 py-2 text-[14px]" />
             {erro && <p className="mt-3 rounded-xl bg-[#fbe4e0] p-3 text-[14px] text-[#8e2f2a]">{erro}</p>}
             <button

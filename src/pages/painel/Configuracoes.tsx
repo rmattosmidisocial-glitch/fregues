@@ -9,7 +9,7 @@ import { EnderecoLoja, type Endereco as End } from "../admin/EnderecoLoja";
 import { useDados } from "../../data/dados";
 import { codigoPix, normalizarChave, tipoChave } from "../../lib/pix";
 import { brl } from "../../data/mock";
-import { Aparencia, NotaFiscal, OpcaoRelatorios, PagamentoOnline, WhatsAppOficial } from "./ConfigIntegracoes";
+import { Aparencia, MaquininhaIntegrada, NotaFiscal, OpcaoRelatorios, PagamentoOnline, WhatsAppOficial } from "./ConfigIntegracoes";
 
 const campo = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
 
@@ -35,6 +35,7 @@ export function Configuracoes() {
         <p className="-mt-3 text-[14px] text-areia">Tudo aqui vem desligado. Ligue só o que fizer sentido para a sua loja.</p>
         <OpcaoRelatorios />
         <PagamentoOnline key={"mp" + d.loja.id} />
+        <MaquininhaIntegrada key={"maq" + d.loja.id} />
         <WhatsAppOficial key={"wa" + d.loja.id} />
         <NotaFiscal key={"nf" + d.loja.id} />
         {(d.papel === "dono" || d.modo === "demo") && <Equipe key={"eq" + d.loja.id} />}

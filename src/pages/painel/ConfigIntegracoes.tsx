@@ -1,9 +1,9 @@
-// Recursos opcionais da loja: relatórios, pagamento online (Mercado Pago), WhatsApp oficial e nota fiscal (NFC-e).
+// Recursos opcionais da loja: relatórios, pagamento online (Mercado Pago), maquininha integrada, WhatsApp oficial e nota fiscal (NFC-e).
 // Tudo vem desligado. As chaves ficam guardadas só no servidor: depois de salvas, ninguém vê de novo (nem o dono).
 import { useEffect, useState } from "react";
-import { BarChart3, CheckCircle2, CreditCard, FileText, MessageCircle, Palette } from "lucide-react";
+import { BarChart3, CheckCircle2, CreditCard, FileText, MessageCircle, Palette, Smartphone } from "lucide-react";
 import { CORES_SUGERIDAS, coresDaMarca } from "../../lib/cor";
-import { useDados, type Integracoes } from "../../data/dados";
+import { useDados, type Aparelho, type Integracoes } from "../../data/dados";
 
 const campo = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
 type Msg = { ok: boolean; t: string } | null;
@@ -126,6 +126,124 @@ export function PagamentoOnline() {
           <button disabled={ocupado || !token.trim() || !real} onClick={ligarChave} className="w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda disabled:opacity-60">
             {ocupado ? "Testando a chave…" : "Conectar Mercado Pago"}
           </button>
+        </div>
+      )}
+      <Aviso m={m} />
+    </Secao>
+  );
+}
+
+/* ---------------- Maquininha integrada ---------------- */
+type Terminal = { id: string; modo?: string };
+export function MaquininhaIntegrada() {
+  const d = useDados();
+  const L = d.loja;
+  const { i } = useIntegracoes();
+  const real = d.modo === "real";
+  const [provedor, setProvedor] = useState<"mp" | "stone">(L.maquininha_provedor ?? "mp");
+  const [lista, setLista] = useState<Terminal[] | null>(null);
+  const [nomes, setNomes] = useState<Record<string, string>>(() => Object.fromEntries((L.maquininha_aparelhos ?? []).map((a) => [a.id, a.nome])));
+  const [usar, setUsar] = useState<Record<string, boolean>>(() => Object.fromEntries((L.maquininha_aparelhos ?? []).map((a) => [a.id, true])));
+  const [m, setM] = useState<Msg>(null);
+  const [ocupado, setOcupado] = useState("");
+  const salvos = L.maquininha_aparelhos ?? [];
+  const contaOk = provedor === "mp" ? !!i?.mp || !real : !!i?.stone;
+  const curto = (id: string) => id.split("__").pop() ?? id;
+
+  async function buscar() {
+    setM(null);
+    if (!real) {
+      setLista([
+        { id: "DEMO__POINT-SMART-01", modo: "PDV" },
+        { id: "DEMO__POINT-SMART-02", modo: "STANDALONE" },
+      ]);
+      return;
+    }
+    setOcupado("buscar");
+    const r = await d.acoes.servidorLoja<{ aparelhos?: Terminal[] }>("maquininha", { store_id: L.id, op: "aparelhos", provedor });
+    setOcupado("");
+    if (r.erro) return setM({ ok: false, t: r.erro });
+    setLista(r.aparelhos ?? []);
+    if (!r.aparelhos?.length) setM({ ok: false, t: "Nenhuma maquininha apareceu nessa conta. Ligue a maquininha e entre nela com a mesma conta do Mercado Pago conectada aqui." });
+  }
+
+  async function modoIntegrado(id: string) {
+    if (!real) return setLista((l) => l?.map((t) => (t.id === id ? { ...t, modo: "PDV" } : t)) ?? null);
+    setOcupado(id);
+    const r = await d.acoes.servidorLoja("maquininha", { store_id: L.id, op: "modo_pdv", provedor, aparelho: id });
+    setOcupado("");
+    if (r.erro) return setM({ ok: false, t: r.erro });
+    setLista((l) => l?.map((t) => (t.id === id ? { ...t, modo: "PDV" } : t)) ?? null);
+    setM({ ok: true, t: "Pronto. Reinicie a maquininha para ela entrar no modo integrado." });
+  }
+
+  async function salvarAparelhos() {
+    const ids = (lista ?? salvos.map((a) => ({ id: a.id }))).filter((t) => usar[t.id]).map((t) => t.id);
+    const aparelhos: Aparelho[] = ids.map((id, k) => ({ id, nome: (nomes[id] || "").trim() || `Maquininha ${k + 1}` }));
+    const r = await d.acoes.salvarLoja({ maquininha_aparelhos: aparelhos, maquininha_provedor: provedor, ...(aparelhos.length ? {} : { maquininha_ativo: false }) });
+    setM(r ? { ok: false, t: r } : { ok: true, t: aparelhos.length ? `${aparelhos.length} maquininha(s) salvas.` : "Nenhuma maquininha selecionada." });
+  }
+
+  return (
+    <Secao icone={<Smartphone className="h-5 w-5 text-brasa" />} titulo="Maquininha integrada" sub="No Caixa e no Salão, o botão Cobrar manda o valor direto para a maquininha. O cliente paga e a venda é confirmada sozinha, sem digitar o valor duas vezes.">
+      <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Empresa da maquininha">
+        <button role="radio" aria-checked={provedor === "mp"} onClick={() => setProvedor("mp")} className={`rounded-xl p-3 text-left text-[14px] ${provedor === "mp" ? "bg-papel text-carvao" : "border border-linha"}`}>
+          <b>Mercado Pago</b>
+          <span className="block text-[12px] opacity-80">Point Smart e Point Pro</span>
+        </button>
+        <button role="radio" aria-checked={provedor === "stone"} onClick={() => setProvedor("stone")} className={`rounded-xl p-3 text-left text-[14px] ${provedor === "stone" ? "bg-papel text-carvao" : "border border-linha"}`}>
+          <b>Stone</b>
+          <span className="block text-[12px] opacity-80">Em breve</span>
+        </button>
+      </div>
+
+      {provedor === "stone" ? (
+        <p className="mt-3 rounded-xl border border-dashed border-linha p-3 text-[14px] text-areia">A integração com a Stone está sendo liberada junto à Stone. Assim que estiver pronta, ela aparece aqui para você conectar. Por enquanto, use o Mercado Pago.</p>
+      ) : !contaOk ? (
+        <p className="mt-3 rounded-xl border border-dashed border-linha p-3 text-[14px] text-areia">
+          Primeiro conecte a conta do Mercado Pago em <b className="text-papel">Pagamento online</b>, aqui em cima. A mesma conta serve para as maquininhas.
+        </p>
+      ) : (
+        <div className="mt-3 space-y-3 text-[14px]">
+          <ol className="list-decimal space-y-1 pl-5 text-areia">
+            <li>Ligue a maquininha e entre nela com a mesma conta do Mercado Pago conectada aqui.</li>
+            <li>Toque em Buscar minhas maquininhas e marque as que o Freguês vai usar.</li>
+            <li>Ative o modo integrado. Nesse modo a maquininha espera as cobranças do Freguês.</li>
+          </ol>
+          <button disabled={!!ocupado} onClick={buscar} className="w-full rounded-xl border border-linha py-2.5 font-semibold hover:border-areia disabled:opacity-60">
+            {ocupado === "buscar" ? "Buscando…" : "Buscar minhas maquininhas"}
+          </button>
+          {(lista ?? (salvos.length ? salvos.map((a) => ({ id: a.id, modo: "PDV" })) : [])).map((t) => (
+            <div key={t.id} className="rounded-xl bg-grafite p-3">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={!!usar[t.id]} onChange={(e) => setUsar({ ...usar, [t.id]: e.target.checked })} className="h-4 w-4 accent-[#ff5b1f]" />
+                <span className="tabular font-semibold">{curto(t.id)}</span>
+                <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-bold ${t.modo === "PDV" ? "bg-[#e2f2ea] text-[#1b6149]" : "bg-[#fcefd9] text-[#7a4600]"}`}>{t.modo === "PDV" ? "Modo integrado" : "Modo comum"}</span>
+              </label>
+              <input value={nomes[t.id] ?? ""} onChange={(e) => setNomes({ ...nomes, [t.id]: e.target.value })} placeholder="Nome (ex.: Caixa, Salão)" aria-label="Nome da maquininha" className={campo} />
+              {t.modo !== "PDV" && (
+                <button disabled={!!ocupado} onClick={() => modoIntegrado(t.id)} className="mt-2 text-[13px] font-semibold text-brasa hover:underline disabled:opacity-60">
+                  {ocupado === t.id ? "Ativando…" : "Ativar modo integrado"}
+                </button>
+              )}
+            </div>
+          ))}
+          {lista?.length || salvos.length ? (
+            <button onClick={salvarAparelhos} className="w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda">
+              Salvar maquininhas
+            </button>
+          ) : null}
+          <Liga
+            ligado={!!L.maquininha_ativo}
+            desabilitado={!salvos.length}
+            rotulo="Usar a maquininha integrada no Caixa e no Salão"
+            dica={salvos.length ? "Desligado, o Cartão volta a ser só um registro (você digita o valor na maquininha)." : "Salve pelo menos uma maquininha para ligar."}
+            onChange={async (v) => {
+              const r = await d.acoes.salvarLoja({ maquininha_ativo: v });
+              setM(r ? { ok: false, t: r } : { ok: true, t: v ? "Ligado. No Caixa e no Salão, escolha Cartão e toque em Cobrar." : "Desligado." });
+            }}
+          />
+          <p className="text-[12px] text-areia">Taxas do Mercado Pago, nenhuma do Freguês. Se a internet cair, use a maquininha no modo comum e marque Recebi de outro jeito.</p>
         </div>
       )}
       <Aviso m={m} />

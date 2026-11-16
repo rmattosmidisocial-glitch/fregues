@@ -10,7 +10,8 @@ export type Comanda = { id: string; table_id: string; status: StatusComanda; pes
 export type StatusItem = "aguardando" | "novo" | "preparo" | "pronto" | "entregue" | "cancelado";
 export type ItemComanda = { id: string; tab_id: string; product_id: string | null; nome: string; qtd: number; unit: number; obs: string | null; status: StatusItem; origem: "garcom" | "cliente"; criado_em: string };
 export type Chamado = { id: number; table_id: string; tipo: "garcom" | "conta"; criado_em: string };
-export type Pagamento = { forma: "pix" | "cartao" | "dinheiro" | "maquininha"; valor: number };
+/** ref: id da cobrança na maquininha integrada (quando foi cobrado por ela). */
+export type Pagamento = { forma: "pix" | "cartao" | "dinheiro" | "maquininha"; valor: number; ref?: string };
 export type NovoItem = { produto: string; nome: string; preco: number; qtd: number; obs?: string };
 
 type Estado = { mesas: Mesa[]; comandas: Comanda[]; itens: ItemComanda[]; chamados: Chamado[]; fechadasHoje: { total: number; pessoas: number }[]; confirmar: boolean };

@@ -7,6 +7,7 @@ import { totais, useSalao, type Comanda, type ItemComanda, type Mesa, type NovoI
 import { Foto } from "../../components/Foto";
 import { useToast } from "../../components/ui";
 import { Couvert } from "../../components/Couvert";
+import { CobrarMaquininha, useMaquininha } from "../../components/Maquininha";
 import { imprimirComanda } from "../../components/comanda";
 import { useGarcons } from "../../data/equipe";
 import { setMesaQR } from "../publico/Mesa";
@@ -144,12 +145,15 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
   const [tel, setTel] = useState(comanda?.telefone ?? "");
   const [nome, setNome] = useState(comanda?.cliente_nome ?? "");
   const [pags, setPags] = useState<Pagamento[]>([]);
+  const maq = useMaquininha();
+  const [cobrando, setCobrando] = useState<number | null>(null);
   const [erro, setErro] = useState("");
   const [transf, setTransf] = useState(false);
   const itens = comanda ? s.itens.filter((i) => i.tab_id === comanda.id) : [];
   const t = comanda ? totais(comanda, s.itens) : { sub: 0, servico: 0, couvert: 0, total: 0 };
   const pago = pags.reduce((x, p) => x + (Number(p.valor) || 0), 0);
   const falta = Math.max(0, Math.round((t.total - pago) * 100) / 100);
+  const faltaCobrar = maq.ativa && pags.some((p) => p.forma === "maquininha" && Number(p.valor) > 0 && !p.ref);
   const fregues = useMemo(() => {
     const q = digitos(tel);
     if (q.length < 8) return undefined;
@@ -357,29 +361,60 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
           </div>
           <ul className="space-y-2">
             {pags.map((p, k) => (
-              <li key={k} className="flex items-center gap-2">
+              <li key={k} className="flex flex-wrap items-center gap-2">
                 <span className="tabular w-6 text-[13px] text-fumo">{k + 1}</span>
                 <div className="flex rounded-xl border border-linha p-0.5">
                   {FORMAS.map((fm) => (
-                    <button key={fm.id} onClick={() => setPags(pags.map((x, j) => (j === k ? { ...x, forma: fm.id } : x)))} aria-pressed={p.forma === fm.id} className={`rounded-lg px-2.5 py-1.5 text-[13px] font-semibold ${p.forma === fm.id ? "bg-papel text-carvao" : "text-areia"}`}>
+                    <button key={fm.id} disabled={!!p.ref} onClick={() => setPags(pags.map((x, j) => (j === k ? { ...x, forma: fm.id } : x)))} aria-pressed={p.forma === fm.id} className={`rounded-lg px-2.5 py-1.5 text-[13px] font-semibold ${p.forma === fm.id ? "bg-papel text-carvao" : "text-areia"}`}>
                       {fm.rotulo}
                     </button>
                   ))}
                 </div>
-                <input type="number" min={0} step="0.01" value={p.valor} onChange={(e) => setPags(pags.map((x, j) => (j === k ? { ...x, valor: Number(e.target.value) } : x)))} aria-label={`Valor do pagamento ${k + 1}`} className="tabular min-w-0 flex-1 rounded-xl border border-linha bg-carvao px-3 py-2 text-right text-[15px]" />
-                <button onClick={() => setPags(pags.filter((_, j) => j !== k))} aria-label="Remover pagamento" className="rounded-lg p-1.5 text-areia hover:text-tomate">
-                  <X className="h-4 w-4" />
-                </button>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={p.valor}
+                  disabled={!!p.ref}
+                  onChange={(e) => setPags(pags.map((x, j) => (j === k ? { ...x, valor: Number(e.target.value) } : x)))}
+                  aria-label={`Valor do pagamento ${k + 1}`}
+                  className="tabular min-w-0 flex-1 rounded-xl border border-linha bg-carvao px-3 py-2 text-right text-[15px] disabled:opacity-70"
+                />
+                {p.ref ? (
+                  <span className="rounded-full bg-[#e2f2ea] px-2.5 py-1 text-[12px] font-bold text-[#1b6149]">{p.ref === "manual" ? "Recebido" : "Pago na maquininha"}</span>
+                ) : (
+                  <>
+                    {maq.ativa && p.forma === "maquininha" && Number(p.valor) > 0 && (
+                      <button onClick={() => setCobrando(k)} className="rounded-xl bg-brasa px-3 py-2 text-[13px] font-bold text-carvao hover:bg-mostarda">
+                        Cobrar
+                      </button>
+                    )}
+                    <button onClick={() => setPags(pags.filter((_, j) => j !== k))} aria-label="Remover pagamento" className="rounded-lg p-1.5 text-areia hover:text-tomate">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
               </li>
             ))}
           </ul>
+          {cobrando !== null && pags[cobrando] && (
+            <CobrarMaquininha
+              valor={Number(pags[cobrando].valor)}
+              referencia={`Mesa ${mesa.numero}${pags.length > 1 ? ` · pagamento ${cobrando + 1}` : ""}`}
+              aoFechar={() => setCobrando(null)}
+              aoPagar={(res) => {
+                setPags(pags.map((x, j) => (j === cobrando ? { ...x, ref: res.ref ?? "manual" } : x)));
+                setCobrando(null);
+              }}
+            />
+          )}
           <button onClick={() => setPags([...pags, { forma: "maquininha", valor: falta }])} className="flex items-center gap-1.5 text-[14px] font-semibold text-areia hover:text-papel">
             <Plus className="h-4 w-4" /> Outra forma de pagamento
           </button>
           <p className={`rounded-xl p-3 text-[15px] font-semibold ${falta > 0 ? "bg-[#fcefd9] text-[#7a4600]" : "bg-[#e2f2ea] text-[#1b6149]"}`}>{falta > 0 ? `Falta receber ${brl(falta)}` : pago > t.total + 0.009 ? `Troco: ${brl(pago - t.total)}` : "Tudo certo para fechar"}</p>
           {erro && <p className="rounded-xl bg-[#fbe4e0] p-3 text-[14px] text-[#8e2f2a]">{erro}</p>}
           <button
-            disabled={falta > 0}
+            disabled={falta > 0 || faltaCobrar}
             onClick={async () => {
               setErro("");
               const r = await s.acoes.fechar(comanda.id, pags, tel, nome);
@@ -391,7 +426,7 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
             }}
             className="w-full rounded-xl bg-brasa py-3.5 text-[16px] font-bold text-carvao hover:bg-mostarda disabled:opacity-40"
           >
-            Fechar conta e liberar mesa
+            {faltaCobrar ? "Cobre o cartão na maquininha antes de fechar" : "Fechar conta e liberar mesa"}
           </button>
           <button
             onClick={() =>
@@ -506,16 +541,16 @@ function ItemLinha({ i, s }: { i: ItemComanda; s: ReturnType<typeof useSalao> })
           </button>
         </span>
       ) : (
-      <span className="flex flex-col items-end gap-1">
-        <button disabled={!prox[i.status]} onClick={() => prox[i.status] && s.acoes.statusItem(i.id, prox[i.status]!)} className={`rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${ITEM[i.status].cls}`} title={prox[i.status] ? `Marcar como ${ITEM[prox[i.status]!].rotulo}` : undefined}>
-          {ITEM[i.status].rotulo}
-        </button>
-        {i.status !== "cancelado" && i.status !== "entregue" && (
-          <button onClick={() => s.acoes.statusItem(i.id, "cancelado")} className="text-[11px] text-fumo hover:text-tomate">
-            cancelar
+        <span className="flex flex-col items-end gap-1">
+          <button disabled={!prox[i.status]} onClick={() => prox[i.status] && s.acoes.statusItem(i.id, prox[i.status]!)} className={`rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${ITEM[i.status].cls}`} title={prox[i.status] ? `Marcar como ${ITEM[prox[i.status]!].rotulo}` : undefined}>
+            {ITEM[i.status].rotulo}
           </button>
-        )}
-      </span>
+          {i.status !== "cancelado" && i.status !== "entregue" && (
+            <button onClick={() => s.acoes.statusItem(i.id, "cancelado")} className="text-[11px] text-fumo hover:text-tomate">
+              cancelar
+            </button>
+          )}
+        </span>
       )}
     </li>
   );
@@ -538,7 +573,10 @@ function Cozinha({ s }: { s: ReturnType<typeof useSalao> }) {
         return (
           <section key={c.rotulo} className="rounded-3xl border border-linha bg-forno p-4">
             <h3 className="flex items-center justify-between font-display text-[18px] font-bold">
-              {c.rotulo} <span className="tabular rounded-full bg-grafite px-2.5 text-[13px]">{grupos.length} {grupos.length === 1 ? "mesa" : "mesas"}</span>
+              {c.rotulo}{" "}
+              <span className="tabular rounded-full bg-grafite px-2.5 text-[13px]">
+                {grupos.length} {grupos.length === 1 ? "mesa" : "mesas"}
+              </span>
             </h3>
             <ul className="mt-3 space-y-2">
               {grupos.map(([tab, lista]) => {
@@ -559,7 +597,15 @@ function Cozinha({ s }: { s: ReturnType<typeof useSalao> }) {
                         </li>
                       ))}
                     </ul>
-                    <button onClick={() => s.acoes.statusItens(lista.map((i) => i.id), c.prox)} className="mt-3 w-full rounded-xl bg-papel py-2.5 text-[14px] font-semibold text-carvao">
+                    <button
+                      onClick={() =>
+                        s.acoes.statusItens(
+                          lista.map((i) => i.id),
+                          c.prox,
+                        )
+                      }
+                      className="mt-3 w-full rounded-xl bg-papel py-2.5 text-[14px] font-semibold text-carvao"
+                    >
                       {c.acao} ({lista.reduce((n, i) => n + i.qtd, 0)} {lista.reduce((n, i) => n + i.qtd, 0) === 1 ? "item" : "itens"})
                     </button>
                   </li>
@@ -679,61 +725,75 @@ function CadastroMesas({ s, aberto }: { s: ReturnType<typeof useSalao>; aberto: 
     <details open={aberto} className="mt-6 rounded-3xl border border-linha bg-forno p-5">
       <summary className="cursor-pointer font-display text-[18px] font-bold">Cadastrar e editar mesas</summary>
       <div className="mt-4 space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {[...(areas.length ? areas : ["Salão"]), ...(areas.includes("Varanda") ? [] : ["Varanda"])].map((a) => (
-          <button
-            key={a}
-            onClick={async () => {
-              const r = await s.acoes.salvarMesa({ numero: prox, area: a, lugares: 4, forma: "quadrada" });
-              show(r ?? `Mesa ${prox} criada em ${a}`);
-            }}
-            className="flex items-center gap-1.5 rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia"
-          >
-            <Plus className="h-4 w-4" /> Mesa no(a) {a}
-          </button>
-        ))}
-      </div>
-      <div className="overflow-x-auto rounded-3xl border border-linha bg-forno">
-        <table className="w-full min-w-[560px] text-[14px]">
-          <thead>
-            <tr className="border-b border-linha text-left text-[12px] text-areia">
-              <th className="px-4 py-3 font-medium">Mesa</th>
-              <th className="px-4 py-3 font-medium">Área</th>
-              <th className="px-4 py-3 font-medium">Lugares</th>
-              <th className="px-4 py-3 font-medium">Reserva</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-linha">
-            {s.mesas.map((m) => (
-              <tr key={m.id}>
-                <td className="tabular px-4 py-2 font-semibold">{m.numero}</td>
-                <td className="px-4 py-2">
-                  <input defaultValue={m.area} onBlur={(e) => e.target.value !== m.area && s.acoes.salvarMesa({ id: m.id, area: e.target.value || "Salão" })} aria-label={`Área da mesa ${m.numero}`} className="w-32 rounded-lg border border-linha bg-carvao px-2 py-1" />
-                </td>
-                <td className="px-4 py-2">
-                  <input type="number" min={1} max={40} defaultValue={m.lugares} onBlur={(e) => Number(e.target.value) !== m.lugares && s.acoes.salvarMesa({ id: m.id, lugares: Number(e.target.value) || 1 })} aria-label={`Lugares da mesa ${m.numero}`} className="tabular w-16 rounded-lg border border-linha bg-carvao px-2 py-1" />
-                </td>
-                <td className="px-4 py-2">
-                  <input defaultValue={m.reservada_para ?? ""} placeholder="Ex.: 20h · Ana (4)" onBlur={(e) => (e.target.value || null) !== m.reservada_para && s.acoes.salvarMesa({ id: m.id, reservada_para: e.target.value || null })} aria-label={`Reserva da mesa ${m.numero}`} className="w-44 rounded-lg border border-linha bg-carvao px-2 py-1" />
-                </td>
-                <td className="px-4 py-2 text-right">
-                  <button
-                    onClick={async () => {
-                      const r = await s.acoes.removerMesa(m.id);
-                      show(r ?? `Mesa ${m.numero} removida`);
-                    }}
-                    aria-label={`Remover mesa ${m.numero}`}
-                    className="rounded-lg p-1.5 text-areia hover:text-tomate"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </td>
+        <div className="flex flex-wrap gap-2">
+          {[...(areas.length ? areas : ["Salão"]), ...(areas.includes("Varanda") ? [] : ["Varanda"])].map((a) => (
+            <button
+              key={a}
+              onClick={async () => {
+                const r = await s.acoes.salvarMesa({ numero: prox, area: a, lugares: 4, forma: "quadrada" });
+                show(r ?? `Mesa ${prox} criada em ${a}`);
+              }}
+              className="flex items-center gap-1.5 rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia"
+            >
+              <Plus className="h-4 w-4" /> Mesa no(a) {a}
+            </button>
+          ))}
+        </div>
+        <div className="overflow-x-auto rounded-3xl border border-linha bg-forno">
+          <table className="w-full min-w-[560px] text-[14px]">
+            <thead>
+              <tr className="border-b border-linha text-left text-[12px] text-areia">
+                <th className="px-4 py-3 font-medium">Mesa</th>
+                <th className="px-4 py-3 font-medium">Área</th>
+                <th className="px-4 py-3 font-medium">Lugares</th>
+                <th className="px-4 py-3 font-medium">Reserva</th>
+                <th className="px-4 py-3" />
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-linha">
+              {s.mesas.map((m) => (
+                <tr key={m.id}>
+                  <td className="tabular px-4 py-2 font-semibold">{m.numero}</td>
+                  <td className="px-4 py-2">
+                    <input defaultValue={m.area} onBlur={(e) => e.target.value !== m.area && s.acoes.salvarMesa({ id: m.id, area: e.target.value || "Salão" })} aria-label={`Área da mesa ${m.numero}`} className="w-32 rounded-lg border border-linha bg-carvao px-2 py-1" />
+                  </td>
+                  <td className="px-4 py-2">
+                    <input
+                      type="number"
+                      min={1}
+                      max={40}
+                      defaultValue={m.lugares}
+                      onBlur={(e) => Number(e.target.value) !== m.lugares && s.acoes.salvarMesa({ id: m.id, lugares: Number(e.target.value) || 1 })}
+                      aria-label={`Lugares da mesa ${m.numero}`}
+                      className="tabular w-16 rounded-lg border border-linha bg-carvao px-2 py-1"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <input
+                      defaultValue={m.reservada_para ?? ""}
+                      placeholder="Ex.: 20h · Ana (4)"
+                      onBlur={(e) => (e.target.value || null) !== m.reservada_para && s.acoes.salvarMesa({ id: m.id, reservada_para: e.target.value || null })}
+                      aria-label={`Reserva da mesa ${m.numero}`}
+                      className="w-44 rounded-lg border border-linha bg-carvao px-2 py-1"
+                    />
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <button
+                      onClick={async () => {
+                        const r = await s.acoes.removerMesa(m.id);
+                        show(r ?? `Mesa ${m.numero} removida`);
+                      }}
+                      aria-label={`Remover mesa ${m.numero}`}
+                      className="rounded-lg p-1.5 text-areia hover:text-tomate"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
       <Toast />
     </details>
@@ -785,11 +845,11 @@ export function Salao() {
           )
             .filter(([v]) => v !== "editar" || gerencia)
             .map(([v, r]) => (
-            <button key={v} role="tab" aria-selected={aba === v} onClick={() => setAba(v)} className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 ${aba === v ? "bg-papel text-carvao" : "text-areia"}`}>
-              {v === "editar" && <Pencil className="h-3.5 w-3.5" />}
-              {r}
-            </button>
-          ))}
+              <button key={v} role="tab" aria-selected={aba === v} onClick={() => setAba(v)} className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 ${aba === v ? "bg-papel text-carvao" : "text-areia"}`}>
+                {v === "editar" && <Pencil className="h-3.5 w-3.5" />}
+                {r}
+              </button>
+            ))}
         </div>
       </div>
 
@@ -895,9 +955,7 @@ export function Salao() {
                           </span>
                         )}
                         <span className="font-display text-[30px] font-extrabold leading-none">{m.numero}</span>
-                        <span className="mt-0.5 text-[12px] text-areia">
-                          {c ? `${c.pessoas} de ${m.lugares} lugares` : `${m.lugares} lugares`}
-                        </span>
+                        <span className="mt-0.5 text-[12px] text-areia">{c ? `${c.pessoas} de ${m.lugares} lugares` : `${m.lugares} lugares`}</span>
                         <span className="mt-auto pt-2">
                           {c ? (
                             <>
