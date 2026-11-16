@@ -8,7 +8,7 @@ const enderecoDeLoja = (() => {
   try {
     const dom = ((import.meta.env.VITE_DOMINIO as string | undefined) || "").toLowerCase();
     const h = window.location.hostname.toLowerCase();
-    const sub = dom && h.endsWith("." + dom) && !/^(www|app|painel)\./.test(h);
+    const sub = dom && h.endsWith("." + dom) && !/^(www|app|painel|admin|api)\./.test(h);
     const seg = window.location.pathname.split("/")[1] || "";
     return !!sub || /^[a-z0-9-]{3,60}$/.test(seg);
   } catch {

@@ -11,7 +11,7 @@ import { LOJA, ZONAS, CARDAPIO, brl, chamarHoje } from "../data/mock";
 const NUMERO = "5521967640607";
 const wa = (msg = "Olá! Quero saber mais sobre o Freguês para a minha casa.") => `https://wa.me/${NUMERO}?text=${encodeURIComponent(msg)}`;
 const WHATS = wa();
-const DEMO = "https://freguesapp.vercel.app/brasa-burger";
+const DEMO = "https://app.usefregues.com.br/brasa-burger";
 
 function HeroMapa() {
   const { layers, fit } = useMemo(() => {
