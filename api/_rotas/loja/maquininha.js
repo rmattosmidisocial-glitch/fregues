@@ -101,7 +101,7 @@ const stone = {
 const PROVEDORES = { mp: mercadoPago, stone };
 
 function chaveDoProvedor(prov, seg) {
-  if (prov === "mp" && !seg.mp_token) return "Conecte a conta do Mercado Pago em Configurações > Pagamento online.";
+  if (prov === "mp" && !seg.mp_token) return "Conecte a conta do Mercado Pago em Configurações > Pagamentos > Pagamento online.";
   if (prov === "stone" && !seg.stone_token) return "A conta da Stone ainda não foi conectada.";
   return null;
 }

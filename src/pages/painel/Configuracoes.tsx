@@ -17,30 +17,91 @@ const campo = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 
 export function Configuracoes() {
   const d = useDados();
   if (d.modo === "real" && !d.loja.id) return <p className="text-areia">Abrindo as configurações…</p>;
+  const dono = d.papel === "dono" || d.modo === "demo";
+  const secoes = SECOES.filter((x) => dono || !x.soDono);
+  return <ConfigPorSecao secoes={secoes} lojaId={d.loja.id ?? ""} />;
+}
+
+type IdSecao = "loja" | "horarios" | "pedidos" | "pagamentos" | "fidelidade" | "salao" | "avisos" | "extras" | "equipe" | "conta";
+const SECOES: { id: IdSecao; rotulo: string; soDono?: boolean }[] = [
+  { id: "loja", rotulo: "Loja" },
+  { id: "horarios", rotulo: "Horários" },
+  { id: "pedidos", rotulo: "Pedidos e entrega" },
+  { id: "pagamentos", rotulo: "Pagamentos" },
+  { id: "fidelidade", rotulo: "Fidelidade" },
+  { id: "salao", rotulo: "Salão" },
+  { id: "avisos", rotulo: "App e avisos" },
+  { id: "extras", rotulo: "Recursos extras" },
+  { id: "equipe", rotulo: "Equipe", soDono: true },
+  { id: "conta", rotulo: "Assinatura e dados", soDono: true },
+];
+const CHAVE_SEC = "fregues-config-secao";
+
+function ConfigPorSecao({ secoes, lojaId }: { secoes: typeof SECOES; lojaId: string }) {
+  const [sec, setSec] = useState<IdSecao>(() => {
+    const salva = (typeof sessionStorage !== "undefined" && sessionStorage.getItem(CHAVE_SEC)) as IdSecao | null;
+    return salva && secoes.some((x) => x.id === salva) ? salva : "loja";
+  });
+  const ir = (id: IdSecao) => {
+    setSec(id);
+    try {
+      sessionStorage.setItem(CHAVE_SEC, id);
+    } catch {
+      /* sem sessionStorage */
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const k = (x: string) => x + lojaId;
   return (
     <div className="max-w-[760px]">
       <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Configurações</h1>
       <p className="text-[15px] text-areia">Tudo o que você ajusta aqui muda na hora na sua loja.</p>
-      <div className="mt-6 space-y-5">
-        <DadosLoja key={"dados" + d.loja.id} />
-        <Aparencia key={"cor" + d.loja.id} />
-        <Funcionamento key={"hor" + d.loja.id} />
-        <Endereco key={"end" + d.loja.id} />
-        <Regras key={"reg" + d.loja.id} />
-        <Pagamentos key={d.loja.id} />
-        <Fidelidade key={"fid" + d.loja.id} />
-        <SalaoPadroes key={"sal" + d.loja.id} />
-        <Avisos />
-        <h2 className="pt-3 font-display text-[24px] font-extrabold">Recursos opcionais</h2>
-        <p className="-mt-3 text-[14px] text-areia">Tudo aqui vem desligado. Ligue só o que fizer sentido para a sua loja.</p>
-        <OpcaoRelatorios />
-        <PagamentoOnline key={"mp" + d.loja.id} />
-        <MaquininhaIntegrada key={"maq" + d.loja.id} />
-        <WhatsAppOficial key={"wa" + d.loja.id} />
-        <NotaFiscal key={"nf" + d.loja.id} />
-        {(d.papel === "dono" || d.modo === "demo") && <Equipe key={"eq" + d.loja.id} />}
-        {(d.papel === "dono" || d.modo === "demo") && <Assinatura />}
-        {(d.papel === "dono" || d.modo === "demo") && <SeusDados />}
+      <div className="mt-4 flex flex-wrap gap-1.5" role="tablist" aria-label="Partes das configurações">
+        {secoes.map((x) => (
+          <button key={x.id} role="tab" aria-selected={sec === x.id} onClick={() => ir(x.id)} className={`rounded-full px-3.5 py-1.5 text-[14px] font-semibold ${sec === x.id ? "bg-papel text-carvao" : "border border-linha text-areia hover:text-papel"}`}>
+            {x.rotulo}
+          </button>
+        ))}
+      </div>
+      <div className="mt-5 space-y-5" role="tabpanel">
+        {sec === "loja" && (
+          <>
+            <DadosLoja key={k("dados")} />
+            <Aparencia key={k("cor")} />
+            <Endereco key={k("end")} />
+          </>
+        )}
+        {sec === "horarios" && <Funcionamento key={k("hor")} />}
+        {sec === "pedidos" && <Regras key={k("reg")} />}
+        {sec === "pagamentos" && (
+          <>
+            <Pagamentos key={k("pix")} />
+            <PagamentoOnline key={k("mp")} />
+            <MaquininhaIntegrada key={k("maq")} />
+          </>
+        )}
+        {sec === "fidelidade" && <Fidelidade key={k("fid")} />}
+        {sec === "salao" && <SalaoPadroes key={k("sal")} />}
+        {sec === "avisos" && (
+          <>
+            <Avisos />
+            <WhatsAppOficial key={k("wa")} />
+          </>
+        )}
+        {sec === "extras" && (
+          <>
+            <p className="text-[14px] text-areia">Tudo aqui vem desligado. Ligue só o que fizer sentido para a sua loja.</p>
+            <OpcaoRelatorios />
+            <NotaFiscal key={k("nf")} />
+          </>
+        )}
+        {sec === "equipe" && <Equipe key={k("eq")} />}
+        {sec === "conta" && (
+          <>
+            <Assinatura />
+            <SeusDados />
+          </>
+        )}
       </div>
     </div>
   );
@@ -147,7 +208,13 @@ function DadosLoja() {
     <label className="block cursor-pointer">
       <span className="font-semibold">{rotulo}</span>
       <span className={`mt-1 grid place-items-center overflow-hidden rounded-2xl border border-dashed border-linha bg-carvao text-areia hover:border-areia ${formato}`}>
-        {atual ? <img src={atual} alt="" className="h-full w-full object-cover" /> : <span className="flex flex-col items-center gap-1 p-3 text-center text-[12px]"><ImagePlus className="h-5 w-5" /> {enviando === tipo ? "Enviando…" : "Escolher imagem"}</span>}
+        {atual ? (
+          <img src={atual} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <span className="flex flex-col items-center gap-1 p-3 text-center text-[12px]">
+            <ImagePlus className="h-5 w-5" /> {enviando === tipo ? "Enviando…" : "Escolher imagem"}
+          </span>
+        )}
       </span>
       <input type="file" accept="image/*" className="sr-only" onChange={(e) => foto(tipo, e.target.files?.[0])} />
       {atual && <span className="mt-1 block text-[12px] text-areia">{enviando === tipo ? "Enviando…" : "Toque para trocar"}</span>}
@@ -258,7 +325,17 @@ function Funcionamento() {
                   <span className="text-areia">às</span>
                   <input type="time" value={b} onChange={(e) => set(dia, f.map((x, j) => (j === i ? [x[0], e.target.value] : x)) as Faixa[])} className={hora} aria-label={`${DIAS[dia]} fecha`} />
                   {i > 0 && (
-                    <button type="button" onClick={() => set(dia, f.filter((_, j) => j !== i))} className="px-1 text-areia hover:text-papel" aria-label="Tirar turno">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        set(
+                          dia,
+                          f.filter((_, j) => j !== i),
+                        )
+                      }
+                      className="px-1 text-areia hover:text-papel"
+                      aria-label="Tirar turno"
+                    >
                       ×
                     </button>
                   )}
@@ -366,7 +443,8 @@ function Regras() {
   async function salvar() {
     if (!f.entrega_ativa && !f.retirada_ativa) return setMsg({ ok: false, t: "Deixe pelo menos entrega ou retirada ligada." });
     if (!f.aceita_pix && !f.aceita_cartao && !f.aceita_dinheiro) return setMsg({ ok: false, t: "Deixe pelo menos uma forma de pagamento ligada." });
-    const minimo = valor(f.minimo), embalagem = valor(f.embalagem);
+    const minimo = valor(f.minimo),
+      embalagem = valor(f.embalagem);
     if (!Number.isFinite(minimo) || minimo < 0 || !Number.isFinite(embalagem) || embalagem < 0) return setMsg({ ok: false, t: "Use só números nos valores (ex.: 25,00)." });
     const r = await d.acoes.salvarLoja({
       entrega_ativa: f.entrega_ativa,
@@ -398,7 +476,7 @@ function Regras() {
       </div>
       <p className="mt-4 text-[13px] font-semibold text-areia">Formas de pagamento</p>
       <div className="mt-2 grid gap-2 text-[14px] sm:grid-cols-3">
-        {chave("aceita_pix", "Pix pelo site", semChave ? "Cadastre a chave em \"Pix da loja\" abaixo" : "Cai direto na sua conta")}
+        {chave("aceita_pix", "Pix pelo site", semChave ? 'Cadastre a chave em "Pix da loja" abaixo' : "Cai direto na sua conta")}
         {chave("aceita_cartao", "Cartão na entrega", "Maquininha na entrega ou retirada")}
         {chave("aceita_dinheiro", "Dinheiro", "O cliente informa o troco")}
       </div>
@@ -436,7 +514,9 @@ function Fidelidade() {
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
 
   async function salvarCashback() {
-    const pct = num(cb.pct), minimo = num(cb.minimo), validade = cb.validade.trim() ? Math.round(num(cb.validade)) : null;
+    const pct = num(cb.pct),
+      minimo = num(cb.minimo),
+      validade = cb.validade.trim() ? Math.round(num(cb.validade)) : null;
     if (cb.ativo && (!Number.isFinite(pct) || pct <= 0 || pct > 50)) return setMsg({ ok: false, t: "A porcentagem vai de 0,5% a 50%." });
     if (!Number.isFinite(minimo) || minimo < 0 || (validade !== null && (!Number.isFinite(validade) || validade < 1))) return setMsg({ ok: false, t: "Confira os valores." });
     const r = await d.acoes.salvarLoja({ cashback_ativo: cb.ativo, cashback_percentual: pct / 100, cashback_minimo_uso: minimo, cashback_validade_dias: validade });
@@ -641,7 +721,8 @@ function SalaoPadroes() {
   const [couv, setCouv] = useState(d.loja.couvert_padrao ? String(d.loja.couvert_padrao).replace(".", ",") : "");
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
   async function salvar() {
-    const sv = num(serv), cv = num(couv);
+    const sv = num(serv),
+      cv = num(couv);
     if (!Number.isFinite(sv) || sv < 0 || sv > 30) return setMsg({ ok: false, t: "A taxa de serviço vai de 0% a 30%." });
     if (!Number.isFinite(cv) || cv < 0) return setMsg({ ok: false, t: "Couvert inválido." });
     const r = await d.acoes.salvarLoja({ servico_padrao: sv, couvert_padrao: cv });
@@ -742,8 +823,13 @@ function Equipe() {
     carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const senhaNova = () => (d.loja.nome || "equipe").toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "").slice(0, 10) + String(1000 + Math.floor(Math.random() * 9000));
-  const nomePapel = (v: string) => (v === "dono" ? "Dono" : PAPEIS.find((p) => p.v === v)?.t ?? v);
+  const senhaNova = () =>
+    (d.loja.nome || "equipe")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[^a-z0-9]/g, "")
+      .slice(0, 10) + String(1000 + Math.floor(Math.random() * 9000));
+  const nomePapel = (v: string) => (v === "dono" ? "Dono" : (PAPEIS.find((p) => p.v === v)?.t ?? v));
 
   async function criar() {
     if (!novo || !supabase) return;

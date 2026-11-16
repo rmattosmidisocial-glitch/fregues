@@ -18,9 +18,9 @@ export default async function nfce(req, res) {
     const st = await loja(o.store_id);
     if (!st.nfce_ativo) return res.status(400).json({ erro: "A nota fiscal está desligada nas Configurações" });
     const cnpj = String(st.nfce_cnpj || "").replace(/\D/g, "");
-    if (cnpj.length !== 14) return res.status(400).json({ erro: "Cadastre o CNPJ da empresa em Configurações > Nota fiscal" });
+    if (cnpj.length !== 14) return res.status(400).json({ erro: "Cadastre o CNPJ da empresa em Configurações > Recursos extras > Nota fiscal" });
     const seg = await segredos(o.store_id);
-    if (!seg.focus_token) return res.status(400).json({ erro: "Cole o token da Focus NFe em Configurações > Nota fiscal" });
+    if (!seg.focus_token) return res.status(400).json({ erro: "Cole o token da Focus NFe em Configurações > Recursos extras > Nota fiscal" });
 
     const ref = `fregues-${o.numero}-${o.id.slice(0, 8)}-${Date.now().toString(36)}`;
     const reg = await inserir("notas", { store_id: o.store_id, order_id: o.id, ref, producao: !!st.nfce_producao });
