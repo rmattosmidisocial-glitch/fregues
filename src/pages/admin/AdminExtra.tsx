@@ -388,6 +388,15 @@ export function SaudeIntegracoes({ a }: { a: A }) {
     if (a.modo === "real") conferir();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const [ligando, setLigando] = useState(false);
+  const ligarAviso = async () => {
+    setLigando(true);
+    setErro("");
+    const r = await a.acoes.geral<{ ok: boolean }>({ acao: "ligar_webhook" });
+    setLigando(false);
+    if (r.erro) return setErro(r.erro);
+    conferir();
+  };
   return (
     <section className={`${caixa} space-y-3`}>
       <div className="flex items-center justify-between gap-2">
@@ -406,6 +415,11 @@ export function SaudeIntegracoes({ a }: { a: A }) {
               <span>
                 <span className="block font-semibold">{i.nome}</span>
                 <span className="text-areia">{i.detalhe}</span>
+                {i.nome.startsWith("Aviso de pagamento") && i.ok !== true && a.modo === "real" && (
+                  <button onClick={ligarAviso} disabled={ligando} className="mt-2 block rounded-full bg-brasa px-4 py-1.5 text-[13px] font-bold text-carvao disabled:opacity-60">
+                    {ligando ? "Ligando…" : "Ligar aviso agora"}
+                  </button>
+                )}
               </span>
             </li>
           ))}

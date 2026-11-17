@@ -1,7 +1,8 @@
 // Rotas do administrador do Freguês que precisam do servidor:
 //   acao "saude": confere se cada integração está funcionando (não devolve nenhuma chave)
+//   acao "ligar_webhook": cadastra no Asaas o aviso automático de pagamento (se ainda não existir)
 //   acao "novo_admin": cria (ou liga) o login de outro administrador com senha provisória
-import { ASAAS_URL, SUPA_URL, asaas, corpoJson, exigirAdmin, lerServidor, rpcServidor, erroServidor } from "../_lib/base.js";
+import { ASAAS_URL, SUPA_URL, asaas, corpoJson, garantirWebhook, hostWebhook, exigirAdmin, lerServidor, rpcServidor, erroServidor } from "../_lib/base.js";
 import { emailConfigurado } from "../_lib/email.js";
 
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -53,7 +54,7 @@ async function saude(host) {
       try {
         const url = `https://${host}/api/asaas/webhook`;
         const w = ((await asaas("/webhooks")).data || []).find((x) => x.url === url);
-        if (!w) add("Aviso de pagamento (webhook)", null, "Ainda não ligado. Liga sozinho ao ativar a cobrança do primeiro cliente.");
+        if (!w) add("Aviso de pagamento (webhook)", null, "Ainda não ligado. Use o botão Ligar aviso para cadastrar agora.");
         else if (w.interrupted || w.enabled === false) add("Aviso de pagamento (webhook)", false, "A Asaas pausou os avisos. Reative em Asaas > Integrações > Webhooks.");
         else add("Aviso de pagamento (webhook)", true, "Ligado neste endereço");
       } catch (e) {
@@ -95,8 +96,15 @@ export default async function handler(req, res) {
   try {
     if (acao === "saude")
       return res.status(200).json({
-        itens: await saude(req.headers["x-forwarded-host"] || req.headers.host),
+        itens: await saude(hostWebhook(req)),
       });
+
+    if (acao === "ligar_webhook") {
+      if (!process.env.ASAAS_API_KEY) return res.status(400).json({ erro: "Falta ASAAS_API_KEY na Vercel" });
+      const eu = await quemSou(req);
+      await garantirWebhook(hostWebhook(req), eu?.email);
+      return res.status(200).json({ ok: true, url: `https://${hostWebhook(req)}/api/asaas/webhook` });
+    }
 
     if (acao === "novo_admin") {
       const em = String(email || "")

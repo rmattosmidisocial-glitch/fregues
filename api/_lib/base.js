@@ -99,6 +99,12 @@ export async function aplicarCobranca(p) {
   });
 }
 
+/** Endereço fixo que recebe os avisos do Asaas: o painel no domínio próprio, ou o endereço que chamou. */
+export function hostWebhook(req) {
+  const dom = (process.env.VITE_DOMINIO || "").replace(/^\.+|\/+$/g, "").toLowerCase();
+  return dom ? `app.${dom}` : req.headers["x-forwarded-host"] || req.headers.host;
+}
+
 export async function garantirWebhook(host, email) {
   const url = `https://${host}/api/asaas/webhook`;
   const lista = await asaas("/webhooks");

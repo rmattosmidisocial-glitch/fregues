@@ -1,5 +1,5 @@
 // Admin ativa a cobrança automática de um cliente: cria cliente + assinatura na Asaas.
-import { asaas, aplicarCobranca, regrasAsaas, corpoJson, exigirAdmin, faltando, garantirWebhook, lerServidor, rpcServidor, erroServidor } from "../../_lib/base.js";
+import { asaas, aplicarCobranca, regrasAsaas, corpoJson, exigirAdmin, faltando, garantirWebhook, hostWebhook, lerServidor, rpcServidor, erroServidor } from "../../_lib/base.js";
 
 const hoje = () => new Date().toISOString().slice(0, 10);
 
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
     let aviso = null;
     try {
-      await garantirWebhook(req.headers.host, admin);
+      await garantirWebhook(hostWebhook(req), admin);
     } catch (e) {
       aviso = `Aviso automático da Asaas não foi ligado (${e.message}). Use "Atualizar cobranças" para conferir pagamentos.`;
     }
