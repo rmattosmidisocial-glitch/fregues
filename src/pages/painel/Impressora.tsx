@@ -58,22 +58,50 @@ export function ImpressoraModal({ fechar, auto, setAuto }: { fechar: () => void;
                 <p className="mt-1 text-[12px] text-areia">80 mm é o mais comum em restaurante. Confira na caixa da bobina.</p>
               </div>
               <div>
-                <p className="font-semibold">Quantas vias por pedido</p>
+                <p className="font-semibold">Onde fica este computador</p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <button onClick={() => set({ vias: 1 })} className={opcao(cfg.vias === 1)}>
-                    1 via
+                  <button onClick={() => set({ funcao: "tudo" })} className={opcao(cfg.funcao === "tudo")}>
+                    Caixa (uma impressora só)
                   </button>
-                  <button onClick={() => set({ vias: 2 })} className={opcao(cfg.vias === 2)}>
-                    2 vias (cozinha + entregador)
+                  <button onClick={() => set({ funcao: "caixa" })} className={opcao(cfg.funcao === "caixa")}>
+                    Caixa (a cozinha tem impressora própria)
+                  </button>
+                  <button onClick={() => set({ funcao: "cozinha" })} className={opcao(cfg.funcao === "cozinha")}>
+                    Cozinha
+                  </button>
+                </div>
+                <p className="mt-1 text-[12px] text-areia">
+                  {cfg.funcao === "tudo"
+                    ? "Sai tudo nesta impressora: a via do caixa e, logo depois, a via da cozinha para levar até lá."
+                    : cfg.funcao === "caixa"
+                      ? "Aqui sai só a via do caixa. A via da cozinha sai no computador ou tablet da cozinha, com o Freguês aberto em Pedidos e marcado como Cozinha."
+                      : "Aqui sai só a via da cozinha: número do pedido, nome de quem pediu, itens e observação. Sem preço, telefone ou endereço."}
+                </p>
+              </div>
+              {cfg.funcao === "tudo" && (
+                <div>
+                  <p className="font-semibold">Vias por pedido</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button onClick={() => set({ vias: 2 })} className={opcao(cfg.vias === 2)}>
+                      2 vias (caixa + cozinha)
+                    </button>
+                    <button onClick={() => set({ vias: 1 })} className={opcao(cfg.vias === 1)}>
+                      Só a do caixa
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div>
+                <p className="font-semibold">Imprimir sozinho quando</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button onClick={() => set({ quando: "aceitar" })} className={opcao(cfg.quando === "aceitar")}>
+                    O pedido for aceito
+                  </button>
+                  <button onClick={() => set({ quando: "chegar" })} className={opcao(cfg.quando === "chegar")}>
+                    O pedido chegar
                   </button>
                 </div>
               </div>
-              {cfg.vias === 2 && (
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={cfg.cozinhaSemPreco} onChange={(e) => set({ cozinhaSemPreco: e.target.checked })} className="h-4 w-4 accent-[#ff5b1f]" />
-                  Via da cozinha sem preços, telefone e endereço
-                </label>
-              )}
               <div>
                 <p className="font-semibold">Tamanho da letra</p>
                 <div className="mt-2 flex gap-2">
@@ -86,13 +114,13 @@ export function ImpressoraModal({ fechar, auto, setAuto }: { fechar: () => void;
                 </div>
               </div>
               <label className="block font-semibold">
-                Mensagem no fim
+                Mensagem no fim da via do caixa
                 <input value={cfg.rodape} onChange={(e) => set({ rodape: e.target.value })} maxLength={60} className="mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] font-normal text-papel" />
               </label>
               <label className="flex items-center gap-2 rounded-2xl bg-grafite p-3">
                 <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} className="h-4 w-4 accent-[#ff5b1f]" />
                 <span>
-                  <b>Imprimir sozinho quando chegar pedido</b>
+                  <b>Impressão automática ligada neste computador</b>
                   <br />
                   <span className="text-[12px] text-areia">Deixe a tela de Pedidos aberta neste computador.</span>
                 </span>
@@ -118,7 +146,7 @@ export function ImpressoraModal({ fechar, auto, setAuto }: { fechar: () => void;
               )}
             </div>
             <div>
-              <p className="mb-2 text-[13px] font-semibold text-areia">Como sai no papel (pedido de exemplo)</p>
+              <p className="mb-2 text-[13px] font-semibold text-areia">Como sai neste computador (pedido de exemplo)</p>
               <div className="overflow-hidden rounded-2xl border border-linha bg-[#e9e4dc] p-3">
                 <iframe title="Prévia da comanda" srcDoc={previa} className="mx-auto block h-[520px] w-full rounded bg-white shadow" />
               </div>
@@ -145,7 +173,7 @@ export function ImpressoraModal({ fechar, auto, setAuto }: { fechar: () => void;
                     <>
                       <code className="mt-2 block break-all rounded-xl bg-carvao p-3 text-[12px] text-papel">"C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk-printing --user-data-dir="C:\FreguesPedidos" {linkPedidos}</code>
                       <p className="mt-2 text-areia">
-                        Dê o nome <b className="text-papel">Freguês Pedidos</b>. Abra sempre por esse atalho, entre com o login da loja uma vez e ligue <b className="text-papel">"Imprimir sozinho quando chegar pedido"</b>. Cada pedido novo sai direto na impressora padrão.
+                        Dê o nome <b className="text-papel">Freguês Pedidos</b>. Abra sempre por esse atalho, entre com o login da loja uma vez e ligue a <b className="text-papel">impressão automática</b>. Cada pedido aceito sai direto na impressora padrão. Na cozinha, faça o mesmo atalho no computador de lá e marque <b className="text-papel">"Cozinha"</b> em "Onde fica este computador".
                       </p>
                     </>
                   )}

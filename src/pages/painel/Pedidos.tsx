@@ -3,7 +3,7 @@ import { Bell, BellOff, Bike, ChevronDown, ChevronUp, MapPin, MessageCircle, Pho
 import { brl, type Pedido, type StatusPedido } from "../../data/mock";
 import { SLUG, supabase, useDados } from "../../data/dados";
 import { useToast } from "../../components/ui";
-import { enderecoTxt, imprimirComanda, NOME_FORMA } from "../../components/comanda";
+import { enderecoTxt, imprimirComanda, lerImpressora, NOME_FORMA } from "../../components/comanda";
 import { ImpressoraModal } from "./Impressora";
 import { avisar } from "../../lib/avisos";
 
@@ -347,9 +347,14 @@ function Cartao({ p, c, ent, abrir, aberto, show }: { p: Pedido; c: (typeof COLU
               </div>
             </div>
           )}
-          <button onClick={() => imprimirComanda(p, loja)} className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-linha py-2 font-semibold hover:border-areia">
-            <Printer className="h-4 w-4" /> Imprimir comanda
-          </button>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button onClick={() => imprimirComanda(p, loja, undefined, ["caixa"])} className="flex items-center justify-center gap-1.5 rounded-xl border border-linha py-2 font-semibold hover:border-areia">
+              <Printer className="h-4 w-4" /> Via do caixa
+            </button>
+            <button onClick={() => imprimirComanda(p, loja, undefined, ["cozinha"])} className="flex items-center justify-center gap-1.5 rounded-xl border border-linha py-2 font-semibold hover:border-areia">
+              <Printer className="h-4 w-4" /> Via da cozinha
+            </button>
+          </div>
           {d.loja.nfce_ativo && p.id && <BotaoNota id={p.id} show={show} />}
           {c.id !== "entregue" &&
             (cancelando ? (
@@ -393,6 +398,7 @@ export function Pedidos() {
   const [tempo, setTempo] = useState<number | null>(supabase ? null : 22);
   const ent = useEntregadores(d.loja.id);
   const vistos = useRef<Set<number> | null>(null);
+  const situacao = useRef<Map<number, StatusPedido> | null>(null);
 
   // tempo médio real de preparo de hoje
   useEffect(() => {
@@ -411,9 +417,18 @@ export function Pedidos() {
     lista.forEach((p) => vistos.current!.add(p.num));
     if (!chegaram.length) return;
     if (som) apito();
-    if (auto) chegaram.forEach((p) => imprimirComanda(p, d.loja.nome));
+    if (auto && lerImpressora().quando === "chegar") chegaram.forEach((p) => imprimirComanda(p, d.loja.nome));
     avisar(chegaram.length === 1 ? `Pedido novo #${chegaram[0].num}` : `${chegaram.length} pedidos novos`, chegaram.map((p) => `${p.cliente} · ${brl(p.total)}`).join("\n"));
     show(chegaram.length === 1 ? `Pedido novo: #${chegaram[0].num} de ${chegaram[0].cliente}` : `${chegaram.length} pedidos novos`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lista]);
+
+  // pedido aceito (Novo → Em preparo), aqui ou em outro aparelho da loja: imprime as vias deste computador
+  useEffect(() => {
+    const antes = situacao.current;
+    situacao.current = new Map(lista.map((p) => [p.num, p.status]));
+    if (!antes || !auto || lerImpressora().quando !== "aceitar") return;
+    lista.filter((p) => p.status === "preparo" && antes.get(p.num) === "novo").forEach((p) => imprimirComanda(p, d.loja.nome));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lista]);
 
@@ -438,12 +453,12 @@ export function Pedidos() {
           <button
             onClick={() => {
               setAuto(!auto);
-              show(!auto ? "Pedidos novos serão impressos assim que chegarem" : "Impressão automática desligada");
+              show(!auto ? (lerImpressora().quando === "chegar" ? "Pedidos serão impressos assim que chegarem" : "Pedidos serão impressos assim que forem aceitos") : "Impressão automática desligada");
             }}
             aria-pressed={auto}
             className={`flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-semibold ${auto ? "bg-papel text-carvao" : "border border-linha"}`}
           >
-            <Printer className="h-4 w-4" /> Imprimir ao chegar {auto ? "ligado" : "desligado"}
+            <Printer className="h-4 w-4" /> Impressão automática {auto ? "ligada" : "desligada"}
           </button>
           <button onClick={() => setVerImp(true)} className="flex items-center gap-2 rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia">
             <Printer className="h-4 w-4" /> Impressora

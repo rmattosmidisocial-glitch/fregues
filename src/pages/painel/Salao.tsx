@@ -453,6 +453,8 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
                   criadoEm: new Date().toISOString(),
                 },
                 d.loja.nome,
+                undefined,
+                ["caixa"],
               )
             }
             className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-papel py-3 font-semibold"

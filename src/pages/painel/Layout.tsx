@@ -197,7 +197,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
         </div>
       </aside>
 
-      <div className="relative z-[1] min-w-0 pb-24 md:pb-0">
+      <div className="relative z-[3] min-w-0 pb-24 md:pb-0">
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-linha bg-carvao/90 px-4 py-3 backdrop-blur md:hidden">
           <Logo />
           <span className="flex items-center gap-2">
