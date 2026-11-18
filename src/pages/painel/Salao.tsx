@@ -8,7 +8,8 @@ import { Foto } from "../../components/Foto";
 import { useToast } from "../../components/ui";
 import { Couvert } from "../../components/Couvert";
 import { CobrarMaquininha, useMaquininha } from "../../components/Maquininha";
-import { imprimirComanda } from "../../components/comanda";
+import { imprimirComanda, imprimirCozinhaMesa } from "../../components/comanda";
+import { usePref } from "../../data/prefs";
 import { useGarcons } from "../../data/equipe";
 import { setMesaQR } from "../publico/Mesa";
 
@@ -599,6 +600,17 @@ function Cozinha({ s }: { s: ReturnType<typeof useSalao> }) {
                         </li>
                       ))}
                     </ul>
+                    {c.prox === "pronto" && (
+                      <button
+                        onClick={() => {
+                          const cm = s.comandas.find((x) => x.id === tab);
+                          imprimirCozinhaMesa({ mesa: m?.numero ?? "?", cliente: cm?.cliente_nome, garcom: cm?.garcom, qr: lista.every((i) => i.origem === "cliente"), quando: primeiro, itens: lista.map((i) => ({ qtd: i.qtd, nome: i.nome, obs: i.obs })) }, undefined, true);
+                        }}
+                        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-linha py-2 text-[13px] font-semibold hover:border-areia"
+                      >
+                        <Printer className="h-4 w-4" /> Imprimir via da cozinha
+                      </button>
+                    )}
                     <button
                       onClick={() =>
                         s.acoes.statusItens(
@@ -606,7 +618,7 @@ function Cozinha({ s }: { s: ReturnType<typeof useSalao> }) {
                           c.prox,
                         )
                       }
-                      className="mt-3 w-full rounded-xl bg-papel py-2.5 text-[14px] font-semibold text-carvao"
+                      className="mt-2 w-full rounded-xl bg-papel py-2.5 text-[14px] font-semibold text-carvao"
                     >
                       {c.acao} ({lista.reduce((n, i) => n + i.qtd, 0)} {lista.reduce((n, i) => n + i.qtd, 0) === 1 ? "item" : "itens"})
                     </button>
@@ -811,6 +823,7 @@ export function Salao() {
   const veValores = papel === "dono" || papel === "caixa";
   const gerencia = papel === "dono" || papel === "gerente" || papel === "caixa";
   const [aba, setAba] = useState<"mesas" | "cozinha" | "editar">("mesas");
+  const [imprimirAuto, setImprimirAuto] = usePref("pedidos-imprimir", false);
   const [sel, setSel] = useState<string | null>(null);
   const [, tick] = useState(0);
   useEffect(() => {
@@ -837,21 +850,31 @@ export function Salao() {
           <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Salão</h1>
           <p className="text-[15px] text-areia">Toque numa mesa para abrir, lançar o pedido pelo cardápio, pedir a conta ou fechar.</p>
         </div>
-        <div className="flex rounded-full border border-linha p-1 text-[14px] font-semibold" role="tablist">
-          {(
-            [
-              ["mesas", "Mesas"],
-              ["cozinha", `Cozinha${naCozinha ? ` (${naCozinha})` : ""}`],
-              ["editar", "QR e garçons"],
-            ] as const
-          )
-            .filter(([v]) => v !== "editar" || gerencia)
-            .map(([v, r]) => (
-              <button key={v} role="tab" aria-selected={aba === v} onClick={() => setAba(v)} className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 ${aba === v ? "bg-papel text-carvao" : "text-areia"}`}>
-                {v === "editar" && <Pencil className="h-3.5 w-3.5" />}
-                {r}
-              </button>
-            ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setImprimirAuto(!imprimirAuto)}
+            aria-pressed={imprimirAuto}
+            title="O que for para a cozinha sai sozinho na impressora deste computador (via da cozinha com o número da mesa e o nome de quem pediu)"
+            className={`flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-semibold ${imprimirAuto ? "bg-papel text-carvao" : "border border-linha"}`}
+          >
+            <Printer className="h-4 w-4" /> Impressão automática {imprimirAuto ? "ligada" : "desligada"}
+          </button>
+          <div className="flex rounded-full border border-linha p-1 text-[14px] font-semibold" role="tablist">
+            {(
+              [
+                ["mesas", "Mesas"],
+                ["cozinha", `Cozinha${naCozinha ? ` (${naCozinha})` : ""}`],
+                ["editar", "QR e garçons"],
+              ] as const
+            )
+              .filter(([v]) => v !== "editar" || gerencia)
+              .map(([v, r]) => (
+                <button key={v} role="tab" aria-selected={aba === v} onClick={() => setAba(v)} className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 ${aba === v ? "bg-papel text-carvao" : "text-areia"}`}>
+                  {v === "editar" && <Pencil className="h-3.5 w-3.5" />}
+                  {r}
+                </button>
+              ))}
+          </div>
         </div>
       </div>
 

@@ -72,7 +72,7 @@ export const totais = (c: Comanda, itens: ItemComanda[]) => {
   return { sub, servico, couvert, total: Math.max(0, sub + servico + couvert - c.desconto) };
 };
 
-export function useSalao() {
+export function useSalao(nomeCanal = "salao") {
   const d = useDados();
   const real = !!supabase && !!d.sessao && !!d.loja.id;
   const demoEstado = useSyncExternalStore(subDemo, () => demo);
@@ -107,7 +107,7 @@ export function useSalao() {
     if (!real || !supabase) return;
     carregar();
     const canal = supabase
-      .channel("salao-" + d.loja.id)
+      .channel(nomeCanal + "-" + d.loja.id)
       .on("postgres_changes", { event: "*", schema: "public", table: "tabs", filter: `store_id=eq.${d.loja.id}` }, () => carregar())
       .on("postgres_changes", { event: "*", schema: "public", table: "tab_items" }, () => carregar())
       .on("postgres_changes", { event: "*", schema: "public", table: "table_calls", filter: `store_id=eq.${d.loja.id}` }, () => carregar())

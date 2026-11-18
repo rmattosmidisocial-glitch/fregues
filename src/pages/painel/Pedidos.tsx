@@ -4,6 +4,7 @@ import { brl, type Pedido, type StatusPedido } from "../../data/mock";
 import { SLUG, supabase, useDados } from "../../data/dados";
 import { useToast } from "../../components/ui";
 import { enderecoTxt, imprimirComanda, lerImpressora, NOME_FORMA } from "../../components/comanda";
+import { usePref } from "../../data/prefs";
 import { ImpressoraModal } from "./Impressora";
 import { avisar } from "../../lib/avisos";
 
@@ -23,30 +24,6 @@ const FORMAS: { id: NonNullable<Pedido["forma"]>; rotulo: string }[] = [
 ];
 
 type Entregador = { id: string; nome: string; telefone?: string | null; ativo: boolean };
-
-// preferência guardada só neste aparelho (a impressora e o som são da máquina da cozinha)
-function usePref(chave: string, inicial: boolean): [boolean, (v: boolean) => void] {
-  const k = `fregues-${chave}:${SLUG}`;
-  const [v, setV] = useState(() => {
-    try {
-      const s = localStorage.getItem(k);
-      return s === null ? inicial : s === "1";
-    } catch {
-      return inicial;
-    }
-  });
-  return [
-    v,
-    (n) => {
-      setV(n);
-      try {
-        localStorage.setItem(k, n ? "1" : "0");
-      } catch {
-        /* sem armazenamento: vale nesta visita */
-      }
-    },
-  ];
-}
 
 function apito() {
   try {
@@ -248,9 +225,7 @@ function Cartao({ p, c, ent, abrir, aberto, show }: { p: Pedido; c: (typeof COLU
       {p.nota && <p className="mt-2 rounded-lg bg-grafite px-2.5 py-1.5 text-[13px] text-mostarda">Obs.: {p.nota}</p>}
       <div className="mt-3 flex items-center justify-between border-t border-linha pt-3 text-[14px]">
         <span className="tabular font-semibold">{brl(p.total)}</span>
-        <span className={p.pago ? "text-manjericao" : "text-mostarda"}>
-          {p.pago ? `${NOME_FORMA[p.forma ?? ""] ?? p.pag} · pago` : `${NOME_FORMA[p.forma ?? ""] ?? p.pag} · a receber`}
-        </span>
+        <span className={p.pago ? "text-manjericao" : "text-mostarda"}>{p.pago ? `${NOME_FORMA[p.forma ?? ""] ?? p.pag} · pago` : `${NOME_FORMA[p.forma ?? ""] ?? p.pag} · a receber`}</span>
       </div>
 
       {/* ações de cada etapa */}
@@ -280,10 +255,7 @@ function Cartao({ p, c, ent, abrir, aberto, show }: { p: Pedido; c: (typeof COLU
       ) : (
         c.acao &&
         c.prox && (
-          <button
-            onClick={() => (c.id === "pronto" && entrega ? setDespachando(true) : avancar(c.prox!))}
-            className={`mt-3 w-full rounded-xl py-2.5 text-[14px] font-semibold ${c.id === "novo" ? "bg-brasa text-carvao hover:bg-mostarda" : "bg-papel text-carvao hover:bg-mostarda"}`}
-          >
+          <button onClick={() => (c.id === "pronto" && entrega ? setDespachando(true) : avancar(c.prox!))} className={`mt-3 w-full rounded-xl py-2.5 text-[14px] font-semibold ${c.id === "novo" ? "bg-brasa text-carvao hover:bg-mostarda" : "bg-papel text-carvao hover:bg-mostarda"}`}>
             {c.id === "pronto" && !entrega ? "Cliente retirou" : c.acao}
           </button>
         )
@@ -398,7 +370,6 @@ export function Pedidos() {
   const [tempo, setTempo] = useState<number | null>(supabase ? null : 22);
   const ent = useEntregadores(d.loja.id);
   const vistos = useRef<Set<number> | null>(null);
-  const situacao = useRef<Map<number, StatusPedido> | null>(null);
 
   // tempo médio real de preparo de hoje
   useEffect(() => {
@@ -417,18 +388,8 @@ export function Pedidos() {
     lista.forEach((p) => vistos.current!.add(p.num));
     if (!chegaram.length) return;
     if (som) apito();
-    if (auto && lerImpressora().quando === "chegar") chegaram.forEach((p) => imprimirComanda(p, d.loja.nome));
     avisar(chegaram.length === 1 ? `Pedido novo #${chegaram[0].num}` : `${chegaram.length} pedidos novos`, chegaram.map((p) => `${p.cliente} · ${brl(p.total)}`).join("\n"));
     show(chegaram.length === 1 ? `Pedido novo: #${chegaram[0].num} de ${chegaram[0].cliente}` : `${chegaram.length} pedidos novos`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lista]);
-
-  // pedido aceito (Novo → Em preparo), aqui ou em outro aparelho da loja: imprime as vias deste computador
-  useEffect(() => {
-    const antes = situacao.current;
-    situacao.current = new Map(lista.map((p) => [p.num, p.status]));
-    if (!antes || !auto || lerImpressora().quando !== "aceitar") return;
-    lista.filter((p) => p.status === "preparo" && antes.get(p.num) === "novo").forEach((p) => imprimirComanda(p, d.loja.nome));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lista]);
 

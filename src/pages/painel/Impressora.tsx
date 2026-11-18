@@ -101,6 +101,7 @@ export function ImpressoraModal({ fechar, auto, setAuto }: { fechar: () => void;
                     O pedido chegar
                   </button>
                 </div>
+                <p className="mt-1 text-[12px] text-areia">Vale para os pedidos do site. Venda no balcão e o que o garçom manda do salão saem na hora em que vão para a cozinha.</p>
               </div>
               <div>
                 <p className="font-semibold">Tamanho da letra</p>

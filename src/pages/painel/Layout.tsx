@@ -27,6 +27,8 @@ import { Configuracoes } from "./Configuracoes";
 import { Relatorios } from "./Relatorios";
 import { AceiteTermos, VERSAO_TERMOS } from "../publico/Legal";
 import { MarcaDagua } from "../../components/MarcaDagua";
+import { ImpressaoAutomatica } from "../../components/ImpressaoAutomatica";
+import { usePref } from "../../data/prefs";
 import { BloqueadoNoPlano } from "../../components/Plano";
 import type { Modulo } from "../../data/dados";
 
@@ -59,6 +61,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
   const [copiloto, setCopiloto] = useState(false);
   const [conta, setConta] = useState(false);
   const d = useDados();
+  const [imprimirAuto] = usePref("pedidos-imprimir", false);
   const restrito = d.modo === "real" && d.papel ? POR_PAPEL[d.papel] : undefined;
   // Relatórios é opcional: só aparece quando o dono liga em Configurações
   const ITENS_VIS = (restrito ? ITENS.filter((i) => restrito.includes(i.rota)) : ITENS).filter((i) => i.rota !== "relatorios" || d.modo === "demo" || d.loja.relatorios_ativo);
@@ -139,6 +142,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
   return (
     <div className="tema-claro min-h-screen bg-carvao text-papel md:grid md:grid-cols-[248px_1fr]">
       <MarcaDagua />
+      {imprimirAuto && <ImpressaoAutomatica />}
       <aside className="tema-escuro sticky top-0 z-[2] hidden h-screen flex-col bg-forno px-4 py-5 md:flex">
         <a href="#painel" aria-label="Freguês, início do painel" className="px-2">
           <Logo />

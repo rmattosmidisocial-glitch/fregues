@@ -108,12 +108,10 @@ function viaCaixa(p: Pedido, loja: string, cfg: ImpressoraCfg) {
   </section>`;
 }
 
-/** HTML das vias pedidas (padrão: as deste computador), no tamanho do papel configurado. */
-export function htmlComanda(p: Pedido, loja: string, cfg: ImpressoraCfg = lerImpressora(), quais: ViaTipo[] = viasDoComputador(cfg)) {
+function estilo(cfg: ImpressoraCfg) {
   const larg = cfg.papel === 58 ? 48 : 72;
   const base = cfg.letra === "grande" ? 15 : 13;
-  const vias = quais.map((v) => (v === "cozinha" ? viaCozinha(p) : viaCaixa(p, loja, cfg))).join("");
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Pedido #${p.num}</title><style>
+  return `<style>
     @page { size: ${cfg.papel}mm auto; margin: 0 }
     body { width: ${larg}mm; margin: 0 auto; padding: 4mm 0; font: ${base}px/1.35 "Courier New", monospace; color: #000; background: #fff }
     h1 { font-size: ${base + 14}px; margin: 2px 0 } .c { text-align: center } .g { font-size: ${base + 3}px; font-weight: bold }
@@ -121,12 +119,44 @@ export function htmlComanda(p: Pedido, loja: string, cfg: ImpressoraCfg = lerImp
     .tit { font-weight: bold; margin-top: 2px; letter-spacing: 2px } .peq { font-size: ${base - 2}px }
     hr { border: 0; border-top: 1px dashed #000; margin: 6px 0 } ul { list-style: none; padding: 0; margin: 0 } li { margin: 2px 0 }
     .via + .via { page-break-before: always; break-before: page; margin-top: 10mm }
-  </style></head><body>${vias}</body></html>`;
+  </style>`;
+}
+
+/** Itens que o salão mandou para a cozinha (garçom ou cliente pelo QR Code da mesa). */
+export type EnvioMesa = { mesa: number | string; cliente?: string | null; garcom?: string | null; qr?: boolean; quando?: string; itens: { qtd: number; nome: string; obs?: string | null }[] };
+
+/** Via da cozinha do salão: número da mesa e nome de quem pediu bem grandes, itens e observações. */
+export function htmlCozinhaMesa(e: EnvioMesa, cfg: ImpressoraCfg = lerImpressora()) {
+  const q = e.quando ? new Date(e.quando) : new Date();
+  const quem = e.cliente || (e.garcom ? `Garçom ${e.garcom}` : e.qr ? "Pedido pelo QR Code" : "");
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Mesa ${e.mesa}</title>${estilo(cfg)}</head><body><section class="via">
+    <div class="c tit">COZINHA · SALÃO</div><div class="c peq">${q.toLocaleDateString("pt-BR")} ${q.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div><hr>
+    <h1 class="c">MESA ${esc(String(e.mesa))}</h1>
+    ${quem ? `<div class="c nome">${esc(quem)}</div>` : ""}
+    ${e.cliente && e.garcom ? `<div class="c">Garçom: ${esc(e.garcom)}</div>` : ""}${e.qr ? `<div class="c">Pedido pelo QR Code</div>` : ""}<hr>
+    <ul>${e.itens.map((i) => `<li class="g">${i.qtd}x ${esc(i.nome)}</li>${i.obs ? `<li class="ad">OBS: ${esc(i.obs)}</li>` : ""}`).join("")}</ul>
+    <hr><div class="c">Mesa ${esc(String(e.mesa))}${quem ? ` · ${esc(quem)}` : ""}</div>
+  </section></body></html>`;
+}
+
+/** Imprime a via da cozinha do salão, se este computador imprime a via da cozinha (ou se for pedido na mão). */
+export function imprimirCozinhaMesa(e: EnvioMesa, cfg: ImpressoraCfg = lerImpressora(), forcar = false) {
+  if (forcar || viasDoComputador(cfg).includes("cozinha")) imprimirHtml(htmlCozinhaMesa(e, cfg));
+}
+
+/** HTML das vias pedidas (padrão: as deste computador), no tamanho do papel configurado. */
+export function htmlComanda(p: Pedido, loja: string, cfg: ImpressoraCfg = lerImpressora(), quais: ViaTipo[] = viasDoComputador(cfg)) {
+  const vias = quais.map((v) => (v === "cozinha" ? viaCozinha(p) : viaCaixa(p, loja, cfg))).join("");
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Pedido #${p.num}</title>${estilo(cfg)}</head><body>${vias}</body></html>`;
 }
 
 /** Abre a impressão. Com o Chrome no modo "impressão direta" sai sozinho na impressora padrão, sem janela. */
 export function imprimirComanda(p: Pedido, loja: string, cfg: ImpressoraCfg = lerImpressora(), quais?: ViaTipo[]) {
-  const html = htmlComanda(p, loja, cfg, quais ?? viasDoComputador(cfg));
+  const q = quais ?? viasDoComputador(cfg);
+  if (q.length) imprimirHtml(htmlComanda(p, loja, cfg, q));
+}
+
+function imprimirHtml(html: string) {
   const f = document.createElement("iframe");
   f.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
   document.body.appendChild(f);
