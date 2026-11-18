@@ -5,7 +5,6 @@ import { SLUG, supabase, useDados } from "../../data/dados";
 import { useToast } from "../../components/ui";
 import { enderecoTxt, imprimirComanda, lerImpressora, NOME_FORMA } from "../../components/comanda";
 import { usePref } from "../../data/prefs";
-import { ImpressoraModal } from "./Impressora";
 import { avisar } from "../../lib/avisos";
 
 const COLUNAS: { id: StatusPedido; rotulo: string; acao?: string; prox?: StatusPedido }[] = [
@@ -365,7 +364,6 @@ export function Pedidos() {
   const [som, setSom] = usePref("pedidos-som", true);
   const [auto, setAuto] = usePref("pedidos-imprimir", false);
   const [verEnt, setVerEnt] = useState(false);
-  const [verImp, setVerImp] = useState(false);
   const [aberto, setAberto] = useState<number | null>(null);
   const [tempo, setTempo] = useState<number | null>(supabase ? null : 22);
   const ent = useEntregadores(d.loja.id);
@@ -421,9 +419,7 @@ export function Pedidos() {
           >
             <Printer className="h-4 w-4" /> Impressão automática {auto ? "ligada" : "desligada"}
           </button>
-          <button onClick={() => setVerImp(true)} className="flex items-center gap-2 rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia">
-            <Printer className="h-4 w-4" /> Impressora
-          </button>
+
           <button onClick={() => setVerEnt(true)} className="flex items-center gap-2 rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia">
             <Users className="h-4 w-4" /> Entregadores ({ent.lista.length})
           </button>
@@ -449,7 +445,6 @@ export function Pedidos() {
           );
         })}
       </div>
-      {verImp && <ImpressoraModal fechar={() => setVerImp(false)} auto={auto} setAuto={setAuto} />}
       {verEnt && <Entregadores e={ent} fechar={() => setVerEnt(false)} />}
       <Toast />
     </div>

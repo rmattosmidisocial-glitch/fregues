@@ -35,9 +35,9 @@ import type { Modulo } from "../../data/dados";
 type Item = { rota: Rota; rotulo: string; curto: string; icone: React.ReactNode; grupo: "Operação" | "Crescer" | "Loja" };
 const ITENS: Item[] = [
   { rota: "painel", rotulo: "Pulso", curto: "Pulso", grupo: "Operação", icone: <Activity className="h-5 w-5" /> },
-  { rota: "pedidos", rotulo: "Pedidos", curto: "Pedidos", grupo: "Operação", icone: <ChefHat className="h-5 w-5" /> },
   { rota: "caixa", rotulo: "Caixa e balcão", curto: "Caixa", grupo: "Operação", icone: <Calculator className="h-5 w-5" /> },
   { rota: "salao", rotulo: "Salão e mesas", curto: "Salão", grupo: "Operação", icone: <Armchair className="h-5 w-5" /> },
+  { rota: "pedidos", rotulo: "Pedidos", curto: "Pedidos", grupo: "Operação", icone: <ChefHat className="h-5 w-5" /> },
   { rota: "atendimento", rotulo: "Atendimento", curto: "Conversas", grupo: "Operação", icone: <MessagesSquare className="h-5 w-5" /> },
   { rota: "cardapio", rotulo: "Cardápio", curto: "Cardápio", grupo: "Operação", icone: <BookOpen className="h-5 w-5" /> },
   { rota: "mapa", rotulo: "Território", curto: "Território", grupo: "Operação", icone: <MapIcon className="h-5 w-5" /> },
@@ -51,8 +51,8 @@ const ITENS: Item[] = [
 
 // o que cada função da equipe enxerga no painel
 const POR_PAPEL: Record<string, Rota[]> = {
-  caixa: ["pedidos", "caixa", "salao", "atendimento"],
-  cozinha: ["pedidos"],
+  caixa: ["caixa", "salao", "pedidos", "atendimento", "config"],
+  cozinha: ["pedidos", "config"],
   garcom: ["salao"],
   entregador: ["pedidos"],
 };

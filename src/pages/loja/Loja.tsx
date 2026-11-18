@@ -103,20 +103,20 @@ function SheetProduto({ p, fechar, adicionar }: { p: Produto; fechar: () => void
             </p>
           )}
           <div className="flex items-center gap-3">
-          <div className="flex items-center rounded-full border border-[#eadccb]">
-            <button aria-label="Diminuir" onClick={() => setQtd(Math.max(1, qtd - 1))} className="p-3">
-              <Minus className="h-4 w-4" />
-            </button>
-            <span className="tabular w-6 text-center font-semibold">{qtd}</span>
-            <button aria-label="Aumentar" onClick={() => setQtd(qtd + 1)} className="p-3">
-              <Plus className="h-4 w-4" />
+            <div className="flex items-center rounded-full border border-[#eadccb]">
+              <button aria-label="Diminuir" onClick={() => setQtd(Math.max(1, qtd - 1))} className="p-3">
+                <Minus className="h-4 w-4" />
+              </button>
+              <span className="tabular w-6 text-center font-semibold">{qtd}</span>
+              <button aria-label="Aumentar" onClick={() => setQtd(qtd + 1)} className="p-3">
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+            <button onClick={confirmar} className="flex flex-1 items-center justify-between rounded-full bg-carvao px-5 py-3.5 font-semibold text-papel hover:bg-brasa-escura">
+              <span>Adicionar</span>
+              <span className="tabular">{brl(unit * qtd)}</span>
             </button>
           </div>
-          <button onClick={confirmar} className="flex flex-1 items-center justify-between rounded-full bg-carvao px-5 py-3.5 font-semibold text-papel hover:bg-brasa-escura">
-            <span>Adicionar</span>
-            <span className="tabular">{brl(unit * qtd)}</span>
-          </button>
-        </div>
         </div>
       </div>
     </div>
@@ -127,7 +127,9 @@ function SheetProduto({ p, fechar, adicionar }: { p: Produto; fechar: () => void
 function QrPix({ codigo }: { codigo: string }) {
   const [src, setSrc] = useState("");
   useEffect(() => {
-    QRCode.toDataURL(codigo, { margin: 1, width: 384, errorCorrectionLevel: "M" }).then(setSrc).catch(() => setSrc(""));
+    QRCode.toDataURL(codigo, { margin: 1, width: 384, errorCorrectionLevel: "M" })
+      .then(setSrc)
+      .catch(() => setSrc(""));
   }, [codigo]);
   return src ? <img src={src} alt="QR Code do Pix" className="h-52 w-52" /> : <div className="h-52 w-52" />;
 }
@@ -160,7 +162,6 @@ function QrFake() {
     </svg>
   );
 }
-
 
 const PASSO: Record<string, number> = { novo: 1, preparo: 2, pronto: 2, rota: 3, entregue: 4 };
 // pedido guardado no celular do cliente: ao voltar à loja, ele retoma o acompanhamento
@@ -336,13 +337,13 @@ export function Loja() {
   const atende = !!entrega?.atende;
   const sub = itens.reduce((s, i) => s + i.unit * i.qtd, 0);
   const qtdTotal = itens.reduce((s, i) => s + i.qtd, 0);
-  const taxaZona = modo === "retirada" || !atende ? 0 : entrega?.gratis_acima && sub >= entrega.gratis_acima ? 0 : entrega?.taxa ?? 0;
+  const taxaZona = modo === "retirada" || !atende ? 0 : entrega?.gratis_acima && sub >= entrega.gratis_acima ? 0 : (entrega?.taxa ?? 0);
   const taxa = cupom?.tipo === "entrega" ? 0 : taxaZona;
   // cashback só se a loja ligou; cupom e cashback não somam
   const cashbackLoja = d.modo === "demo" || !!LOJA.cashback_ativo;
   const podeCashback = cashbackLoja && !cupom && saldo > 0 && sub >= (LOJA.cashback_minimo_uso ?? 0);
   const desconto = cupom ? Math.min(cupom.desconto, sub) : podeCashback && cashback ? Math.min(saldo, sub) : 0;
-  const embalagem = itens.length ? LOJA.taxa_embalagem ?? 0 : 0;
+  const embalagem = itens.length ? (LOJA.taxa_embalagem ?? 0) : 0;
   const total = sub + taxa + embalagem - desconto;
   const abaixoMinimo = modo === "entrega" && atende && sub < (entrega?.pedido_minimo ?? 0);
   const minimoLoja = LOJA.pedido_minimo_geral ?? 0;
@@ -485,10 +486,7 @@ export function Loja() {
   }, [etapa, pedido, pixOnline, pago]);
 
   const totalFinal = pedido?.total ?? total;
-  const codigoEstatico =
-    d.modo === "real" && LOJA.pix_chave && tipoChave(LOJA.pix_chave) && pedido
-      ? codigoPix({ chave: LOJA.pix_chave, nome: LOJA.pix_nome || LOJA.nome, cidade: LOJA.pix_cidade || LOJA.cidade || "Rio de Janeiro", valor: totalFinal, txid: `PED${pedido.numero}` })
-      : "";
+  const codigoEstatico = d.modo === "real" && LOJA.pix_chave && tipoChave(LOJA.pix_chave) && pedido ? codigoPix({ chave: LOJA.pix_chave, nome: LOJA.pix_nome || LOJA.nome, cidade: LOJA.pix_cidade || LOJA.cidade || "Rio de Janeiro", valor: totalFinal, txid: `PED${pedido.numero}` }) : "";
   const codigoDoPix = pixOnline?.copia_cola || (usaOnline && !pixOnline ? "" : codigoEstatico);
   const aguardandoPix = usaOnline && !pixOnline;
 
@@ -566,10 +564,10 @@ export function Loja() {
               )
                 .filter(([v]) => (v === "entrega" ? temEntrega : temRetirada))
                 .map(([v, r, i]) => (
-                <button key={v} role="tab" aria-selected={modo === v} onClick={() => setModo(v)} className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 ${modo === v ? "bg-papel text-carvao" : "text-papel"}`}>
-                  {i} {r}
-                </button>
-              ))}
+                  <button key={v} role="tab" aria-selected={modo === v} onClick={() => setModo(v)} className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 ${modo === v ? "bg-papel text-carvao" : "text-papel"}`}>
+                    {i} {r}
+                  </button>
+                ))}
             </div>
           </div>
         </header>
@@ -649,9 +647,7 @@ export function Loja() {
               </ul>
             </section>
           ))}
-          <p className="py-8 text-center text-[13px] text-[#8f7b6c]">
-            {d.modo === "demo" ? "Loja de demonstração. Nenhum pedido é enviado." : "Loja de demonstração: os pedidos aparecem no painel em tempo real."}
-          </p>
+          <p className="py-8 text-center text-[13px] text-[#8f7b6c]">{d.modo === "demo" ? "Loja de demonstração. Nenhum pedido é enviado." : "Loja de demonstração: os pedidos aparecem no painel em tempo real."}</p>
         </main>
       </div>
 
@@ -675,17 +671,11 @@ export function Loja() {
           <div className="mx-auto flex h-full max-w-[480px] flex-col bg-[#fffaf2]">
             <div className="flex items-center gap-3 border-b border-[#eadccb] px-4 py-4">
               {etapa !== "acompanhar" && etapa !== "pix" && (
-                <button
-                  aria-label="Voltar"
-                  onClick={() => setEtapa(etapa === "sacola" ? null : etapa === "entrega" ? "sacola" : modo === "entrega" ? "entrega" : "sacola")}
-                  className="rounded-full p-2 hover:bg-[#f3e8d8]"
-                >
+                <button aria-label="Voltar" onClick={() => setEtapa(etapa === "sacola" ? null : etapa === "entrega" ? "sacola" : modo === "entrega" ? "entrega" : "sacola")} className="rounded-full p-2 hover:bg-[#f3e8d8]">
                   <ArrowLeft className="h-5 w-5" />
                 </button>
               )}
-              <h2 className="font-display text-[22px] font-extrabold">
-                {{ sacola: "Sua sacola", entrega: "Onde vamos entregar?", pagamento: "Seus dados e pagamento", pix: "Pague com Pix", acompanhar: "Acompanhe seu pedido" }[etapa]}
-              </h2>
+              <h2 className="font-display text-[22px] font-extrabold">{{ sacola: "Sua sacola", entrega: "Onde vamos entregar?", pagamento: "Seus dados e pagamento", pix: "Pague com Pix", acompanhar: "Acompanhe seu pedido" }[etapa]}</h2>
             </div>
 
             <div className="scroll-thin flex-1 overflow-y-auto p-4">
@@ -774,20 +764,20 @@ export function Loja() {
                     {!geo ? (
                       <div className="grid h-[260px] place-items-center text-[14px] text-[#5a4c41]">Carregando o mapa…</div>
                     ) : (
-                    <geo.GeoMap
-                      width={440}
-                      height={340}
-                      padding={10}
-                      fitTo={fitEntrega}
-                      layers={mapaLayers}
-                      pins={[
-                        { coord: LOJA.coord, kind: "loja" },
-                        { coord: ponto, kind: "cliente" },
-                      ]}
-                      onPointClick={(c) => setPonto(c)}
-                      className="h-auto w-full cursor-crosshair"
-                      ariaLabel="Mapa para marcar o ponto de entrega"
-                    />
+                      <geo.GeoMap
+                        width={440}
+                        height={340}
+                        padding={10}
+                        fitTo={fitEntrega}
+                        layers={mapaLayers}
+                        pins={[
+                          { coord: LOJA.coord, kind: "loja" },
+                          { coord: ponto, kind: "cliente" },
+                        ]}
+                        onPointClick={(c) => setPonto(c)}
+                        className="h-auto w-full cursor-crosshair"
+                        ariaLabel="Mapa para marcar o ponto de entrega"
+                      />
                     )}
                   </div>
                   <div className={`mt-3 rounded-2xl p-3 text-[14px] ${atende ? "bg-[#e3f5e9] text-[#1e6b42]" : "bg-[#fde7e4] text-[#9b2c1f]"}`} aria-live="polite">
@@ -847,9 +837,7 @@ export function Loja() {
                     <label className={`flex items-center justify-between rounded-2xl border border-[#eadccb] p-4 ${podeCashback ? "" : "opacity-60"}`}>
                       <span>
                         <span className="block font-semibold">Usar cashback</span>
-                        <span className="text-[13px] text-[#5a4c41]">
-                          {podeCashback ? `Você tem ${brl(saldo)} de saldo` : `Você tem ${brl(saldo)}. Use em pedidos a partir de ${brl(LOJA.cashback_minimo_uso ?? 0)}`}
-                        </span>
+                        <span className="text-[13px] text-[#5a4c41]">{podeCashback ? `Você tem ${brl(saldo)} de saldo` : `Você tem ${brl(saldo)}. Use em pedidos a partir de ${brl(LOJA.cashback_minimo_uso ?? 0)}`}</span>
                       </span>
                       <input type="checkbox" disabled={!podeCashback} checked={podeCashback && cashback} onChange={() => setCashback(!cashback)} className="h-5 w-5 accent-[#c2410c]" />
                     </label>
@@ -895,23 +883,23 @@ export function Loja() {
                     [
                       ["pix", "Pix", "Pague agora pelo app do banco", <Wallet key="w" className="h-5 w-5" />],
                       ["maquininha", modo === "entrega" ? "Cartão na entrega" : "Cartão na retirada", "Crédito ou débito na maquininha", <CreditCard key="c" className="h-5 w-5" />],
-                      ["dinheiro", "Dinheiro", modo === "entrega" ? "Pague ao receber" : "Pague ao retirar", <Bike key="b" className="h-5 w-5" />],
+                      ["dinheiro", modo === "entrega" ? "Dinheiro ou Pix na entrega" : "Dinheiro ou Pix na retirada", modo === "entrega" ? "Pague ao receber, do jeito que preferir" : "Pague ao retirar, do jeito que preferir", <Bike key="b" className="h-5 w-5" />],
                     ] as const
                   )
                     .filter(([v]) => (v === "pix" ? pixPronto && LOJA.aceita_pix !== false : v === "maquininha" ? LOJA.aceita_cartao !== false : LOJA.aceita_dinheiro !== false))
                     .map(([v, t, ds, i]) => (
-                    <label key={v} className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 ${pag === v ? "border-carvao bg-white" : "border-[#eadccb]"}`}>
-                      <span className="text-brasa-escura">{i}</span>
-                      <span className="flex-1">
-                        <span className="block font-semibold">{t}</span>
-                        <span className="text-[13px] text-[#5a4c41]">{ds}</span>
-                      </span>
-                      <input type="radio" name="pag" checked={pag === v} onChange={() => setPag(v)} className="h-5 w-5 accent-[#c2410c]" />
-                    </label>
-                  ))}
+                      <label key={v} className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 ${pag === v ? "border-carvao bg-white" : "border-[#eadccb]"}`}>
+                        <span className="text-brasa-escura">{i}</span>
+                        <span className="flex-1">
+                          <span className="block font-semibold">{t}</span>
+                          <span className="text-[13px] text-[#5a4c41]">{ds}</span>
+                        </span>
+                        <input type="radio" name="pag" checked={pag === v} onChange={() => setPag(v)} className="h-5 w-5 accent-[#c2410c]" />
+                      </label>
+                    ))}
                   {pag === "dinheiro" && (
                     <label className="block text-[13px] font-semibold">
-                      Troco para quanto? <span className="font-normal text-[#5a4c41]">(deixe vazio se não precisar)</span>
+                      Se for em dinheiro, troco para quanto? <span className="font-normal text-[#5a4c41]">(deixe vazio se for no Pix ou não precisar)</span>
                       <input value={troco} onChange={(e) => setTroco(e.target.value)} inputMode="decimal" placeholder="Ex.: 100" className="mt-1 w-full rounded-xl border border-[#eadccb] bg-white px-3 py-3 text-[15px] font-normal" />
                     </label>
                   )}
@@ -950,7 +938,13 @@ export function Loja() {
                     {copiado ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copiado ? "Código copiado" : "Copiar código Pix"}
                   </button>
                   <div className={`mt-6 w-full rounded-2xl p-4 text-[15px] font-semibold ${pago ? "bg-[#e3f5e9] text-[#1e6b42]" : "bg-[#f3e8d8] text-[#5a4c41]"}`} aria-live="polite">
-                    {pago ? "Pagamento confirmado. Seu pedido já foi para a cozinha." : pixOnline?.copia_cola ? "Assim que o banco confirmar, esta tela atualiza sozinha. O Pix vale por 30 minutos." : codigoDoPix ? "Depois de pagar, a loja confere e confirma aqui. Pode deixar esta tela aberta." : "Aguardando o pagamento…"}
+                    {pago
+                      ? "Pagamento confirmado. Seu pedido já foi para a cozinha."
+                      : pixOnline?.copia_cola
+                        ? "Assim que o banco confirmar, esta tela atualiza sozinha. O Pix vale por 30 minutos."
+                        : codigoDoPix
+                          ? "Depois de pagar, a loja confere e confirma aqui. Pode deixar esta tela aberta."
+                          : "Aguardando o pagamento…"}
                   </div>
                   {codigoDoPix && !pago && (
                     <button onClick={() => setEtapa("acompanhar")} className="mt-3 text-[14px] font-semibold text-brasa-escura underline-offset-4 hover:underline">
@@ -975,30 +969,20 @@ export function Loja() {
                 <div>
                   <div className="rounded-2xl bg-carvao p-5 text-papel">
                     <p className="text-[13px] text-areia">Pedido #{pedido?.numero}</p>
-                    <p className="font-display text-[26px] font-extrabold leading-tight">
-                      {passo >= 4 ? "Entregue. Bom apetite!" : passo === 3 ? "Saiu para entrega" : passo === 2 ? "Na chapa agora" : "Recebemos seu pedido"}
-                    </p>
+                    <p className="font-display text-[26px] font-extrabold leading-tight">{passo >= 4 ? "Entregue. Bom apetite!" : passo === 3 ? "Saiu para entrega" : passo === 2 ? "Na chapa agora" : "Recebemos seu pedido"}</p>
                     <p className="mt-1 text-[14px] text-areia">Previsão: {pedido ? `${pedido.tempo_min + extra}–${pedido.tempo_max + extra} min` : tempo}</p>
                   </div>
                   <ol className="mt-5 space-y-4">
                     {["Pedido recebido", "Em preparo", modo === "entrega" ? "Saiu para entrega" : "Pronto para retirar", "Entregue"].map((t, i) => (
                       <li key={t} className="flex items-center gap-3">
-                        <span className={`flex h-8 w-8 items-center justify-center rounded-full text-[14px] font-bold ${i + 1 <= passo ? "bg-brasa text-carvao" : "bg-[#f3e8d8] text-[#8f7b6c]"}`}>
-                          {i + 1 < passo ? <Check className="h-4 w-4" /> : i + 1}
-                        </span>
+                        <span className={`flex h-8 w-8 items-center justify-center rounded-full text-[14px] font-bold ${i + 1 <= passo ? "bg-brasa text-carvao" : "bg-[#f3e8d8] text-[#8f7b6c]"}`}>{i + 1 < passo ? <Check className="h-4 w-4" /> : i + 1}</span>
                         <span className={i + 1 <= passo ? "font-semibold" : "text-[#8f7b6c]"}>{t}</span>
                       </li>
                     ))}
                   </ol>
-                  <p className="mt-6 rounded-2xl bg-[#e3f5e9] p-4 text-[14px] text-[#1e6b42]">
-                    {d.modo === "real" ? "Esta tela atualiza sozinha. Se fechar, é só abrir a loja de novo para voltar ao seu pedido." : "Esta tela atualiza sozinha quando a cozinha muda o status no painel."}
-                  </p>
+                  <p className="mt-6 rounded-2xl bg-[#e3f5e9] p-4 text-[14px] text-[#1e6b42]">{d.modo === "real" ? "Esta tela atualiza sozinha. Se fechar, é só abrir a loja de novo para voltar ao seu pedido." : "Esta tela atualiza sozinha quando a cozinha muda o status no painel."}</p>
                   {avisosSuportados() && passo < 4 && (
-                    <button
-                      disabled={avisosOk}
-                      onClick={async () => setAvisosOk((await pedirAvisos()) === "granted")}
-                      className={`mt-3 flex w-full items-center justify-center gap-2 rounded-full border py-3 text-[14px] font-semibold ${avisosOk ? "border-[#bfe3cc] text-[#1e6b42]" : "border-carvao"}`}
-                    >
+                    <button disabled={avisosOk} onClick={async () => setAvisosOk((await pedirAvisos()) === "granted")} className={`mt-3 flex w-full items-center justify-center gap-2 rounded-full border py-3 text-[14px] font-semibold ${avisosOk ? "border-[#bfe3cc] text-[#1e6b42]" : "border-carvao"}`}>
                       <Bell className="h-4 w-4" /> {avisosOk ? "Você vai receber um aviso a cada etapa" : "Me avisar no celular a cada etapa"}
                     </button>
                   )}
@@ -1042,7 +1026,9 @@ export function Loja() {
                   </div>
                 </dl>
                 {etapa === "sacola" && itens.length > 0 && sub < minimoLoja && (
-                  <p className="mt-2 text-[13px] font-semibold text-[#b42318]">Pedido mínimo da loja: {brl(minimoLoja)}. Faltam {brl(minimoLoja - sub)}.</p>
+                  <p className="mt-2 text-[13px] font-semibold text-[#b42318]">
+                    Pedido mínimo da loja: {brl(minimoLoja)}. Faltam {brl(minimoLoja - sub)}.
+                  </p>
                 )}
                 <button
                   disabled={itens.length === 0 || enviando}

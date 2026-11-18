@@ -9,20 +9,34 @@ import { EnderecoLoja, type Endereco as End } from "../admin/EnderecoLoja";
 import { useDados } from "../../data/dados";
 import { codigoPix, normalizarChave, tipoChave } from "../../lib/pix";
 import { brl } from "../../data/mock";
+import { ImpressoraConfig } from "./Impressora";
+import { usePref } from "../../data/prefs";
 import { Aparencia, MaquininhaIntegrada, NotaFiscal, OpcaoRelatorios, PagamentoOnline, WhatsAppOficial } from "./ConfigIntegracoes";
 
 const campo = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
+
+function SecaoImpressora() {
+  const [auto, setAuto] = usePref("pedidos-imprimir", false);
+  return (
+    <section className="mt-6 rounded-3xl border border-linha bg-forno p-6">
+      <h2 className="font-display text-[22px] font-extrabold">Impressora</h2>
+      <ImpressoraConfig auto={auto} setAuto={setAuto} />
+    </section>
+  );
+}
 
 /** Configurações da loja, feitas pelo próprio dono. */
 export function Configuracoes() {
   const d = useDados();
   if (d.modo === "real" && !d.loja.id) return <p className="text-areia">Abrindo as configurações…</p>;
   const dono = d.papel === "dono" || d.modo === "demo";
-  const secoes = SECOES.filter((x) => dono || !x.soDono);
+  // caixa e cozinha entram aqui só para ajustar a impressora do computador deles
+  const soImpressora = d.modo === "real" && (d.papel === "caixa" || d.papel === "cozinha");
+  const secoes = soImpressora ? SECOES.filter((x) => x.id === "impressora") : SECOES.filter((x) => dono || !x.soDono);
   return <ConfigPorSecao secoes={secoes} lojaId={d.loja.id ?? ""} />;
 }
 
-type IdSecao = "loja" | "horarios" | "pedidos" | "pagamentos" | "fidelidade" | "salao" | "avisos" | "extras" | "equipe" | "conta";
+type IdSecao = "loja" | "horarios" | "pedidos" | "pagamentos" | "fidelidade" | "salao" | "impressora" | "avisos" | "extras" | "equipe" | "conta";
 const SECOES: { id: IdSecao; rotulo: string; soDono?: boolean }[] = [
   { id: "loja", rotulo: "Loja" },
   { id: "horarios", rotulo: "Horários" },
@@ -30,6 +44,7 @@ const SECOES: { id: IdSecao; rotulo: string; soDono?: boolean }[] = [
   { id: "pagamentos", rotulo: "Pagamentos" },
   { id: "fidelidade", rotulo: "Fidelidade" },
   { id: "salao", rotulo: "Salão" },
+  { id: "impressora", rotulo: "Impressora" },
   { id: "avisos", rotulo: "App e avisos" },
   { id: "extras", rotulo: "Recursos extras" },
   { id: "equipe", rotulo: "Equipe", soDono: true },
@@ -95,6 +110,7 @@ function ConfigPorSecao({ secoes, lojaId }: { secoes: typeof SECOES; lojaId: str
             <NotaFiscal key={k("nf")} />
           </>
         )}
+        {sec === "impressora" && <SecaoImpressora />}
         {sec === "equipe" && <Equipe key={k("eq")} />}
         {sec === "conta" && (
           <>
@@ -478,7 +494,7 @@ function Regras() {
       <div className="mt-2 grid gap-2 text-[14px] sm:grid-cols-3">
         {chave("aceita_pix", "Pix pelo site", semChave ? 'Cadastre a chave em "Pix da loja" abaixo' : "Cai direto na sua conta")}
         {chave("aceita_cartao", "Cartão na entrega", "Maquininha na entrega ou retirada")}
-        {chave("aceita_dinheiro", "Dinheiro", "O cliente informa o troco")}
+        {chave("aceita_dinheiro", "Dinheiro ou Pix na entrega", "O cliente paga ao receber; se for em dinheiro, informa o troco")}
       </div>
       <div className="mt-4 grid gap-3 text-[14px] sm:grid-cols-2">
         <label className="block font-semibold">
