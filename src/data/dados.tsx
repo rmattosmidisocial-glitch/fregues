@@ -85,6 +85,10 @@ export type Loja = typeof M.LOJA & {
   couvert_padrao?: number;
   org_id?: string;
   relatorios_ativo?: boolean;
+  /** dois cardápios (ex.: dia e noite), um no ar por vez */
+  cardapios_duplos?: boolean;
+  cardapio_ativo?: 1 | 2;
+  cardapio_nomes?: string[];
   pagamento_online?: boolean;
   pagamento_online_ok?: boolean;
   whatsapp_ativo?: boolean;
@@ -214,7 +218,13 @@ type Dados = {
   loja: Loja;
   zonas: Zona[];
   cardapio: Produto[];
+  /** cardápio e categorias que estão no ar (com dois cardápios, só os do ativo) */
   categorias: string[];
+  /** todos os produtos e categorias, dos dois cardápios (para editar) */
+  cardapioTodo: Produto[];
+  categoriasTodas: string[];
+  /** a qual cardápio cada categoria pertence: 1, 2 ou 0 (os dois) */
+  catCardapio: Record<string, 0 | 1 | 2>;
   fregueses: Freguês[];
   pedidos: Pedido[];
   pulso: Pulso;
@@ -232,6 +242,9 @@ type Dados = {
           | "maquininha_provedor"
           | "maquininha_aparelhos"
           | "cor_marca"
+          | "cardapios_duplos"
+          | "cardapio_ativo"
+          | "cardapio_nomes"
           | "relatorios_ativo"
           | "pagamento_online"
           | "pagamento_online_ok"
@@ -309,7 +322,9 @@ type Dados = {
     toggleEsgotado: (id: string) => Promise<void>;
     /** Cria ou edita um produto (com complementos). Devolve a mensagem de erro, ou null. */
     salvarProduto: (p: ProdutoEdit, opcoes?: { semRecarregar?: boolean }) => Promise<string | null>;
-    criarCategoria: (nome: string) => Promise<string | null>;
+    criarCategoria: (nome: string, cardapio?: 0 | 1 | 2) => Promise<string | null>;
+    /** passa a categoria para o cardápio 1, 2 ou os dois (0) */
+    cardapioDaCategoria: (nome: string, cardapio: 0 | 1 | 2) => Promise<string | null>;
     excluirProduto: (id: string) => Promise<string | null>;
     enviarFoto: (arquivo: File) => Promise<{ url?: string; erro?: string }>;
     renomearCategoria: (antigo: string, novo: string) => Promise<string | null>;
@@ -433,6 +448,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   const [zonas, setZonas] = useState<Zona[]>(() => (REAL ? [] : M.ZONAS).map((z) => ({ ...z, bairros: [...z.bairros] })));
   const [cardapio, setCardapio] = useState<Produto[]>(REAL ? [] : M.CARDAPIO);
   const [categorias, setCategorias] = useState<string[]>(REAL ? [] : M.CATEGORIAS);
+  const [catCardapio, setCatCardapio] = useState<Record<string, 0 | 1 | 2>>({});
   const [fregueses, setFregueses] = useState<Freguês[]>(REAL ? [] : M.FREGUESES);
   const [pedidos, setPedidos] = useState<Pedido[]>(REAL ? [] : M.PEDIDOS);
   const [pulso, setPulso] = useState<Pulso>(REAL ? PULSO_VAZIO : pulsoDemo);
@@ -445,7 +461,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     const { data: s, error } = await supabase
       .from("stores")
       .select(
-        "id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem,cashback_ativo,cashback_percentual,cashback_minimo_uso,cashback_validade_dias,servico_padrao,couvert_padrao,org_id,relatorios_ativo,pagamento_online,pagamento_online_ok,whatsapp_ativo,whatsapp_ok,whatsapp_eventos,nfce_ativo,nfce_ok,nfce_automatica,nfce_cnpj,nfce_producao,nfce_ncm,cor_marca,maquininha_ativo,maquininha_provedor,maquininha_aparelhos",
+        "id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem,cashback_ativo,cashback_percentual,cashback_minimo_uso,cashback_validade_dias,servico_padrao,couvert_padrao,org_id,relatorios_ativo,cardapios_duplos,cardapio_ativo,cardapio_nomes,pagamento_online,pagamento_online_ok,whatsapp_ativo,whatsapp_ok,whatsapp_eventos,nfce_ativo,nfce_ok,nfce_automatica,nfce_cnpj,nfce_producao,nfce_ncm,cor_marca,maquininha_ativo,maquininha_provedor,maquininha_aparelhos",
       )
       .eq("slug", SLUG)
       .single();
@@ -473,7 +489,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       supabase.from("delivery_zones").select("*").eq("store_id", s.id).order("ordem"),
       supabase.from("zone_bairros").select("zone_id, bairro_id, taxa, cor").eq("store_id", s.id),
       supabase.from("zone_municipios").select("zone_id, municipio_cod").eq("store_id", s.id),
-      supabase.from("categories").select("id,nome,ordem").eq("store_id", s.id).order("ordem"),
+      supabase.from("categories").select("id,nome,ordem,cardapio").eq("store_id", s.id).order("ordem"),
       supabase.from("products").select("id,nome,descricao,preco,preco_promo,foto_url,arte,tags,esgotado,mais_pedido,ordem,categories(nome),option_groups(id,nome,min,max,ordem,options(id,nome,preco,ordem))").eq("store_id", s.id).order("ordem"),
     ]);
     setZonas(
@@ -493,6 +509,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       })),
     );
     setCategorias((cats ?? []).map((c) => c.nome));
+    setCatCardapio(Object.fromEntries((cats ?? []).map((c) => [c.nome, (c.cardapio === 2 ? 2 : c.cardapio === 0 ? 0 : 1) as 0 | 1 | 2])));
     setCardapio(
       (prods ?? []).map((p) => ({
         id: p.id,
@@ -958,13 +975,20 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         );
         if (supabase) await supabase.from("products").update({ esgotado: novo }).eq("id", id);
       },
-      async criarCategoria(nome) {
+      async criarCategoria(nome, qual = 1) {
         const n = nome.trim();
         if (!n) return "Dê um nome à categoria";
         if (categorias.some((c) => c.toLowerCase() === n.toLowerCase())) return "Já existe uma categoria com esse nome";
         setCategorias((cs) => [...cs, n]);
+        setCatCardapio((m) => ({ ...m, [n]: qual }));
         if (!supabase || !loja.id) return null;
-        const { error } = await supabase.from("categories").insert({ store_id: loja.id, nome: n, ordem: categorias.length });
+        const { error } = await supabase.from("categories").insert({ store_id: loja.id, nome: n, ordem: categorias.length, cardapio: qual });
+        return error ? error.message : null;
+      },
+      async cardapioDaCategoria(nome, qual) {
+        setCatCardapio((m) => ({ ...m, [nome]: qual }));
+        if (!supabase || !loja.id) return null;
+        const { error } = await supabase.from("categories").update({ cardapio: qual }).eq("store_id", loja.id).eq("nome", nome);
         return error ? error.message : null;
       },
       async salvarProduto(p, opcoes) {
@@ -1031,6 +1055,10 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         if (!n) return "Dê um nome à categoria";
         if (n !== antigo && categorias.some((c) => c.toLowerCase() === n.toLowerCase())) return "Já existe uma categoria com esse nome";
         setCategorias((cs) => cs.map((c) => (c === antigo ? n : c)));
+        setCatCardapio((m) => {
+          const { [antigo]: q, ...resto } = m;
+          return q ? { ...resto, [n]: q } : resto;
+        });
         setCardapio((l) => l.map((p) => (p.cat === antigo ? { ...p, cat: n } : p)));
         if (!supabase || !loja.id) return null;
         const { error } = await supabase.from("categories").update({ nome: n }).eq("store_id", loja.id).eq("nome", antigo);
@@ -1222,6 +1250,11 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     return { ...loja, aberto, horario, extra_min: extra };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loja, minuto]);
-  const valor: Dados = { modo: MODO, carregando, erro, sessao, semAcesso, papel, plano, loja: lojaAgora, zonas, cardapio, categorias, fregueses, pedidos, pulso, semana, demanda, acoes };
+  // com dois cardápios, a loja, o salão e o caixa só enxergam o que está no ar
+  const duplo = !!lojaAgora.cardapios_duplos;
+  const ativo = lojaAgora.cardapio_ativo === 2 ? 2 : 1;
+  const categoriasVis = useMemo(() => (duplo ? categorias.filter((c) => [0, ativo].includes(catCardapio[c] ?? 1)) : categorias), [duplo, ativo, categorias, catCardapio]);
+  const cardapioVis = useMemo(() => (duplo ? cardapio.filter((p) => categoriasVis.includes(p.cat)) : cardapio), [duplo, cardapio, categoriasVis]);
+  const valor: Dados = { modo: MODO, carregando, erro, sessao, semAcesso, papel, plano, loja: lojaAgora, zonas, cardapio: cardapioVis, categorias: categoriasVis, cardapioTodo: cardapio, categoriasTodas: categorias, catCardapio, fregueses, pedidos, pulso, semana, demanda, acoes };
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
 }

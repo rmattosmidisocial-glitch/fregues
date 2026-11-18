@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Camera, Copy, FolderCog, ImageUp, Plus, Search, Trash2, X } from "lucide-react";
+import { createContext, useContext, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, Camera, Copy, FolderCog, ImageUp, Moon, Plus, Search, Sun, Trash2, X } from "lucide-react";
 import { brl, type Grupo, type Produto } from "../../data/mock";
 import { supabase, useDados, type ProdutoEdit } from "../../data/dados";
 import { Foto } from "../../components/Foto";
@@ -14,13 +14,19 @@ const lerPreco = (s: string) => {
   return Math.round(Number(norm) * 100) / 100;
 };
 
+/** Com dois cardápios: qual deles o dono está vendo e editando agora (não é o que está no ar). */
+const Visto = createContext<{ duplo: boolean; visto: 1 | 2 }>({ duplo: false, visto: 1 });
 const campo = "w-full rounded-xl border border-linha bg-carvao/0 px-3 py-2.5 text-[15px] outline-none focus:border-brasa";
 const rotulo = "mb-1 block text-[13px] font-semibold text-areia";
 
 export function Cardapio() {
   const d = useDados();
-  const itens = d.cardapio;
-  const CATEGORIAS = d.categorias;
+  const duplo = !!d.loja.cardapios_duplos;
+  const noAr: 1 | 2 = d.loja.cardapio_ativo === 2 ? 2 : 1;
+  const [vistoEscolhido, setVisto] = useState<1 | 2 | null>(null);
+  const visto: 1 | 2 = duplo ? (vistoEscolhido ?? noAr) : 1;
+  const CATEGORIAS = duplo ? d.categoriasTodas.filter((c) => [0, visto].includes(d.catCardapio[c] ?? 1)) : d.categoriasTodas;
+  const itens = duplo ? d.cardapioTodo.filter((p) => CATEGORIAS.includes(p.cat)) : d.cardapioTodo;
   const [busca, setBusca] = useState("");
   const [editando, setEditando] = useState<Produto | "novo" | null>(null);
   const [catNova, setCatNova] = useState<string | undefined>();
@@ -33,124 +39,198 @@ export function Cardapio() {
   const esgotados = itens.filter((p) => p.esgotado).length;
 
   return (
-    <div>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Cardápio</h1>
-          <p className="text-[15px] text-areia">
-            {itens.length} produtos em {CATEGORIAS.length} categorias{esgotados ? ` · ${esgotados} esgotado${esgotados > 1 ? "s" : ""}` : ""}. Vale para loja online, mesa (QR) e caixa.
-          </p>
+    <Visto.Provider value={{ duplo, visto }}>
+      <div>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Cardápio</h1>
+            <p className="text-[15px] text-areia">
+              {itens.length} produtos em {CATEGORIAS.length} categorias{esgotados ? ` · ${esgotados} esgotado${esgotados > 1 ? "s" : ""}` : ""}. Vale para loja online, mesa (QR) e caixa.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                setCatNova(undefined);
+                setEditando("novo");
+              }}
+              className="flex items-center gap-2 rounded-full bg-brasa px-4 py-2.5 text-[14px] font-semibold text-carvao hover:bg-mostarda"
+            >
+              <Plus className="h-4 w-4" /> Novo produto
+            </button>
+            <button onClick={() => setGerirCats(true)} className="flex items-center gap-2 rounded-full border border-linha px-4 py-2.5 text-[14px] font-semibold hover:bg-grafite">
+              <FolderCog className="h-4 w-4" /> Categorias
+            </button>
+            <button onClick={() => setImportar(true)} className="flex items-center gap-2 rounded-full border border-linha px-4 py-2.5 text-[14px] font-semibold hover:bg-grafite">
+              <ImageUp className="h-4 w-4" /> Importar cardápio
+            </button>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => {
-              setCatNova(undefined);
-              setEditando("novo");
-            }}
-            className="flex items-center gap-2 rounded-full bg-brasa px-4 py-2.5 text-[14px] font-semibold text-carvao hover:bg-mostarda"
-          >
-            <Plus className="h-4 w-4" /> Novo produto
-          </button>
-          <button onClick={() => setGerirCats(true)} className="flex items-center gap-2 rounded-full border border-linha px-4 py-2.5 text-[14px] font-semibold hover:bg-grafite">
-            <FolderCog className="h-4 w-4" /> Categorias
-          </button>
-          <button onClick={() => setImportar(true)} className="flex items-center gap-2 rounded-full border border-linha px-4 py-2.5 text-[14px] font-semibold hover:bg-grafite">
-            <ImageUp className="h-4 w-4" /> Importar cardápio
-          </button>
-        </div>
-      </div>
 
-      <label className="mt-6 flex max-w-[420px] items-center gap-2 rounded-full border border-linha bg-forno px-4 py-2.5">
-        <Search className="h-4 w-4 text-areia" />
-        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar produto" aria-label="Buscar produto" className="w-full bg-transparent text-[15px] outline-none" />
-      </label>
+        <DoisCardapios visto={visto} setVisto={setVisto} avisar={show} />
 
-      {itens.length === 0 && (
-        <div className="mt-8 rounded-3xl border-2 border-dashed border-linha p-8 text-center">
-          <p className="font-display text-[22px] font-bold">Seu cardápio está vazio</p>
-          <p className="mt-1 text-[15px] text-areia">Mande a foto ou o PDF do seu cardápio em “Importar cardápio” e a gente monta tudo para você conferir.</p>
-        </div>
-      )}
+        <label className="mt-6 flex max-w-[420px] items-center gap-2 rounded-full border border-linha bg-forno px-4 py-2.5">
+          <Search className="h-4 w-4 text-areia" />
+          <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar produto" aria-label="Buscar produto" className="w-full bg-transparent text-[15px] outline-none" />
+        </label>
 
-      {CATEGORIAS.map((cat) => {
-        const daCat = visiveis.filter((p) => p.cat === cat);
-        if (q && daCat.length === 0) return null;
-        return (
-          <section key={cat} className="mt-8">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="font-display text-[22px] font-bold">
-                {cat} <span className="text-[15px] font-semibold text-fumo">{daCat.length}</span>
-              </h2>
-              <button
-                onClick={() => {
-                  setCatNova(cat);
-                  setEditando("novo");
-                }}
-                className="flex items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-semibold text-areia hover:bg-grafite hover:text-papel"
-              >
-                <Plus className="h-4 w-4" /> Adicionar aqui
-              </button>
-            </div>
-            {daCat.length === 0 && <p className="mt-2 text-[14px] text-fumo">Nenhum produto nesta categoria ainda.</p>}
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {daCat.map((p) => (
-                <article key={p.id} className={`flex gap-4 rounded-2xl border border-linha bg-forno p-3 ${p.esgotado ? "opacity-60" : ""}`}>
-                  <button onClick={() => setEditando(p)} aria-label={`Editar ${p.nome}`} className="shrink-0">
-                    <Foto nome={p.nome} arte={p.arte} url={p.foto} className="h-20 w-20 rounded-xl" />
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <button onClick={() => setEditando(p)} className="block w-full text-left">
-                      <p className="flex items-center gap-2 font-semibold">
-                        <span className="truncate">{p.nome}</span>
-                        {p.maisPedido && <span className="shrink-0 rounded-full bg-mostarda/30 px-2 py-0.5 text-[11px] font-semibold">Mais pedido</span>}
-                      </p>
-                      <p className="line-clamp-2 text-[13px] text-areia">{p.desc || "Sem descrição"}</p>
+        {itens.length === 0 && (
+          <div className="mt-8 rounded-3xl border-2 border-dashed border-linha p-8 text-center">
+            <p className="font-display text-[22px] font-bold">Seu cardápio está vazio</p>
+            <p className="mt-1 text-[15px] text-areia">Mande a foto ou o PDF do seu cardápio em “Importar cardápio” e a gente monta tudo para você conferir.</p>
+          </div>
+        )}
+
+        {CATEGORIAS.map((cat) => {
+          const daCat = visiveis.filter((p) => p.cat === cat);
+          if (q && daCat.length === 0) return null;
+          return (
+            <section key={cat} className="mt-8">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-display text-[22px] font-bold">
+                  {cat} <span className="text-[15px] font-semibold text-fumo">{daCat.length}</span>
+                </h2>
+                <button
+                  onClick={() => {
+                    setCatNova(cat);
+                    setEditando("novo");
+                  }}
+                  className="flex items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-semibold text-areia hover:bg-grafite hover:text-papel"
+                >
+                  <Plus className="h-4 w-4" /> Adicionar aqui
+                </button>
+              </div>
+              {daCat.length === 0 && <p className="mt-2 text-[14px] text-fumo">Nenhum produto nesta categoria ainda.</p>}
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {daCat.map((p) => (
+                  <article key={p.id} className={`flex gap-4 rounded-2xl border border-linha bg-forno p-3 ${p.esgotado ? "opacity-60" : ""}`}>
+                    <button onClick={() => setEditando(p)} aria-label={`Editar ${p.nome}`} className="shrink-0">
+                      <Foto nome={p.nome} arte={p.arte} url={p.foto} className="h-20 w-20 rounded-xl" />
                     </button>
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="tabular text-[15px] font-semibold">
-                        {p.promo ? (
-                          <>
-                            {brl(p.promo)} <s className="text-[12px] text-fumo">{brl(p.preco)}</s>
-                          </>
-                        ) : (
-                          brl(p.preco)
-                        )}
-                      </span>
-                      <label className="flex cursor-pointer items-center gap-2 text-[12px] text-areia">
-                        {p.esgotado ? "Esgotado" : "À venda"}
-                        <input
-                          type="checkbox"
-                          className="peer sr-only"
-                          checked={!p.esgotado}
-                          onChange={() => {
-                            d.acoes.toggleEsgotado(p.id);
-                            show(p.esgotado ? `${p.nome} voltou para a loja` : `${p.nome} marcado como esgotado`);
-                          }}
-                        />
-                        <span className={`relative h-5 w-9 rounded-full transition ${p.esgotado ? "bg-linha" : "bg-manjericao"} peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-mostarda`}>
-                          <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${p.esgotado ? "left-0.5" : "left-[18px]"}`} />
+                    <div className="min-w-0 flex-1">
+                      <button onClick={() => setEditando(p)} className="block w-full text-left">
+                        <p className="flex items-center gap-2 font-semibold">
+                          <span className="truncate">{p.nome}</span>
+                          {p.maisPedido && <span className="shrink-0 rounded-full bg-mostarda/30 px-2 py-0.5 text-[11px] font-semibold">Mais pedido</span>}
+                        </p>
+                        <p className="line-clamp-2 text-[13px] text-areia">{p.desc || "Sem descrição"}</p>
+                      </button>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="tabular text-[15px] font-semibold">
+                          {p.promo ? (
+                            <>
+                              {brl(p.promo)} <s className="text-[12px] text-fumo">{brl(p.preco)}</s>
+                            </>
+                          ) : (
+                            brl(p.preco)
+                          )}
                         </span>
-                      </label>
+                        <label className="flex cursor-pointer items-center gap-2 text-[12px] text-areia">
+                          {p.esgotado ? "Esgotado" : "À venda"}
+                          <input
+                            type="checkbox"
+                            className="peer sr-only"
+                            checked={!p.esgotado}
+                            onChange={() => {
+                              d.acoes.toggleEsgotado(p.id);
+                              show(p.esgotado ? `${p.nome} voltou para a loja` : `${p.nome} marcado como esgotado`);
+                            }}
+                          />
+                          <span className={`relative h-5 w-9 rounded-full transition ${p.esgotado ? "bg-linha" : "bg-manjericao"} peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-mostarda`}>
+                            <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${p.esgotado ? "left-0.5" : "left-[18px]"}`} />
+                          </span>
+                        </label>
+                      </div>
                     </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        );
-      })}
+                  </article>
+                ))}
+              </div>
+            </section>
+          );
+        })}
 
-      {editando && (
-        <EditorProduto
-          produto={editando === "novo" ? undefined : editando}
-          categoriaInicial={catNova}
-          fechar={() => setEditando(null)}
-          avisar={show}
-        />
-      )}
-      {gerirCats && <GerirCategorias fechar={() => setGerirCats(false)} avisar={show} />}
-      {importar && <ColarLista fechar={() => setImportar(false)} avisar={show} />}
-      <Toast />
+        {editando && <EditorProduto produto={editando === "novo" ? undefined : editando} categoriaInicial={catNova} fechar={() => setEditando(null)} avisar={show} />}
+        {gerirCats && <GerirCategorias fechar={() => setGerirCats(false)} avisar={show} />}
+        {importar && <ColarLista fechar={() => setImportar(false)} avisar={show} />}
+        <Toast />
+      </div>
+    </Visto.Provider>
+  );
+}
+
+/** Dois cardápios: liga a opção, dá nome a cada um, escolhe qual está no ar e qual está editando. */
+function DoisCardapios({ visto, setVisto, avisar }: { visto: 1 | 2; setVisto: (v: 1 | 2) => void; avisar: (t: string) => void }) {
+  const d = useDados();
+  const duplo = !!d.loja.cardapios_duplos;
+  const noAr: 1 | 2 = d.loja.cardapio_ativo === 2 ? 2 : 1;
+  const nomes = d.loja.cardapio_nomes?.length === 2 ? d.loja.cardapio_nomes : ["Dia", "Noite"];
+  const icone = (n: 1 | 2) => (n === 1 ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />);
+  const qtd = (n: 1 | 2) => d.cardapioTodo.filter((p) => [0, n].includes(d.catCardapio[p.cat] ?? 1)).length;
+  const salvar = async (c: Parameters<typeof d.acoes.salvarLoja>[0], msg?: string) => {
+    const e = await d.acoes.salvarLoja(c);
+    if (e) avisar(e);
+    else if (msg) avisar(msg);
+  };
+  if (!duplo)
+    return (
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-linha p-4">
+        <p className="text-[14px] text-areia">
+          <b className="text-papel">Funciona de um jeito de dia e de outro à noite?</b> Use dois cardápios (ex.: restaurante no almoço, hamburgueria à noite) e escolha qual fica no ar.
+        </p>
+        <button onClick={() => salvar({ cardapios_duplos: true, cardapio_ativo: 1, cardapio_nomes: nomes }, "Dois cardápios ligados. Tudo o que já existe ficou no primeiro.")} className="rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:border-areia">
+          Usar dois cardápios
+        </button>
+      </div>
+    );
+  return (
+    <div className="mt-5 rounded-3xl border border-linha bg-forno p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="font-display text-[18px] font-bold">No ar agora na loja, no salão e no caixa</p>
+        <button onClick={() => salvar({ cardapios_duplos: false }, "Voltou a ser um cardápio só, com todas as categorias.")} className="text-[13px] font-semibold text-areia underline-offset-4 hover:underline">
+          Voltar a um cardápio só
+        </button>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {([1, 2] as const).map((n) => (
+          <button
+            key={n}
+            onClick={() => n !== noAr && salvar({ cardapio_ativo: n }, `Cardápio ${nomes[n - 1]} no ar`)}
+            aria-pressed={n === noAr}
+            className={`flex items-center justify-between gap-3 rounded-2xl border-2 p-4 text-left transition ${n === noAr ? "border-manjericao bg-[#e4f3ea] text-[#1b6149]" : "border-linha hover:border-areia"}`}
+          >
+            <span className="flex items-center gap-2 font-display text-[18px] font-extrabold">
+              {icone(n)} {nomes[n - 1]}
+            </span>
+            <span className="text-[13px] font-semibold">{n === noAr ? "No ar" : "Ligar este"}</span>
+          </button>
+        ))}
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-linha pt-4 text-[14px]">
+        <span className="text-areia">Editando:</span>
+        {([1, 2] as const).map((n) => (
+          <button key={n} onClick={() => setVisto(n)} aria-pressed={n === visto} className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 font-semibold ${n === visto ? "bg-papel text-carvao" : "border border-linha text-areia hover:text-papel"}`}>
+            {icone(n)} {nomes[n - 1]} <span className="opacity-70">({qtd(n)})</span>
+          </button>
+        ))}
+        <label className="ml-auto flex items-center gap-2 text-areia">
+          Nome
+          <input
+            key={`${visto}-${nomes[visto - 1]}`}
+            defaultValue={nomes[visto - 1]}
+            maxLength={20}
+            aria-label="Nome deste cardápio"
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (!v || v === nomes[visto - 1]) return;
+              const nn = [...nomes];
+              nn[visto - 1] = v;
+              salvar({ cardapio_nomes: nn }, "Nome salvo");
+            }}
+            className="w-32 rounded-lg border border-linha bg-carvao px-2 py-1 text-papel"
+          />
+        </label>
+      </div>
+      <p className="mt-2 text-[12px] text-areia">Cada categoria é de um cardápio ou dos dois (ex.: Bebidas). Para mudar, use o botão Categorias.</p>
     </div>
   );
 }
@@ -158,13 +238,7 @@ export function Cardapio() {
 function Janela({ titulo, fechar, children, largura = 620 }: { titulo: string; fechar: () => void; children: React.ReactNode; largura?: number }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4" onClick={fechar}>
-      <div
-        role="dialog"
-        aria-label={titulo}
-        className="flex max-h-[94vh] w-full flex-col rounded-t-3xl border border-linha bg-forno sm:rounded-3xl"
-        style={{ maxWidth: largura }}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div role="dialog" aria-label={titulo} className="flex max-h-[94vh] w-full flex-col rounded-t-3xl border border-linha bg-forno sm:rounded-3xl" style={{ maxWidth: largura }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-linha px-6 py-4">
           <h2 className="font-display text-[22px] font-extrabold">{titulo}</h2>
           <button onClick={fechar} aria-label="Fechar" className="rounded-full p-2 hover:bg-grafite">
@@ -182,7 +256,8 @@ const grupoParaForm = (g: Grupo): GrupoForm => ({ nome: g.nome, obrigatorio: g.m
 
 function EditorProduto({ produto, categoriaInicial, fechar, avisar }: { produto?: Produto; categoriaInicial?: string; fechar: () => void; avisar: (t: string) => void }) {
   const d = useDados();
-  const cats = d.categorias;
+  const { duplo, visto } = useContext(Visto);
+  const cats = duplo ? d.categoriasTodas.filter((c) => [0, visto].includes(d.catCardapio[c] ?? 1)) : d.categoriasTodas;
   const [nome, setNome] = useState(produto?.nome ?? "");
   const [desc, setDesc] = useState(produto?.desc ?? "");
   const [cat, setCat] = useState(produto?.cat ?? categoriaInicial ?? cats[0] ?? "");
@@ -201,11 +276,10 @@ function EditorProduto({ produto, categoriaInicial, fechar, avisar }: { produto?
   const [confirmarExcluir, setConfirmarExcluir] = useState(false);
   const arquivo = useRef<HTMLInputElement>(null);
 
-  const comGrupos = useMemo(() => d.cardapio.filter((p) => p.id !== produto?.id && (p.grupos?.length ?? 0) > 0), [d.cardapio, produto?.id]);
+  const comGrupos = useMemo(() => d.cardapioTodo.filter((p) => p.id !== produto?.id && (p.grupos?.length ?? 0) > 0), [d.cardapioTodo, produto?.id]);
 
   const mudarGrupo = (i: number, g: Partial<GrupoForm>) => setGrupos((l) => l.map((x, j) => (j === i ? { ...x, ...g } : x)));
-  const mudarItem = (gi: number, ii: number, it: Partial<{ nome: string; preco: string }>) =>
-    setGrupos((l) => l.map((x, j) => (j === gi ? { ...x, itens: x.itens.map((o, k) => (k === ii ? { ...o, ...it } : o)) } : x)));
+  const mudarItem = (gi: number, ii: number, it: Partial<{ nome: string; preco: string }>) => setGrupos((l) => l.map((x, j) => (j === gi ? { ...x, itens: x.itens.map((o, k) => (k === ii ? { ...o, ...it } : o)) } : x)));
 
   async function escolherFoto(f?: File) {
     if (!f) return;
@@ -247,7 +321,9 @@ function EditorProduto({ produto, categoriaInicial, fechar, avisar }: { produto?
       }),
     };
     setSalvando(true);
+    const nova = !d.categoriasTodas.some((c) => c.toLowerCase() === categoria.toLowerCase());
     const e = await d.acoes.salvarProduto(p);
+    if (!e && nova && duplo) await d.acoes.cardapioDaCategoria(categoria, visto);
     setSalvando(false);
     if (e) return setErro(e);
     avisar(produto ? `${nome.trim()} atualizado` : `${nome.trim()} adicionado ao cardápio`);
@@ -266,13 +342,7 @@ function EditorProduto({ produto, categoriaInicial, fechar, avisar }: { produto?
     <Janela titulo={produto ? "Editar produto" : "Novo produto"} fechar={fechar}>
       <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
         <div className="flex gap-4">
-          <div className="shrink-0">
-            {foto ? (
-              <img src={foto} alt="" className="h-28 w-28 rounded-2xl object-cover" />
-            ) : (
-              <Foto nome={nome || "?"} arte={produto && !produto.foto ? produto.arte : "sem"} className="h-28 w-28 rounded-2xl" />
-            )}
-          </div>
+          <div className="shrink-0">{foto ? <img src={foto} alt="" className="h-28 w-28 rounded-2xl object-cover" /> : <Foto nome={nome || "?"} arte={produto && !produto.foto ? produto.arte : "sem"} className="h-28 w-28 rounded-2xl" />}</div>
           <div className="flex flex-col justify-center gap-2">
             <input ref={arquivo} type="file" accept="image/*" className="hidden" onChange={(e) => escolherFoto(e.target.files?.[0])} />
             <button onClick={() => arquivo.current?.click()} disabled={enviandoFoto} className="flex items-center gap-2 rounded-full border border-linha px-4 py-2 text-[14px] font-semibold hover:bg-grafite disabled:opacity-60">
@@ -288,16 +358,22 @@ function EditorProduto({ produto, categoriaInicial, fechar, avisar }: { produto?
         </div>
 
         <div>
-          <label className={rotulo} htmlFor="p-nome">Nome</label>
+          <label className={rotulo} htmlFor="p-nome">
+            Nome
+          </label>
           <input id="p-nome" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: X-Bacon Duplo" className={campo} />
         </div>
         <div>
-          <label className={rotulo} htmlFor="p-desc">Descrição</label>
+          <label className={rotulo} htmlFor="p-desc">
+            Descrição
+          </label>
           <textarea id="p-desc" value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} placeholder="O que vai no prato. É isso que convence o cliente." className={campo} />
         </div>
 
         <div>
-          <label className={rotulo} htmlFor="p-cat">Categoria</label>
+          <label className={rotulo} htmlFor="p-cat">
+            Categoria
+          </label>
           {criandoCat ? (
             <div className="flex gap-2">
               <input id="p-cat" autoFocus value={catNovaTxt} onChange={(e) => setCatNovaTxt(e.target.value)} placeholder="Ex.: Pizzas, Bebidas, Pratos do dia" className={campo} />
@@ -331,7 +407,9 @@ function EditorProduto({ produto, categoriaInicial, fechar, avisar }: { produto?
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={rotulo} htmlFor="p-preco">Preço (R$)</label>
+            <label className={rotulo} htmlFor="p-preco">
+              Preço (R$)
+            </label>
             <input id="p-preco" inputMode="decimal" value={preco} onChange={(e) => setPreco(e.target.value)} placeholder="29,90" className={`${campo} tabular`} />
           </div>
           <div>
@@ -467,15 +545,17 @@ function EditorProduto({ produto, categoriaInicial, fechar, avisar }: { produto?
 
 function GerirCategorias({ fechar, avisar }: { fechar: () => void; avisar: (t: string) => void }) {
   const d = useDados();
+  const { duplo, visto } = useContext(Visto);
+  const nomesCard = d.loja.cardapio_nomes?.length === 2 ? d.loja.cardapio_nomes : ["Dia", "Noite"];
   const [nova, setNova] = useState("");
   const [erro, setErro] = useState<string | null>(null);
-  const contagem = (c: string) => d.cardapio.filter((p) => p.cat === c).length;
+  const contagem = (c: string) => d.cardapioTodo.filter((p) => p.cat === c).length;
 
   return (
     <Janela titulo="Categorias" fechar={fechar} largura={520}>
       <div className="flex-1 space-y-2 overflow-y-auto px-6 py-5">
         <p className="text-[14px] text-areia">A ordem aqui é a ordem que o cliente vê na loja. Toque no nome para renomear.</p>
-        {d.categorias.map((c, i) => (
+        {d.categoriasTodas.map((c, i) => (
           <div key={c} className="flex items-center gap-2 rounded-xl bg-grafite px-3 py-2">
             <input
               aria-label={`Nome da categoria ${c}`}
@@ -492,10 +572,27 @@ function GerirCategorias({ fechar, avisar }: { fechar: () => void; avisar: (t: s
               className="min-w-0 flex-1 bg-transparent py-1 text-[15px] font-semibold outline-none focus:underline"
             />
             <span className="text-[12px] text-fumo">{contagem(c)} itens</span>
+            {duplo && (
+              <select
+                value={d.catCardapio[c] ?? 1}
+                onChange={async (e) => {
+                  const n = Number(e.target.value) as 0 | 1 | 2;
+                  const r = await d.acoes.cardapioDaCategoria(c, n);
+                  if (r) setErro(r);
+                  else avisar(n === 0 ? `${c} aparece nos dois cardápios` : `${c} agora é do cardápio ${nomesCard[n - 1]}`);
+                }}
+                aria-label={`Cardápio da categoria ${c}`}
+                className="rounded-lg border border-linha bg-carvao px-1.5 py-1 text-[12px]"
+              >
+                <option value={1}>{nomesCard[0]}</option>
+                <option value={2}>{nomesCard[1]}</option>
+                <option value={0}>Os dois</option>
+              </select>
+            )}
             <button onClick={() => d.acoes.moverCategoria(c, -1)} disabled={i === 0} aria-label={`Subir ${c}`} className="rounded-lg p-1.5 hover:bg-forno disabled:opacity-30">
               <ArrowUp className="h-4 w-4" />
             </button>
-            <button onClick={() => d.acoes.moverCategoria(c, 1)} disabled={i === d.categorias.length - 1} aria-label={`Descer ${c}`} className="rounded-lg p-1.5 hover:bg-forno disabled:opacity-30">
+            <button onClick={() => d.acoes.moverCategoria(c, 1)} disabled={i === d.categoriasTodas.length - 1} aria-label={`Descer ${c}`} className="rounded-lg p-1.5 hover:bg-forno disabled:opacity-30">
               <ArrowDown className="h-4 w-4" />
             </button>
             <button
@@ -516,7 +613,7 @@ function GerirCategorias({ fechar, avisar }: { fechar: () => void; avisar: (t: s
           className="flex gap-2 pt-2"
           onSubmit={async (e) => {
             e.preventDefault();
-            const r = await d.acoes.criarCategoria(nova);
+            const r = await d.acoes.criarCategoria(nova, duplo ? visto : 1);
             if (r) setErro(r);
             else {
               avisar(`Categoria ${nova.trim()} criada`);
@@ -540,12 +637,18 @@ export function lerLista(texto: string): Linha[] {
   const out: Linha[] = [];
   let cat = "Cardápio";
   for (const bruta of texto.split(/\r?\n/)) {
-    const l = bruta.replace(/[•·*_]/g, " ").replace(/\s+/g, " ").trim();
+    const l = bruta
+      .replace(/[•·*_]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
     if (!l) continue;
     const m = l.match(/^(.*?)[\s\-–—:.|]*(?:R\$\s*)?(\d{1,4}(?:[.,]\d{2})?)\s*(?:reais)?$/i);
     if (m && m[1].trim().length >= 2) {
       const partes = m[1].split(/\s[-–—|]\s|\s*:\s+/);
-      const nome = partes[0].trim().replace(/[-–—:]+$/, "").trim();
+      const nome = partes[0]
+        .trim()
+        .replace(/[-–—:]+$/, "")
+        .trim();
       const desc = partes.slice(1).join(" - ").trim();
       out.push({ cat, nome, desc, preco: lerPreco(m[2]) });
     } else {
@@ -554,7 +657,6 @@ export function lerLista(texto: string): Linha[] {
   }
   return out;
 }
-
 
 // ---------------- Importar cardápio (arquivo com IA, CSV ou texto colado) ----------------
 
@@ -596,7 +698,7 @@ function lerCSV(texto: string): Previa[] {
     .slice(1)
     .map(cel)
     .filter((c) => c[iNome])
-    .map((c) => ({ cat: (iCat >= 0 && c[iCat]) || "Cardápio", nome: c[iNome], desc: iDesc >= 0 ? c[iDesc] ?? "" : "", preco: c[iPreco] ?? "", grupos: [], incluir: true }));
+    .map((c) => ({ cat: (iCat >= 0 && c[iCat]) || "Cardápio", nome: c[iNome], desc: iDesc >= 0 ? (c[iDesc] ?? "") : "", preco: c[iPreco] ?? "", grupos: [], incluir: true }));
 }
 
 async function imagemBase64(f: File): Promise<{ tipo: string; base64: string }> {
@@ -634,17 +736,63 @@ const EXEMPLO_DEMO: RespostaIA = {
     {
       nome: "Pizzas",
       produtos: [
-        { nome: "Margherita", descricao: "Molho de tomate, mussarela e manjericão", preco: 42.9, complementos: [{ nome: "Tamanho", obrigatorio: true, max: 1, opcoes: [{ nome: "Média", preco: 0 }, { nome: "Grande", preco: 12 }] }, { nome: "Borda", obrigatorio: false, max: 1, opcoes: [{ nome: "Catupiry", preco: 8 }, { nome: "Cheddar", preco: 8 }] }] },
-        { nome: "Calabresa", descricao: "Calabresa fatiada e cebola", preco: 44.9, complementos: [{ nome: "Tamanho", obrigatorio: true, max: 1, opcoes: [{ nome: "Média", preco: 0 }, { nome: "Grande", preco: 12 }] }] },
+        {
+          nome: "Margherita",
+          descricao: "Molho de tomate, mussarela e manjericão",
+          preco: 42.9,
+          complementos: [
+            {
+              nome: "Tamanho",
+              obrigatorio: true,
+              max: 1,
+              opcoes: [
+                { nome: "Média", preco: 0 },
+                { nome: "Grande", preco: 12 },
+              ],
+            },
+            {
+              nome: "Borda",
+              obrigatorio: false,
+              max: 1,
+              opcoes: [
+                { nome: "Catupiry", preco: 8 },
+                { nome: "Cheddar", preco: 8 },
+              ],
+            },
+          ],
+        },
+        {
+          nome: "Calabresa",
+          descricao: "Calabresa fatiada e cebola",
+          preco: 44.9,
+          complementos: [
+            {
+              nome: "Tamanho",
+              obrigatorio: true,
+              max: 1,
+              opcoes: [
+                { nome: "Média", preco: 0 },
+                { nome: "Grande", preco: 12 },
+              ],
+            },
+          ],
+        },
       ],
     },
-    { nome: "Bebidas", produtos: [{ nome: "Guaraná 2L", descricao: "", preco: 14, complementos: [] }, { nome: "Água sem gás", descricao: "", preco: null, complementos: [] }] },
+    {
+      nome: "Bebidas",
+      produtos: [
+        { nome: "Guaraná 2L", descricao: "", preco: 14, complementos: [] },
+        { nome: "Água sem gás", descricao: "", preco: null, complementos: [] },
+      ],
+    },
   ],
   avisos: ["Não consegui ler o preço da Água sem gás. Confira."],
 };
 
 function ColarLista({ fechar, avisar }: { fechar: () => void; avisar: (t: string) => void }) {
   const d = useDados();
+  const { duplo, visto } = useContext(Visto);
   const [aba, setAba] = useState<"arquivo" | "texto">("arquivo");
   const [texto, setTexto] = useState("");
   const [previa, setPrevia] = useState<Previa[] | null>(null);
@@ -721,15 +869,14 @@ function ColarLista({ fechar, avisar }: { fechar: () => void; avisar: (t: string
     if (ruins.length) return setErro(`Confira ${ruins.length === 1 ? `“${ruins[0].nome || "sem nome"}”` : `${ruins.length} produtos`}: falta nome ou preço. Corrija ou desmarque.`);
     setIndo(0);
     let falhas = 0;
+    const antes = new Set(d.categoriasTodas.map((c) => c.toLowerCase()));
     for (let i = 0; i < escolhidos.length; i++) {
       const p = escolhidos[i];
-      const e = await d.acoes.salvarProduto(
-        { categoria: p.cat.trim() || "Cardápio", nome: p.nome, descricao: p.desc, preco: lerPreco(p.preco), maisPedido: false, esgotado: false, grupos: p.grupos },
-        { semRecarregar: i < escolhidos.length - 1 },
-      );
+      const e = await d.acoes.salvarProduto({ categoria: p.cat.trim() || "Cardápio", nome: p.nome, descricao: p.desc, preco: lerPreco(p.preco), maisPedido: false, esgotado: false, grupos: p.grupos }, { semRecarregar: i < escolhidos.length - 1 });
       if (e) falhas++;
       setIndo(i + 1);
     }
+    if (duplo && visto === 2) for (const c of new Set(escolhidos.map((p) => p.cat.trim() || "Cardápio"))) if (!antes.has(c.toLowerCase())) await d.acoes.cardapioDaCategoria(c, 2);
     if (falhas) {
       await d.acoes.recarregar();
       setErro(`${escolhidos.length - falhas} cadastrados, ${falhas} não entraram (talvez já existam). Confira.`);
@@ -771,19 +918,16 @@ function ColarLista({ fechar, avisar }: { fechar: () => void; avisar: (t: string
                   <span className="font-semibold">{lendo ?? "Escolher foto, PDF ou planilha (CSV)"}</span>
                   <span className="px-6 text-[13px]">Pode mandar várias fotos de uma vez (uma por página). Foto de frente, com boa luz, lê melhor.</span>
                 </button>
-                {lendo && <div className="h-1.5 overflow-hidden rounded-full bg-grafite"><div className="h-full w-1/3 animate-[carregar_1.2s_ease-in-out_infinite] rounded-full bg-brasa" /></div>}
+                {lendo && (
+                  <div className="h-1.5 overflow-hidden rounded-full bg-grafite">
+                    <div className="h-full w-1/3 animate-[carregar_1.2s_ease-in-out_infinite] rounded-full bg-brasa" />
+                  </div>
+                )}
               </>
             ) : (
               <>
                 <p className="text-[14px] text-areia">Cole o cardápio em texto (WhatsApp, Word, iFood). Uma linha por produto com o preço no fim. Linha sem preço vira categoria.</p>
-                <textarea
-                  value={texto}
-                  onChange={(e) => setTexto(e.target.value)}
-                  rows={8}
-                  aria-label="Lista de produtos"
-                  placeholder={"Pizzas\nMargherita - molho, mussarela e manjericão - 49,90\nCalabresa 52,00\n\nBebidas\nCoca-Cola lata 7,00"}
-                  className={`${campo} font-mono text-[14px]`}
-                />
+                <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={8} aria-label="Lista de produtos" placeholder={"Pizzas\nMargherita - molho, mussarela e manjericão - 49,90\nCalabresa 52,00\n\nBebidas\nCoca-Cola lata 7,00"} className={`${campo} font-mono text-[14px]`} />
               </>
             )}
           </>
@@ -836,7 +980,12 @@ function ColarLista({ fechar, avisar }: { fechar: () => void; avisar: (t: string
                           {(p.desc || p.grupos.length > 0) && (
                             <p className="truncate text-[12px] text-areia">
                               {p.desc}
-                              {p.grupos.length > 0 && <span className="text-brasa">{p.desc ? " · " : ""}{p.grupos.map((g) => `${g.nome} (${g.itens.length})`).join(", ")}</span>}
+                              {p.grupos.length > 0 && (
+                                <span className="text-brasa">
+                                  {p.desc ? " · " : ""}
+                                  {p.grupos.map((g) => `${g.nome} (${g.itens.length})`).join(", ")}
+                                </span>
+                              )}
                             </p>
                           )}
                         </div>
