@@ -154,6 +154,11 @@ function Vender({ c }: { c: ReturnType<typeof useCaixa> }) {
           pago: true,
           forma: pagamentos.length === 1 ? pagamentos[0].forma : pagamentos[0]?.forma,
           criadoEm: new Date().toISOString(),
+          linhas: linhas.map((l) => ({ qtd: l.qtd, nome: l.nome, valor: l.preco * l.qtd, obs: l.obs })),
+          subtotal: linhas.reduce((a, l) => a + l.preco * l.qtd, 0),
+          desconto,
+          servico,
+          couvert,
         },
       });
   }

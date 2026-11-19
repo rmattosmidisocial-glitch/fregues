@@ -537,7 +537,13 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     const [{ data: cp, error: e1 }, { data: ps }, { data: ords }, { data: dem }] = await Promise.all([
       supabase.from("customer_lista").select("*").order("gasto", { ascending: false }).limit(2000),
       supabase.rpc("pulse_summary", { p_store: storeId }),
-      supabase.from("orders").select("id,numero,status,modo,mesa,total,pagamento,pago,motoboy,observacao,created_at,endereco,troco_para,customers(nome,telefone),order_items(nome,qtd,escolhas)").eq("store_id", storeId).gte("created_at", desde).order("created_at", { ascending: false }).limit(80),
+      supabase
+        .from("orders")
+        .select("id,numero,status,modo,mesa,total,subtotal,taxa_entrega,taxa_embalagem,desconto,servico,couvert,zone_id,pagamento,pago,motoboy,observacao,created_at,endereco,troco_para,customers(nome,telefone),order_items(nome,qtd,unit,escolhas,obs)")
+        .eq("store_id", storeId)
+        .gte("created_at", desde)
+        .order("created_at", { ascending: false })
+        .limit(80),
       supabase.rpc("demanda_fora", { p_store: storeId }),
     ]);
     if (e1) {
@@ -601,6 +607,20 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
           pago: o.pago,
           forma: o.pagamento,
           criadoEm: o.created_at,
+          linhas: ((o.order_items as unknown as { nome: string; qtd: number; unit: number; escolhas: unknown[]; obs: string | null }[]) ?? []).map((i) => ({
+            qtd: i.qtd,
+            nome: i.nome,
+            valor: Number(i.unit) * i.qtd,
+            escolhas: (i.escolhas ?? []).map((e) => (typeof e === "string" ? e : String((e as { nome?: string }).nome ?? ""))).filter(Boolean),
+            obs: i.obs,
+          })),
+          subtotal: Number(o.subtotal ?? 0),
+          taxaEntrega: Number(o.taxa_entrega ?? 0),
+          taxaEmbalagem: Number(o.taxa_embalagem ?? 0),
+          desconto: Number(o.desconto ?? 0),
+          servico: Number(o.servico ?? 0),
+          couvert: Number(o.couvert ?? 0),
+          zonaId: o.zone_id ?? null,
         })),
     );
     setDemanda(Object.fromEntries(((dem as { bairro_id: string; tentativas: number }[]) ?? []).filter((d) => d.bairro_id).map((d) => [d.bairro_id, Number(d.tentativas)])));
@@ -1250,11 +1270,22 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     return { ...loja, aberto, horario, extra_min: extra };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loja, minuto]);
+  // hora prevista de cada pedido: criado + tempo máximo da zona (ou 40 min sem zona) + tempo extra da loja
+  const pedidosComPrevisao = useMemo(
+    () =>
+      pedidos.map((p) => {
+        if (!p.criadoEm || (p.modo !== "Entrega" && p.modo !== "Retirada")) return p;
+        const z = zonas.find((x) => x.id === p.zonaId);
+        const min = (p.modo === "Entrega" ? (z?.tempo[1] ?? 40) : 20) + (lojaAgora.extra_min ?? 0);
+        return { ...p, previsao: new Date(new Date(p.criadoEm).getTime() + min * 60000).toISOString() };
+      }),
+    [pedidos, zonas, lojaAgora.extra_min],
+  );
   // com dois cardápios, a loja, o salão e o caixa só enxergam o que está no ar
   const duplo = !!lojaAgora.cardapios_duplos;
   const ativo = lojaAgora.cardapio_ativo === 2 ? 2 : 1;
   const categoriasVis = useMemo(() => (duplo ? categorias.filter((c) => [0, ativo].includes(catCardapio[c] ?? 1)) : categorias), [duplo, ativo, categorias, catCardapio]);
   const cardapioVis = useMemo(() => (duplo ? cardapio.filter((p) => categoriasVis.includes(p.cat)) : cardapio), [duplo, cardapio, categoriasVis]);
-  const valor: Dados = { modo: MODO, carregando, erro, sessao, semAcesso, papel, plano, loja: lojaAgora, zonas, cardapio: cardapioVis, categorias: categoriasVis, cardapioTodo: cardapio, categoriasTodas: categorias, catCardapio, fregueses, pedidos, pulso, semana, demanda, acoes };
+  const valor: Dados = { modo: MODO, carregando, erro, sessao, semAcesso, papel, plano, loja: lojaAgora, zonas, cardapio: cardapioVis, categorias: categoriasVis, cardapioTodo: cardapio, categoriasTodas: categorias, catCardapio, fregueses, pedidos: pedidosComPrevisao, pulso, semana, demanda, acoes };
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
 }

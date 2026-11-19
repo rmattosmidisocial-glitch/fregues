@@ -6,7 +6,7 @@ function rnd() {
   seed = (seed * 1664525 + 1013904223) % 4294967296;
   return seed / 4294967296;
 }
-const pick = <T,>(a: T[]) => a[Math.floor(rnd() * a.length)];
+const pick = <T>(a: T[]) => a[Math.floor(rnd() * a.length)];
 
 export const LOJA = {
   nome: "Brasa Burger",
@@ -73,7 +73,7 @@ const DEMANDA_NOMES: Record<string, number> = {
   Bonsucesso: 31,
   Pavuna: 23,
   Acari: 14,
-  "Méier": 12,
+  Méier: 12,
   Cachambi: 9,
   "Jardim Guanabara": 9,
   Inhaúma: 7,
@@ -158,7 +158,48 @@ export const CARDAPIO: Produto[] = [
 ];
 
 // ---------- Fregueses ----------
-const NOMES = ["Carlos", "Ana", "João", "Mariana", "Rafael", "Juliana", "Bruno", "Camila", "Diego", "Fernanda", "Thiago", "Larissa", "Rodrigo", "Patrícia", "Lucas", "Aline", "Felipe", "Bianca", "Gustavo", "Renata", "Marcelo", "Tatiane", "André", "Priscila", "Leandro", "Vanessa", "Wellington", "Jéssica", "Matheus", "Daniela", "Vinícius", "Gabriela", "Paulo", "Carolina", "Igor", "Natália", "Eduardo", "Luana", "Fábio", "Amanda"];
+const NOMES = [
+  "Carlos",
+  "Ana",
+  "João",
+  "Mariana",
+  "Rafael",
+  "Juliana",
+  "Bruno",
+  "Camila",
+  "Diego",
+  "Fernanda",
+  "Thiago",
+  "Larissa",
+  "Rodrigo",
+  "Patrícia",
+  "Lucas",
+  "Aline",
+  "Felipe",
+  "Bianca",
+  "Gustavo",
+  "Renata",
+  "Marcelo",
+  "Tatiane",
+  "André",
+  "Priscila",
+  "Leandro",
+  "Vanessa",
+  "Wellington",
+  "Jéssica",
+  "Matheus",
+  "Daniela",
+  "Vinícius",
+  "Gabriela",
+  "Paulo",
+  "Carolina",
+  "Igor",
+  "Natália",
+  "Eduardo",
+  "Luana",
+  "Fábio",
+  "Amanda",
+];
 const SOBRENOMES = ["Silva", "Santos", "Oliveira", "Souza", "Lima", "Pereira", "Costa", "Rodrigues", "Almeida", "Nascimento", "Carvalho", "Gomes", "Martins", "Araújo", "Ribeiro", "Barbosa", "Rocha", "Freitas", "Moreira", "Mendes"];
 
 export type Status = "ritmo" | "atrasado" | "sumindo";
@@ -283,6 +324,17 @@ export type Pedido = {
   criadoEm?: string;
   /** dinheiro: troco para quanto */
   troco?: number;
+  /** itens com valor (para a nota impressa) */
+  linhas?: { qtd: number; nome: string; valor: number; escolhas?: string[]; obs?: string | null }[];
+  subtotal?: number;
+  taxaEntrega?: number;
+  taxaEmbalagem?: number;
+  desconto?: number;
+  servico?: number;
+  couvert?: number;
+  zonaId?: string | null;
+  /** hora prevista de entrega ou retirada (ISO) */
+  previsao?: string;
 };
 
 export const PEDIDOS: Pedido[] = [

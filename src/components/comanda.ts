@@ -69,55 +69,94 @@ export const PEDIDO_TESTE: Pedido = {
   min: 0,
   nota: "Interfone 102. Troco não precisa.",
   endereco: { rua: "Rua Exemplo", numero: "100", complemento: "Apto 102", bairro: "Centro" },
+  linhas: [
+    { qtd: 2, nome: "X-Bacon", valor: 51.8, escolhas: ["Sem cebola"] },
+    { qtd: 1, nome: "Batata frita grande", valor: 14 },
+    { qtd: 2, nome: "Refrigerante lata", valor: 13 },
+  ],
+  subtotal: 78.8,
+  taxaEntrega: 5,
+  desconto: 4.9,
+  previsao: new Date(Date.now() + 40 * 60000).toISOString(),
 } as unknown as Pedido;
 
-const hora = (p: Pedido) => {
-  const q = p.criadoEm ? new Date(p.criadoEm) : new Date();
+// ---------- Layout da nota (modelo: cabeçalho, dados do cliente, itens em tabela, totais, cobrar, pagamento) ----------
+const dataHora = (iso?: string) => {
+  const q = iso ? new Date(iso) : new Date();
   return `${q.toLocaleDateString("pt-BR")} ${q.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
 };
-const modoTxt = (p: Pedido) => (p.modo === "Entrega" ? "ENTREGA" : p.modo.toUpperCase());
+const soHora = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+const tipoTxt = (p: Pedido) => (p.modo === "Entrega" ? "Entrega" : p.modo === "Retirada" ? "Retirada" : p.modo === "Balcão" ? "Balcão" : p.modo);
+const lin = (k: string, v: string) => `<div>${esc(k)}: ${esc(v)}</div>`;
+const par = (k: string, v: string, cls = "") => `<div class="par ${cls}"><span>${esc(k)}</span><span>${esc(v)}</span></div>`;
+const sep = `<hr>`;
 
-/** Via da cozinha: número e nome bem grandes para conferir, itens, observação. Sem preço, telefone ou endereço. */
+type LinhaNota = { qtd: string; nome: string; valor?: string; obs?: string | null; sub?: boolean };
+/** Itens com valor quando o pedido tem; senão lê as linhas de texto ("2x Nome", "+ adicional"). */
+function linhasNota(p: Pedido, comValor: boolean): LinhaNota[] {
+  if (p.linhas?.length) return p.linhas.flatMap((l) => [{ qtd: String(l.qtd), nome: l.nome.toUpperCase(), valor: comValor ? brl(l.valor) : undefined, obs: l.obs }, ...(l.escolhas ?? []).map((e) => ({ qtd: "--", nome: e.toUpperCase(), valor: comValor ? brl(0) : undefined, sub: true }))]);
+  return p.itens.map((t) => {
+    if (t.startsWith("+")) return { qtd: "--", nome: t.replace(/^\+\s*/, "").toUpperCase(), sub: true };
+    const m = t.match(/^(\d+)x\s+(.*)$/);
+    return m ? { qtd: m[1], nome: m[2].toUpperCase() } : { qtd: "", nome: t.toUpperCase() };
+  });
+}
+function tabelaItens(ls: LinhaNota[], comValor: boolean) {
+  return `<table class="itens"><tr class="cab"><td class="q">Qtd</td><td>Item</td>${comValor ? `<td class="v">Valor</td>` : ""}</tr>
+    ${ls.map((l) => `<tr class="${l.sub ? "sub" : "it"}"><td class="q">${esc(l.qtd)}</td><td>${esc(l.nome)}${l.obs ? `<div class="obs">OBS: ${esc(l.obs)}</div>` : ""}</td>${comValor ? `<td class="v">${esc(l.valor ?? "")}</td>` : ""}</tr>`).join("")}</table>`;
+}
+
+/** Via da cozinha: mesmo padrão da nota, só com o que a cozinha precisa (número, nome, tipo, hora, itens e observações). */
 function viaCozinha(p: Pedido) {
   return `<section class="via">
-    <div class="c tit">COZINHA</div><div class="c peq">${hora(p)}</div><hr>
-    <h1 class="c">#${p.num}</h1>
-    <div class="c nome">${esc(p.cliente)}</div>
-    <div class="c g">${esc(modoTxt(p))}</div><hr>
-    <ul>${p.itens.map((i) => `<li class="${i.startsWith("+") ? "ad" : "g"}">${esc(i)}</li>`).join("")}</ul>
-    ${p.nota ? `<hr><div class="g">OBS: ${esc(p.nota)}</div>` : ""}
-    <hr><div class="c">#${p.num} · ${esc(p.cliente)}</div>
+    <div class="titulo">COZINHA</div>
+    ${lin("Pedido", `#${p.num}`)}${lin("Data", dataHora(p.criadoEm))}${lin("Tipo", tipoTxt(p))}${p.previsao ? lin(p.modo === "Entrega" ? "Sair até" : "Pronto até", soHora(p.previsao)) : ""}
+    ${sep}<div class="sec">Cliente</div><div class="grande">${esc(p.cliente)}</div>
+    ${sep}<div class="sec">Itens do pedido</div>${tabelaItens(linhasNota(p, false), false)}
+    ${p.nota ? `${sep}<div class="sec">Observação</div><div class="forte">${esc(p.nota)}</div>` : ""}
+    ${sep}<div class="c forte">#${p.num} · ${esc(p.cliente)}</div>
   </section>`;
 }
 
-/** Via do caixa: tudo o que precisa para cobrar e entregar. */
+/** Via do caixa: a nota completa para cobrar e entregar. */
 function viaCaixa(p: Pedido, loja: string, cfg: ImpressoraCfg) {
+  const e = p.endereco;
+  const ls = linhasNota(p, true);
+  const subtotal = p.subtotal ?? p.linhas?.reduce((s, l) => s + l.valor, 0);
+  const troco = p.troco ? `Para ${brl(p.troco)} (levar ${brl(Math.max(0, p.troco - p.total))})` : p.forma === "dinheiro" && !p.pago ? "Não informado" : "";
   return `<section class="via">
-    <div class="c"><b>${esc(loja)}</b><br>${hora(p)}</div>
-    <div class="c tit">CAIXA</div><hr>
-    <h1 class="c">#${p.num}</h1><div class="c g">${esc(modoTxt(p))}</div><hr>
-    <div><b>${esc(p.cliente)}</b>${p.tel ? `<br>${esc(p.tel)}` : ""}</div>
-    ${p.modo === "Entrega" ? `<div>${esc(enderecoTxt(p))}</div>` : ""}<hr>
-    <ul>${p.itens.map((i) => `<li class="${i.startsWith("+") ? "" : "g"}">${esc(i)}</li>`).join("")}</ul>
-    ${p.nota ? `<hr><div class="g">OBS: ${esc(p.nota)}</div>` : ""}
-    <hr><div class="g">TOTAL ${esc(brl(p.total))}</div>
-    <div>${p.pago ? "PAGO" : "A RECEBER"}${p.forma ? ` · ${esc(NOME_FORMA[p.forma] ?? p.forma)}` : p.pago ? ` · ${esc(p.pag)}` : ""}</div>
-    ${p.troco ? `<div class="g">TROCO PARA ${esc(brl(p.troco))} (levar ${esc(brl(Math.max(0, p.troco - p.total)))})</div>` : ""}
-    ${p.motoboy ? `<div>Entregador: ${esc(p.motoboy)}</div>` : ""}
-    <hr>${cfg.rodape ? `<div class="c">${esc(cfg.rodape)}</div>` : ""}<div class="c peq">Freguês</div>
+    <div class="titulo">${esc(loja)}</div>
+    ${lin("Pedido", `#${p.num}`)}${lin("Data", dataHora(p.criadoEm))}${lin("Tipo", tipoTxt(p))}${p.previsao ? lin(p.modo === "Entrega" ? "Hora prevista de entrega" : "Hora prevista de retirada", soHora(p.previsao)) : ""}
+    ${sep}<div class="sec">Dados do Cliente</div>
+    ${lin("Nome", p.cliente)}${lin("Celular", p.tel || "Não informado")}
+    ${p.modo === "Entrega" ? lin("Endereço", [[e?.rua, e?.numero].filter(Boolean).join(", "), e?.bairro ?? p.bairro].filter(Boolean).join(", ") || p.bairro) + (e?.complemento ? lin("Complemento", e.complemento) : "") : ""}
+    ${p.motoboy ? lin("Entregador", p.motoboy) : ""}
+    ${sep}<div class="sec">Itens do pedido</div>${tabelaItens(ls, true)}
+    ${p.nota ? `<div class="obs">OBS: ${esc(p.nota)}</div>` : ""}
+    ${sep}${subtotal != null ? par("Subtotal", brl(subtotal)) : ""}${p.modo === "Entrega" ? par("Taxa de entrega", brl(p.taxaEntrega ?? 0)) : ""}${p.taxaEmbalagem ? par("Embalagem", brl(p.taxaEmbalagem)) : ""}${p.servico ? par("Serviço", brl(p.servico)) : ""}${p.couvert ? par("Couvert", brl(p.couvert)) : ""}${p.desconto != null ? par("Desconto", brl(p.desconto)) : ""}${troco ? par("Troco", troco) : ""}
+    ${sep}${par(p.pago ? "Total (já pago)" : "Cobrar do Cliente", brl(p.total), "total")}
+    ${sep}<div>Formas de pagamento</div><div class="forte">${esc((NOME_FORMA[p.forma ?? ""] ?? p.pag).toUpperCase())}${p.pago ? " · PAGO" : ""}</div>
+    ${cfg.rodape ? `${sep}<div class="c">${esc(cfg.rodape)}</div>` : ""}<div class="c peq">Freguês · usefregues.com.br</div>
   </section>`;
 }
 
 function estilo(cfg: ImpressoraCfg) {
   const larg = cfg.papel === 58 ? 48 : 72;
-  const base = cfg.letra === "grande" ? 15 : 13;
+  const base = cfg.letra === "grande" ? 14 : 12;
   return `<style>
     @page { size: ${cfg.papel}mm auto; margin: 0 }
-    body { width: ${larg}mm; margin: 0 auto; padding: 4mm 0; font: ${base}px/1.35 "Courier New", monospace; color: #000; background: #fff }
-    h1 { font-size: ${base + 14}px; margin: 2px 0 } .c { text-align: center } .g { font-size: ${base + 3}px; font-weight: bold }
-    .nome { font-size: ${base + 7}px; font-weight: bold; margin: 2px 0 4px } .ad { padding-left: 10px }
-    .tit { font-weight: bold; margin-top: 2px; letter-spacing: 2px } .peq { font-size: ${base - 2}px }
-    hr { border: 0; border-top: 1px dashed #000; margin: 6px 0 } ul { list-style: none; padding: 0; margin: 0 } li { margin: 2px 0 }
+    body { width: ${larg}mm; margin: 0 auto; padding: 4mm 0; font: ${base}px/1.4 "Courier New", monospace; color: #000; background: #fff }
+    .titulo { text-align: center; font-weight: bold; font-size: ${base + 8}px; margin: 0 0 8px; text-transform: none }
+    .sec { font-weight: bold; font-size: ${base + 4}px; margin-bottom: 4px }
+    .grande { font-weight: bold; font-size: ${base + 8}px } .forte { font-weight: bold; font-size: ${base + 2}px }
+    .c { text-align: center } .peq { font-size: ${base - 2}px; margin-top: 4px }
+    .par { display: flex; justify-content: space-between; gap: 8px } .par span:last-child { text-align: right }
+    .total { font-weight: bold; font-size: ${base + 6}px }
+    table.itens { width: 100%; border-collapse: collapse } table.itens td { vertical-align: top; padding: 2px 0 }
+    table.itens .q { width: 9mm } table.itens .v { text-align: right; white-space: nowrap; padding-left: 6px }
+    table.itens tr.it td { font-weight: bold } table.itens tr.cab td { font-weight: normal }
+    .obs { font-weight: bold; font-size: ${base}px; margin-top: 2px }
+    hr { border: 0; border-top: 1px dashed #000; margin: 8px 0 }
     .via + .via { page-break-before: always; break-before: page; margin-top: 10mm }
   </style>`;
 }
@@ -125,21 +164,20 @@ function estilo(cfg: ImpressoraCfg) {
 /** Itens que o salão mandou para a cozinha (garçom ou cliente pelo QR Code da mesa). */
 export type EnvioMesa = { mesa: number | string; cliente?: string | null; garcom?: string | null; qr?: boolean; quando?: string; itens: { qtd: number; nome: string; obs?: string | null }[] };
 
-/** Via da cozinha do salão: número da mesa e nome de quem pediu bem grandes, itens e observações. */
+/** Via da cozinha do salão, no mesmo padrão: mesa e nome de quem pediu em destaque, itens e observações. */
 export function htmlCozinhaMesa(e: EnvioMesa, cfg: ImpressoraCfg = lerImpressora()) {
-  const q = e.quando ? new Date(e.quando) : new Date();
   const quem = e.cliente || (e.garcom ? `Garçom ${e.garcom}` : e.qr ? "Pedido pelo QR Code" : "");
+  const ls: LinhaNota[] = e.itens.map((i) => ({ qtd: String(i.qtd), nome: i.nome.toUpperCase(), obs: i.obs }));
   return `<!doctype html><html><head><meta charset="utf-8"><title>Mesa ${e.mesa}</title>${estilo(cfg)}</head><body><section class="via">
-    <div class="c tit">COZINHA · SALÃO</div><div class="c peq">${q.toLocaleDateString("pt-BR")} ${q.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div><hr>
-    <h1 class="c">MESA ${esc(String(e.mesa))}</h1>
-    ${quem ? `<div class="c nome">${esc(quem)}</div>` : ""}
-    ${e.cliente && e.garcom ? `<div class="c">Garçom: ${esc(e.garcom)}</div>` : ""}${e.qr ? `<div class="c">Pedido pelo QR Code</div>` : ""}<hr>
-    <ul>${e.itens.map((i) => `<li class="g">${i.qtd}x ${esc(i.nome)}</li>${i.obs ? `<li class="ad">OBS: ${esc(i.obs)}</li>` : ""}`).join("")}</ul>
-    <hr><div class="c">Mesa ${esc(String(e.mesa))}${quem ? ` · ${esc(quem)}` : ""}</div>
+    <div class="titulo">COZINHA · SALÃO</div>
+    <div class="grande c">MESA ${esc(String(e.mesa))}</div>
+    ${lin("Data", dataHora(e.quando))}${e.garcom ? lin("Garçom", e.garcom) : ""}${e.qr ? lin("Origem", "QR Code da mesa") : ""}
+    ${sep}<div class="sec">Cliente</div><div class="grande">${esc(quem || "Não informado")}</div>
+    ${sep}<div class="sec">Itens do pedido</div>${tabelaItens(ls, false)}
+    ${sep}<div class="c forte">Mesa ${esc(String(e.mesa))}${quem ? ` · ${esc(quem)}` : ""}</div>
   </section></body></html>`;
 }
 
-/** Imprime a via da cozinha do salão, se este computador imprime a via da cozinha (ou se for pedido na mão). */
 export function imprimirCozinhaMesa(e: EnvioMesa, cfg: ImpressoraCfg = lerImpressora(), forcar = false) {
   if (forcar || viasDoComputador(cfg).includes("cozinha")) imprimirHtml(htmlCozinhaMesa(e, cfg));
 }
