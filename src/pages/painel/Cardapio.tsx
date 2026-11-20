@@ -4,6 +4,8 @@ import { brl, type Grupo, type Produto } from "../../data/mock";
 import { supabase, useDados, type ProdutoEdit } from "../../data/dados";
 import { Foto } from "../../components/Foto";
 import { useToast } from "../../components/ui";
+import { Custos, CmvSelo } from "./Custos";
+import { custoFicha, useCustos } from "../../data/custos";
 
 const precoTxt = (n?: number) => (n == null ? "" : n.toFixed(2).replace(".", ","));
 const lerPreco = (s: string) => {
@@ -33,6 +35,15 @@ export function Cardapio() {
   const [gerirCats, setGerirCats] = useState(false);
   const [importar, setImportar] = useState(false);
   const { show, Toast } = useToast();
+  const gestor = d.papel === "dono" || d.papel === "gerente";
+  const [vista, setVista] = useState<"produtos" | "custos">("produtos");
+  const custos = useCustos();
+  const cmvDe = (p: Produto) => {
+    if (!gestor) return null;
+    const c = custoFicha(custos.fichas[p.id], custos.insumos);
+    const v = p.promo ?? p.preco;
+    return c != null && v > 0 ? (c / v) * 100 : null;
+  };
 
   const q = busca.trim().toLowerCase();
   const visiveis = q ? itens.filter((p) => p.nome.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q)) : itens;
@@ -69,85 +80,105 @@ export function Cardapio() {
 
         <DoisCardapios visto={visto} setVisto={setVisto} avisar={show} />
 
-        <label className="mt-6 flex max-w-[420px] items-center gap-2 rounded-full border border-linha bg-forno px-4 py-2.5">
-          <Search className="h-4 w-4 text-areia" />
-          <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar produto" aria-label="Buscar produto" className="w-full bg-transparent text-[15px] outline-none" />
-        </label>
-
-        {itens.length === 0 && (
-          <div className="mt-8 rounded-3xl border-2 border-dashed border-linha p-8 text-center">
-            <p className="font-display text-[22px] font-bold">{duplo ? `O cardápio ${(d.loja.cardapio_nomes ?? ["Dia", "Noite"])[visto - 1]} está vazio` : "Seu cardápio está vazio"}</p>
-            <p className="mt-1 text-[15px] text-areia">Mande a foto ou o PDF do seu cardápio em “Importar cardápio” e a gente monta tudo para você conferir.</p>
+        {gestor && (
+          <div className="mt-6 inline-flex rounded-full bg-grafite p-1 text-[14px] font-semibold" role="tablist" aria-label="Ver">
+            {(["produtos", "custos"] as const).map((v) => (
+              <button key={v} role="tab" aria-selected={vista === v} onClick={() => setVista(v)} className={`rounded-full px-4 py-1.5 ${vista === v ? "bg-papel text-carvao" : "text-areia hover:text-papel"}`}>
+                {v === "produtos" ? "Produtos" : "Custos e CMV"}
+              </button>
+            ))}
           </div>
         )}
 
-        {CATEGORIAS.map((cat) => {
-          const daCat = visiveis.filter((p) => p.cat === cat);
-          if (q && daCat.length === 0) return null;
-          return (
-            <section key={cat} className="mt-8">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-display text-[22px] font-bold">
-                  {cat} <span className="text-[15px] font-semibold text-fumo">{daCat.length}</span>
-                </h2>
-                <button
-                  onClick={() => {
-                    setCatNova(cat);
-                    setEditando("novo");
-                  }}
-                  className="flex items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-semibold text-areia hover:bg-grafite hover:text-papel"
-                >
-                  <Plus className="h-4 w-4" /> Adicionar aqui
-                </button>
+        {vista === "custos" && gestor ? (
+          <Custos key={visto} produtos={itens} c={custos} avisar={show} />
+        ) : (
+          <>
+            <label className="mt-6 flex max-w-[420px] items-center gap-2 rounded-full border border-linha bg-forno px-4 py-2.5">
+              <Search className="h-4 w-4 text-areia" />
+              <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar produto" aria-label="Buscar produto" className="w-full bg-transparent text-[15px] outline-none" />
+            </label>
+
+            {itens.length === 0 && (
+              <div className="mt-8 rounded-3xl border-2 border-dashed border-linha p-8 text-center">
+                <p className="font-display text-[22px] font-bold">{duplo ? `O cardápio ${(d.loja.cardapio_nomes ?? ["Dia", "Noite"])[visto - 1]} está vazio` : "Seu cardápio está vazio"}</p>
+                <p className="mt-1 text-[15px] text-areia">Mande a foto ou o PDF do seu cardápio em “Importar cardápio” e a gente monta tudo para você conferir.</p>
               </div>
-              {daCat.length === 0 && <p className="mt-2 text-[14px] text-fumo">Nenhum produto nesta categoria ainda.</p>}
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {daCat.map((p) => (
-                  <article key={p.id} className={`flex gap-4 rounded-2xl border border-linha bg-forno p-3 ${p.esgotado ? "opacity-60" : ""}`}>
-                    <button onClick={() => setEditando(p)} aria-label={`Editar ${p.nome}`} className="shrink-0">
-                      <Foto nome={p.nome} arte={p.arte} url={p.foto} className="h-20 w-20 rounded-xl" />
+            )}
+
+            {CATEGORIAS.map((cat) => {
+              const daCat = visiveis.filter((p) => p.cat === cat);
+              if (q && daCat.length === 0) return null;
+              return (
+                <section key={cat} className="mt-8">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="font-display text-[22px] font-bold">
+                      {cat} <span className="text-[15px] font-semibold text-fumo">{daCat.length}</span>
+                    </h2>
+                    <button
+                      onClick={() => {
+                        setCatNova(cat);
+                        setEditando("novo");
+                      }}
+                      className="flex items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-semibold text-areia hover:bg-grafite hover:text-papel"
+                    >
+                      <Plus className="h-4 w-4" /> Adicionar aqui
                     </button>
-                    <div className="min-w-0 flex-1">
-                      <button onClick={() => setEditando(p)} className="block w-full text-left">
-                        <p className="flex items-center gap-2 font-semibold">
-                          <span className="truncate">{p.nome}</span>
-                          {p.maisPedido && <span className="shrink-0 rounded-full bg-mostarda/30 px-2 py-0.5 text-[11px] font-semibold">Mais pedido</span>}
-                        </p>
-                        <p className="line-clamp-2 text-[13px] text-areia">{p.desc || "Sem descrição"}</p>
-                      </button>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className="tabular text-[15px] font-semibold">
-                          {p.promo ? (
-                            <>
-                              {brl(p.promo)} <s className="text-[12px] text-fumo">{brl(p.preco)}</s>
-                            </>
-                          ) : (
-                            brl(p.preco)
-                          )}
-                        </span>
-                        <label className="flex cursor-pointer items-center gap-2 text-[12px] text-areia">
-                          {p.esgotado ? "Esgotado" : "À venda"}
-                          <input
-                            type="checkbox"
-                            className="peer sr-only"
-                            checked={!p.esgotado}
-                            onChange={() => {
-                              d.acoes.toggleEsgotado(p.id);
-                              show(p.esgotado ? `${p.nome} voltou para a loja` : `${p.nome} marcado como esgotado`);
-                            }}
-                          />
-                          <span className={`relative h-5 w-9 rounded-full transition ${p.esgotado ? "bg-linha" : "bg-manjericao"} peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-mostarda`}>
-                            <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${p.esgotado ? "left-0.5" : "left-[18px]"}`} />
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-          );
-        })}
+                  </div>
+                  {daCat.length === 0 && <p className="mt-2 text-[14px] text-fumo">Nenhum produto nesta categoria ainda.</p>}
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {daCat.map((p) => (
+                      <article key={p.id} className={`flex gap-4 rounded-2xl border border-linha bg-forno p-3 ${p.esgotado ? "opacity-60" : ""}`}>
+                        <button onClick={() => setEditando(p)} aria-label={`Editar ${p.nome}`} className="shrink-0">
+                          <Foto nome={p.nome} arte={p.arte} url={p.foto} className="h-20 w-20 rounded-xl" />
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <button onClick={() => setEditando(p)} className="block w-full text-left">
+                            <p className="flex items-center gap-2 font-semibold">
+                              <span className="truncate">{p.nome}</span>
+                              {p.maisPedido && <span className="shrink-0 rounded-full bg-mostarda/30 px-2 py-0.5 text-[11px] font-semibold">Mais pedido</span>}
+                              {(() => {
+                                const pct = cmvDe(p);
+                                return pct != null ? <CmvSelo pct={pct} /> : null;
+                              })()}
+                            </p>
+                            <p className="line-clamp-2 text-[13px] text-areia">{p.desc || "Sem descrição"}</p>
+                          </button>
+                          <div className="mt-2 flex items-center justify-between">
+                            <span className="tabular text-[15px] font-semibold">
+                              {p.promo ? (
+                                <>
+                                  {brl(p.promo)} <s className="text-[12px] text-fumo">{brl(p.preco)}</s>
+                                </>
+                              ) : (
+                                brl(p.preco)
+                              )}
+                            </span>
+                            <label className="flex cursor-pointer items-center gap-2 text-[12px] text-areia">
+                              {p.esgotado ? "Esgotado" : "À venda"}
+                              <input
+                                type="checkbox"
+                                className="peer sr-only"
+                                checked={!p.esgotado}
+                                onChange={() => {
+                                  d.acoes.toggleEsgotado(p.id);
+                                  show(p.esgotado ? `${p.nome} voltou para a loja` : `${p.nome} marcado como esgotado`);
+                                }}
+                              />
+                              <span className={`relative h-5 w-9 rounded-full transition ${p.esgotado ? "bg-linha" : "bg-manjericao"} peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-mostarda`}>
+                                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${p.esgotado ? "left-0.5" : "left-[18px]"}`} />
+                              </span>
+                            </label>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </>
+        )}
 
         {editando && <EditorProduto produto={editando === "novo" ? undefined : editando} categoriaInicial={catNova} fechar={() => setEditando(null)} avisar={show} />}
         {gerirCats && <GerirCategorias fechar={() => setGerirCats(false)} avisar={show} />}
