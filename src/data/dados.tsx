@@ -3,7 +3,7 @@ import { createClient, type Session, type SupabaseClient } from "@supabase/supab
 import * as M from "./mock";
 import type { Freguês, Pedido, Produto, StatusPedido, Zona } from "./mock";
 import { nomeBairro } from "./bairrosNomes";
-import { dentroDoHorario, textoHorario, type Horarios } from "../lib/horario";
+import { cardapioDoHorario, dentroDoHorario, textoHorario, type Horarios } from "../lib/horario";
 
 const URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -89,6 +89,9 @@ export type Loja = typeof M.LOJA & {
   cardapios_duplos?: boolean;
   cardapio_ativo?: 1 | 2;
   cardapio_nomes?: string[];
+  /** troca sozinho pelo horário: cardapio_horas = [início do 1, início do 2] */
+  cardapio_auto?: boolean;
+  cardapio_horas?: string[];
   pagamento_online?: boolean;
   pagamento_online_ok?: boolean;
   whatsapp_ativo?: boolean;
@@ -245,6 +248,8 @@ type Dados = {
           | "cardapios_duplos"
           | "cardapio_ativo"
           | "cardapio_nomes"
+          | "cardapio_auto"
+          | "cardapio_horas"
           | "relatorios_ativo"
           | "pagamento_online"
           | "pagamento_online_ok"
@@ -461,7 +466,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     const { data: s, error } = await supabase
       .from("stores")
       .select(
-        "id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem,cashback_ativo,cashback_percentual,cashback_minimo_uso,cashback_validade_dias,servico_padrao,couvert_padrao,org_id,relatorios_ativo,cardapios_duplos,cardapio_ativo,cardapio_nomes,pagamento_online,pagamento_online_ok,whatsapp_ativo,whatsapp_ok,whatsapp_eventos,nfce_ativo,nfce_ok,nfce_automatica,nfce_cnpj,nfce_producao,nfce_ncm,cor_marca,maquininha_ativo,maquininha_provedor,maquininha_aparelhos",
+        "id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem,cashback_ativo,cashback_percentual,cashback_minimo_uso,cashback_validade_dias,servico_padrao,couvert_padrao,org_id,relatorios_ativo,cardapios_duplos,cardapio_ativo,cardapio_nomes,cardapio_auto,cardapio_horas,pagamento_online,pagamento_online_ok,whatsapp_ativo,whatsapp_ok,whatsapp_eventos,nfce_ativo,nfce_ok,nfce_automatica,nfce_cnpj,nfce_producao,nfce_ncm,cor_marca,maquininha_ativo,maquininha_provedor,maquininha_aparelhos",
       )
       .eq("slug", SLUG)
       .single();
@@ -1262,12 +1267,13 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(t);
   }, []);
   const lojaAgora = useMemo(() => {
-    if (MODO === "demo" || loja.ligada === undefined) return loja;
+    const auto = loja.cardapios_duplos && loja.cardapio_auto ? { cardapio_ativo: cardapioDoHorario(loja.cardapio_horas) } : {};
+    if (MODO === "demo" || loja.ligada === undefined) return { ...loja, ...auto };
     const pausada = !!loja.pausa_ate && new Date(loja.pausa_ate).getTime() > Date.now();
     const aberto = !!loja.ligada && !pausada && dentroDoHorario(loja.horarios);
     const extra = loja.extra_ate && new Date(loja.extra_ate).getTime() > Date.now() ? (loja.extra_min ?? 0) : 0;
     const horario = pausada ? `Pausada até ${new Date(loja.pausa_ate!).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : textoHorario(loja.horarios) || loja.horario;
-    return { ...loja, aberto, horario, extra_min: extra };
+    return { ...loja, aberto, horario, extra_min: extra, ...auto };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loja, minuto]);
   // hora prevista de cada pedido: criado + tempo máximo da zona (ou 40 min sem zona) + tempo extra da loja
@@ -1283,7 +1289,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   );
   // com dois cardápios, a loja, o salão e o caixa só enxergam o que está no ar
   const duplo = !!lojaAgora.cardapios_duplos;
-  const ativo = lojaAgora.cardapio_ativo === 2 ? 2 : 1;
+  const ativo: 1 | 2 = lojaAgora.cardapio_ativo === 2 ? 2 : 1;
   const categoriasVis = useMemo(() => (duplo ? categorias.filter((c) => [0, ativo].includes(catCardapio[c] ?? 1)) : categorias), [duplo, ativo, categorias, catCardapio]);
   const cardapioVis = useMemo(() => (duplo ? cardapio.filter((p) => categoriasVis.includes(p.cat)) : cardapio), [duplo, cardapio, categoriasVis]);
   const valor: Dados = { modo: MODO, carregando, erro, sessao, semAcesso, papel, plano, loja: lojaAgora, zonas, cardapio: cardapioVis, categorias: categoriasVis, cardapioTodo: cardapio, categoriasTodas: categorias, catCardapio, fregueses, pedidos: pedidosComPrevisao, pulso, semana, demanda, acoes };

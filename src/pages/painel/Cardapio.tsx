@@ -76,7 +76,7 @@ export function Cardapio() {
 
         {itens.length === 0 && (
           <div className="mt-8 rounded-3xl border-2 border-dashed border-linha p-8 text-center">
-            <p className="font-display text-[22px] font-bold">Seu cardápio está vazio</p>
+            <p className="font-display text-[22px] font-bold">{duplo ? `O cardápio ${(d.loja.cardapio_nomes ?? ["Dia", "Noite"])[visto - 1]} está vazio` : "Seu cardápio está vazio"}</p>
             <p className="mt-1 text-[15px] text-areia">Mande a foto ou o PDF do seu cardápio em “Importar cardápio” e a gente monta tudo para você conferir.</p>
           </div>
         )}
@@ -164,6 +164,8 @@ function DoisCardapios({ visto, setVisto, avisar }: { visto: 1 | 2; setVisto: (v
   const duplo = !!d.loja.cardapios_duplos;
   const noAr: 1 | 2 = d.loja.cardapio_ativo === 2 ? 2 : 1;
   const nomes = d.loja.cardapio_nomes?.length === 2 ? d.loja.cardapio_nomes : ["Dia", "Noite"];
+  const auto = !!d.loja.cardapio_auto;
+  const horas = d.loja.cardapio_horas?.length === 2 ? d.loja.cardapio_horas : ["06:00", "18:00"];
   const icone = (n: 1 | 2) => (n === 1 ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />);
   const qtd = (n: 1 | 2) => d.cardapioTodo.filter((p) => [0, n].includes(d.catCardapio[p.cat] ?? 1)).length;
   const salvar = async (c: Parameters<typeof d.acoes.salvarLoja>[0], msg?: string) => {
@@ -194,16 +196,49 @@ function DoisCardapios({ visto, setVisto, avisar }: { visto: 1 | 2; setVisto: (v
         {([1, 2] as const).map((n) => (
           <button
             key={n}
-            onClick={() => n !== noAr && salvar({ cardapio_ativo: n }, `Cardápio ${nomes[n - 1]} no ar`)}
+            onClick={() => {
+              if (auto) return salvar({ cardapio_auto: false, cardapio_ativo: n }, `Troca automática desligada. Cardápio ${nomes[n - 1]} no ar`);
+              if (n !== noAr) salvar({ cardapio_ativo: n }, `Cardápio ${nomes[n - 1]} no ar`);
+            }}
             aria-pressed={n === noAr}
             className={`flex items-center justify-between gap-3 rounded-2xl border-2 p-4 text-left transition ${n === noAr ? "border-manjericao bg-[#e4f3ea] text-[#1b6149]" : "border-linha hover:border-areia"}`}
           >
             <span className="flex items-center gap-2 font-display text-[18px] font-extrabold">
               {icone(n)} {nomes[n - 1]}
             </span>
-            <span className="text-[13px] font-semibold">{n === noAr ? "No ar" : "Ligar este"}</span>
+            <span className="text-right text-[13px] font-semibold">
+              {n === noAr ? (auto ? "No ar (automático)" : "No ar") : "Ligar este"}
+              {auto && <span className="block text-[12px] font-normal opacity-80">a partir das {horas[n - 1]}</span>}
+            </span>
           </button>
         ))}
+      </div>
+      <div className="mt-3 rounded-2xl bg-grafite p-3 text-[14px]">
+        <label className="flex items-center gap-2 font-semibold">
+          <input type="checkbox" checked={auto} onChange={(e) => salvar({ cardapio_auto: e.target.checked, cardapio_horas: horas }, e.target.checked ? "Troca automática ligada" : "Troca automática desligada")} className="h-4 w-4 accent-[#ff5b1f]" />
+          Trocar sozinho pelo horário
+        </label>
+        {auto && (
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-areia">
+            {([1, 2] as const).map((n) => (
+              <label key={n} className="flex items-center gap-2">
+                {icone(n)} {nomes[n - 1]} entra às
+                <input
+                  type="time"
+                  value={horas[n - 1]}
+                  onChange={(e) => {
+                    const hh = [...horas];
+                    hh[n - 1] = e.target.value || horas[n - 1];
+                    salvar({ cardapio_horas: hh });
+                  }}
+                  aria-label={`Horário em que o cardápio ${nomes[n - 1]} entra`}
+                  className="rounded-lg border border-linha bg-carvao px-2 py-1 text-papel"
+                />
+              </label>
+            ))}
+          </div>
+        )}
+        <p className="mt-1 text-[12px] text-areia">{auto ? "Hora de Brasília. Tocar num cardápio acima desliga a troca automática." : "Ex.: almoço entra às 6h e hamburgueria às 18h, sem ninguém precisar lembrar."}</p>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-linha pt-4 text-[14px]">
         <span className="text-areia">Editando:</span>

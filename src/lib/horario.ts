@@ -23,11 +23,13 @@ export function dentroDoHorario(h?: Horarios | null, d = new Date()) {
   if (!temHorario(h)) return true;
   const { dia, min } = agoraSP(d);
   for (const [a, b] of h![String(dia)] ?? []) {
-    const ini = minutos(a), fim = minutos(b);
+    const ini = minutos(a),
+      fim = minutos(b);
     if (fim > ini ? min >= ini && min < fim : min >= ini) return true;
   }
   for (const [a, b] of h![String((dia + 6) % 7)] ?? []) {
-    const ini = minutos(a), fim = minutos(b);
+    const ini = minutos(a),
+      fim = minutos(b);
     if (fim <= ini && min < fim) return true; // faixa de ontem que passou da meia-noite
   }
   return false;
@@ -56,4 +58,16 @@ export function textoHorario(h?: Horarios | null, d = new Date()) {
 /** Resumo por dia para mostrar na loja: "Seg a Sex: 11h–15h, 18h–23h". */
 export function linhaDoDia(f: Faixa[]) {
   return f.length ? f.map(([a, b]) => `${fmt(a)}–${fmt(b)}`).join(", ") : "Fechado";
+}
+
+/** Com troca automática: qual cardápio (1 ou 2) está no ar agora. horas = [início do 1, início do 2], ex.: ["06:00", "18:00"]. */
+export function cardapioDoHorario(horas: string[] | null | undefined, d = new Date()): 1 | 2 {
+  const [h1, h2] = horas?.length === 2 ? horas : ["06:00", "18:00"];
+  const a = minutos(h1),
+    b = minutos(h2);
+  const { min } = agoraSP(d);
+  if (a === b) return 1;
+  // o 1 vale de a até b (pode passar da meia-noite); fora disso, o 2
+  const no1 = a < b ? min >= a && min < b : min >= a || min < b;
+  return no1 ? 1 : 2;
 }
