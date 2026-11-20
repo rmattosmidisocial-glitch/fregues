@@ -5,7 +5,7 @@ import { SLUG, supabase, useDados } from "../../data/dados";
 import { useToast } from "../../components/ui";
 import { enderecoTxt, imprimirComanda, lerImpressora, NOME_FORMA } from "../../components/comanda";
 import { usePref } from "../../data/prefs";
-import { avisar } from "../../lib/avisos";
+import { tocarSino } from "../../lib/sino";
 
 const COLUNAS: { id: StatusPedido; rotulo: string; acao?: string; prox?: StatusPedido }[] = [
   { id: "novo", rotulo: "Novos", acao: "Aceitar", prox: "preparo" },
@@ -23,26 +23,6 @@ const FORMAS: { id: NonNullable<Pedido["forma"]>; rotulo: string }[] = [
 ];
 
 type Entregador = { id: string; nome: string; telefone?: string | null; ativo: boolean };
-
-function apito() {
-  try {
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new Ctx();
-    [0, 0.22, 0.44].forEach((t, i) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.frequency.value = i === 2 ? 1046 : 880;
-      g.gain.setValueAtTime(0.0001, ctx.currentTime + t);
-      g.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.18);
-      o.connect(g).connect(ctx.destination);
-      o.start(ctx.currentTime + t);
-      o.stop(ctx.currentTime + t + 0.2);
-    });
-  } catch {
-    /* navegador sem som */
-  }
-}
 
 const zap = (tel: string | undefined, texto: string) => {
   const t = (tel ?? "").replace(/\D/g, "");
@@ -385,8 +365,6 @@ export function Pedidos() {
     const chegaram = novos.filter((p) => !vistos.current!.has(p.num));
     lista.forEach((p) => vistos.current!.add(p.num));
     if (!chegaram.length) return;
-    if (som) apito();
-    avisar(chegaram.length === 1 ? `Pedido novo #${chegaram[0].num}` : `${chegaram.length} pedidos novos`, chegaram.map((p) => `${p.cliente} · ${brl(p.total)}`).join("\n"));
     show(chegaram.length === 1 ? `Pedido novo: #${chegaram[0].num} de ${chegaram[0].cliente}` : `${chegaram.length} pedidos novos`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lista]);
@@ -402,7 +380,7 @@ export function Pedidos() {
           <button
             onClick={() => {
               setSom(!som);
-              if (!som) apito();
+              if (!som) tocarSino();
             }}
             aria-pressed={som}
             className={`flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-semibold ${som ? "bg-papel text-carvao" : "border border-linha"}`}

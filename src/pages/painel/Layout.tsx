@@ -30,6 +30,7 @@ import { MarcaDagua } from "../../components/MarcaDagua";
 import { ImpressaoAutomatica } from "../../components/ImpressaoAutomatica";
 import { usePref } from "../../data/prefs";
 import { Ajuda } from "./Ajuda";
+import { AlertaPedidos } from "../../components/AlertaPedidos";
 import { BloqueadoNoPlano } from "../../components/Plano";
 import type { Modulo } from "../../data/dados";
 
@@ -145,6 +146,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
     <div className="tema-claro min-h-screen bg-carvao text-papel md:grid md:grid-cols-[248px_1fr]">
       <MarcaDagua />
       {imprimirAuto && <ImpressaoAutomatica />}
+      {(!restrito || restrito.includes("pedidos")) && d.papel !== "entregador" && <AlertaPedidos />}
       {ajuda && <Ajuda fechar={() => setAjuda(false)} tela={ITENS.find((i) => i.rota === rota)?.rotulo ?? String(rota)} />}
       <aside className="tema-escuro sticky top-0 z-[2] hidden h-screen flex-col bg-forno px-4 py-5 md:flex">
         <a href="#painel" aria-label="Freguês, início do painel" className="px-2">
