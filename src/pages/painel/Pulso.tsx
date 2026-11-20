@@ -1,5 +1,5 @@
 import { linkDaLoja } from "../../data/dados";
-import { CalendarDays, ChevronRight, Frown, MessageCircle, MessagesSquare, Sparkles, Star, TrendingUp } from "lucide-react";
+import { CalendarDays, ChevronRight, Frown, MessageCircle, MessagesSquare, Package, Sparkles, Star, TrendingUp } from "lucide-react";
 import { crescer, quandoTxt, useCrescer } from "../../data/crescer";
 import { AnelPulso, Numero, Painelzinho, StatusPill, useToast } from "../../components/ui";
 import { brl, type Freguês } from "../../data/mock";
@@ -7,6 +7,7 @@ import { SLUG, useDados, type DiaSemana } from "../../data/dados";
 import { useState } from "react";
 import { PainelAvaliacoes, quandoAval, useAvaliacoes } from "./Avaliacoes";
 import type { Avaliacao } from "../../data/dados";
+import { qtdTxt, situacao, useCustos, type Insumo } from "../../data/custos";
 
 function GraficoSemana({ VENDAS_SEMANA }: { VENDAS_SEMANA: DiaSemana[] }) {
   const temMkt = VENDAS_SEMANA.some((d) => d.marketplace > 0);
@@ -38,7 +39,7 @@ function GraficoSemana({ VENDAS_SEMANA }: { VENDAS_SEMANA: DiaSemana[] }) {
   );
 }
 
-function Atencao({ avaliacoes }: { avaliacoes: Avaliacao[] | null }) {
+function Atencao({ avaliacoes, insumos }: { avaliacoes: Avaliacao[] | null; insumos: Insumo[] }) {
   const conversas = useCrescer((s) => s.conversas);
   const forms = useCrescer((s) => s.forms);
   const itens: { chave: string; icone: React.ReactNode; texto: string; sub: string; href: string; antes?: () => void; cor: string }[] = [];
@@ -50,6 +51,27 @@ function Atencao({ avaliacoes }: { avaliacoes: Avaliacao[] | null }) {
       sub: c.status === "equipe" ? `A IA chamou você ${quandoTxt(c.mensagens[c.mensagens.length - 1].quando)}` : "Cliente chateado",
       href: "#atendimento",
       cor: c.humor === "negativo" ? "#f0524a" : "#ffc03a",
+    });
+  // insumo acabando (estoque)
+  const faltando = insumos.filter((i) => ["baixo", "acabou"].includes(situacao(i))).sort((a, b) => (a.estoque ?? 0) - (b.estoque ?? 0));
+  if (faltando.length)
+    itens.push({
+      chave: "estoque",
+      icone: <Package className="h-4 w-4" />,
+      texto: faltando.length === 1 ? `${faltando[0].nome} está acabando` : `${faltando.length} insumos acabando`,
+      sub: faltando
+        .slice(0, 3)
+        .map((i) => `${i.nome}: ${qtdTxt(Math.max(0, i.estoque ?? 0), i.unidade)}`)
+        .join(" · "),
+      href: "#cardapio",
+      antes: () => {
+        try {
+          sessionStorage.setItem("fregues-cardapio-vista", "estoque");
+        } catch {
+          /* sem sessionStorage */
+        }
+      },
+      cor: faltando.some((i) => situacao(i) === "acabou") ? "#f0524a" : "#ffc03a",
     });
   // nota baixa de cliente nos últimos 3 dias
   for (const a of (avaliacoes ?? []).filter((a) => a.nota <= 3 && Date.now() - new Date(a.quando).getTime() < 3 * 86400e3).slice(0, 3))
@@ -140,6 +162,8 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
   const { show, Toast } = useToast();
   const d = useDados();
   const avaliacoes = useAvaliacoes();
+  const custos = useCustos();
+  const gestor = d.papel === "dono" || d.papel === "gerente";
   const VENDAS_SEMANA = d.semana;
   const pulsoResumo = d.pulso;
   const COMISSAO = Number(d.pulso.comissao ?? 0.12);
@@ -168,7 +192,7 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
         </a>
       </div>
 
-      <Atencao avaliacoes={avaliacoes} />
+      <Atencao avaliacoes={avaliacoes} insumos={gestor ? custos.insumos : []} />
 
       <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
         <section className="relative overflow-hidden rounded-3xl bg-[#fde9df] p-6 md:p-8">

@@ -1,10 +1,11 @@
-import { createContext, useContext, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Camera, Copy, FolderCog, ImageUp, Moon, Plus, Search, Sun, Trash2, X } from "lucide-react";
 import { brl, type Grupo, type Produto } from "../../data/mock";
 import { supabase, useDados, type ProdutoEdit } from "../../data/dados";
 import { Foto } from "../../components/Foto";
 import { useToast } from "../../components/ui";
 import { Custos, CmvSelo } from "./Custos";
+import { Estoque } from "./Estoque";
 import { custoFicha, useCustos } from "../../data/custos";
 
 const precoTxt = (n?: number) => (n == null ? "" : n.toFixed(2).replace(".", ","));
@@ -36,8 +37,23 @@ export function Cardapio() {
   const [importar, setImportar] = useState(false);
   const { show, Toast } = useToast();
   const gestor = d.papel === "dono" || d.papel === "gerente";
-  const [vista, setVista] = useState<"produtos" | "custos">("produtos");
+  const [vista, setVista] = useState<"produtos" | "custos" | "estoque">(() => {
+    try {
+      // o aviso de estoque no Pulso abre direto aqui
+      const v = sessionStorage.getItem("fregues-cardapio-vista");
+      return v === "estoque" || v === "custos" ? v : "produtos";
+    } catch {
+      return "produtos";
+    }
+  });
   const custos = useCustos();
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem("fregues-cardapio-vista");
+    } catch {
+      /* sem sessionStorage */
+    }
+  }, []);
   const cmvDe = (p: Produto) => {
     if (!gestor) return null;
     const c = custoFicha(custos.fichas[p.id], custos.insumos);
@@ -82,15 +98,17 @@ export function Cardapio() {
 
         {gestor && (
           <div className="mt-6 inline-flex rounded-full bg-grafite p-1 text-[14px] font-semibold" role="tablist" aria-label="Ver">
-            {(["produtos", "custos"] as const).map((v) => (
+            {(["produtos", "custos", "estoque"] as const).map((v) => (
               <button key={v} role="tab" aria-selected={vista === v} onClick={() => setVista(v)} className={`rounded-full px-4 py-1.5 ${vista === v ? "bg-papel text-carvao" : "text-areia hover:text-papel"}`}>
-                {v === "produtos" ? "Produtos" : "Custos e CMV"}
+                {v === "produtos" ? "Produtos" : v === "custos" ? "Custos e CMV" : "Estoque"}
               </button>
             ))}
           </div>
         )}
 
-        {vista === "custos" && gestor ? (
+        {vista === "estoque" && gestor ? (
+          <Estoque c={custos} avisar={show} />
+        ) : vista === "custos" && gestor ? (
           <Custos key={visto} produtos={itens} c={custos} avisar={show} />
         ) : (
           <>
@@ -129,18 +147,22 @@ export function Cardapio() {
                   <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {daCat.map((p) => (
                       <article key={p.id} className={`flex gap-4 rounded-2xl border border-linha bg-forno p-3 ${p.esgotado ? "opacity-60" : ""}`}>
-                        <button onClick={() => setEditando(p)} aria-label={`Editar ${p.nome}`} className="shrink-0">
+                        <button onClick={() => setEditando(p)} aria-label={`Editar ${p.nome}`} className="relative shrink-0">
                           <Foto nome={p.nome} arte={p.arte} url={p.foto} className="h-20 w-20 rounded-xl" />
+                          {(() => {
+                            const pct = cmvDe(p);
+                            return pct != null ? (
+                              <span className="absolute bottom-1 left-1 rounded-full bg-forno/90">
+                                <CmvSelo pct={pct} />
+                              </span>
+                            ) : null;
+                          })()}
                         </button>
                         <div className="min-w-0 flex-1">
                           <button onClick={() => setEditando(p)} className="block w-full text-left">
                             <p className="flex items-center gap-2 font-semibold">
                               <span className="truncate">{p.nome}</span>
                               {p.maisPedido && <span className="shrink-0 rounded-full bg-mostarda/30 px-2 py-0.5 text-[11px] font-semibold">Mais pedido</span>}
-                              {(() => {
-                                const pct = cmvDe(p);
-                                return pct != null ? <CmvSelo pct={pct} /> : null;
-                              })()}
                             </p>
                             <p className="line-clamp-2 text-[13px] text-areia">{p.desc || "Sem descrição"}</p>
                           </button>
