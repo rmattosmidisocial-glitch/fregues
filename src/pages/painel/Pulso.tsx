@@ -5,6 +5,8 @@ import { AnelPulso, Numero, Painelzinho, StatusPill, useToast } from "../../comp
 import { brl, type Freguês } from "../../data/mock";
 import { SLUG, useDados, type DiaSemana } from "../../data/dados";
 import { useState } from "react";
+import { PainelAvaliacoes, quandoAval, useAvaliacoes } from "./Avaliacoes";
+import type { Avaliacao } from "../../data/dados";
 
 function GraficoSemana({ VENDAS_SEMANA }: { VENDAS_SEMANA: DiaSemana[] }) {
   const temMkt = VENDAS_SEMANA.some((d) => d.marketplace > 0);
@@ -36,7 +38,7 @@ function GraficoSemana({ VENDAS_SEMANA }: { VENDAS_SEMANA: DiaSemana[] }) {
   );
 }
 
-function Atencao() {
+function Atencao({ avaliacoes }: { avaliacoes: Avaliacao[] | null }) {
   const conversas = useCrescer((s) => s.conversas);
   const forms = useCrescer((s) => s.forms);
   const itens: { chave: string; icone: React.ReactNode; texto: string; sub: string; href: string; antes?: () => void; cor: string }[] = [];
@@ -48,6 +50,17 @@ function Atencao() {
       sub: c.status === "equipe" ? `A IA chamou você ${quandoTxt(c.mensagens[c.mensagens.length - 1].quando)}` : "Cliente chateado",
       href: "#atendimento",
       cor: c.humor === "negativo" ? "#f0524a" : "#ffc03a",
+    });
+  // nota baixa de cliente nos últimos 3 dias
+  for (const a of (avaliacoes ?? []).filter((a) => a.nota <= 3 && Date.now() - new Date(a.quando).getTime() < 3 * 86400e3).slice(0, 3))
+    itens.push({
+      chave: "av-" + a.pedidoId,
+      icone: <Star className="h-4 w-4" />,
+      texto: `Nota ${a.nota} de ${a.cliente} · pedido #${a.num}`,
+      sub: (a.comentario || "Sem comentário") + ` · ${quandoAval(a.quando)}`,
+      href: "#painel",
+      antes: () => document.getElementById("avaliacoes")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      cor: "#f0524a",
     });
   const pesq = forms.find((f) => f.id === "fo1");
   for (const r of (pesq?.respostas ?? []).filter((r) => Number(r.valores.comida) <= 3 && Date.now() - r.quando < 3 * 86400_000).slice(0, 2))
@@ -126,6 +139,7 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
   };
   const { show, Toast } = useToast();
   const d = useDados();
+  const avaliacoes = useAvaliacoes();
   const VENDAS_SEMANA = d.semana;
   const pulsoResumo = d.pulso;
   const COMISSAO = Number(d.pulso.comissao ?? 0.12);
@@ -154,7 +168,7 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
         </a>
       </div>
 
-      <Atencao />
+      <Atencao avaliacoes={avaliacoes} />
 
       <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
         <section className="relative overflow-hidden rounded-3xl bg-[#fde9df] p-6 md:p-8">
@@ -271,6 +285,9 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
             </p>
           </div>
         </Painelzinho>
+      </div>
+      <div id="avaliacoes" className="scroll-mt-4">
+        <PainelAvaliacoes lista={avaliacoes} />
       </div>
       <p className="text-center text-[13px] text-fumo">{d.modo === "demo" ? "Demonstração com dados fictícios da Brasa Burger." : "Loja de demonstração com dados fictícios, gravados no banco."}</p>
       <Toast />

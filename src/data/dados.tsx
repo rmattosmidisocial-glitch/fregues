@@ -343,6 +343,12 @@ type Dados = {
     fazerPedido: (p: NovoPedido) => Promise<PedidoCriado>;
     statusPedido: (id: string) => Promise<{ status: StatusPedido; pago: boolean } | null>;
     confirmarPixDemo: (id: string) => Promise<void>;
+    /** Loja: o cliente avalia o pedido entregue (devolve "ok" ou o motivo). */
+    avaliarPedido: (id: string, nota: number, comentario: string) => Promise<string>;
+    /** Loja: nota que o cliente já deu a este pedido (ou null). */
+    avaliacaoDoPedido: (id: string) => Promise<number | null>;
+    /** Painel: avaliações recentes dos clientes. */
+    avaliacoes: () => Promise<Avaliacao[]>;
     saldoCashback: (tel: string) => Promise<number>;
     /** Loja: confere o cupom e devolve o desconto (ou o motivo de não valer). */
     conferirCupom: (codigo: string, tel: string, subtotal: number) => Promise<{ tipo?: Cupom["tipo"]; desconto?: number; codigo?: string; erro?: string }>;
@@ -433,6 +439,17 @@ export const useDados = () => {
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const PAG: Record<string, Pedido["pag"]> = { pix: "Pix pago", cartao: "Cartão online", dinheiro: "Dinheiro (troco p/ 100)", maquininha: "Maquininha" };
+export type Avaliacao = { pedidoId: string; num: number; cliente: string; tel?: string; nota: number; comentario: string | null; quando: string };
+const haDias = (d: number, h = 0) => new Date(Date.now() - d * 86400e3 - h * 3600e3).toISOString();
+// exemplos da demonstração (e o que o visitante avaliar na loja de teste)
+const AVALIACOES_DEMO: Avaliacao[] = [
+  { pedidoId: "demo-a1", num: 1046, cliente: "Juliana Prado", tel: "(21) 98123-4410", nota: 5, comentario: "Chegou quentinho e muito rápido. O smash da Penha é o melhor da região!", quando: haDias(0, 2) },
+  { pedidoId: "demo-a2", num: 1043, cliente: "Marcos Vinícius", tel: "(21) 98160-4523", nota: 3, comentario: "Batata chegou meio murcha, o burger estava ótimo.", quando: haDias(0, 5) },
+  { pedidoId: "demo-a3", num: 1039, cliente: "Ana Beatriz", tel: "(21) 98197-4636", nota: 5, comentario: null, quando: haDias(1) },
+  { pedidoId: "demo-a4", num: 1031, cliente: "Rafael Costa", tel: "(21) 98234-4749", nota: 4, comentario: "Muito bom, só demorou um pouco mais que a previsão.", quando: haDias(2) },
+  { pedidoId: "demo-a5", num: 1024, cliente: "Camila Rocha", tel: "(21) 98271-4862", nota: 5, comentario: "Perfeito como sempre ❤️", quando: haDias(4) },
+  { pedidoId: "demo-a6", num: 1017, cliente: "Bruno Lima", tel: "(21) 98308-4975", nota: 2, comentario: "Veio sem o molho que pedi.", quando: haDias(6) },
+];
 const fmtTel = (t: string) => (t.length === 11 ? `(${t.slice(0, 2)}) ${t.slice(2, 7)}-${t.slice(7)}` : t);
 
 const pulsoDemo: Pulso = { ...M.pulsoResumo, voltaram: 41, total: M.FREGUESES.length, comissao: 0.12 };
@@ -1216,6 +1233,32 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         if (!supabase || id.startsWith("demo")) return null;
         const { data } = await supabase.rpc("order_public", { p_id: id });
         return data ? { status: (data as { status: StatusPedido }).status, pago: (data as { pago: boolean }).pago } : null;
+      },
+      async avaliarPedido(id, nota, comentario) {
+        if (!supabase || id.startsWith("demo")) {
+          AVALIACOES_DEMO.unshift({ pedidoId: id, num: Number(id.replace(/\D/g, "")) || 0, cliente: "Você (teste)", nota, comentario: comentario.trim() || null, quando: new Date().toISOString() });
+          return "ok";
+        }
+        const { data, error } = await supabase.rpc("avaliar_pedido", { p_id: id, p_nota: nota, p_comentario: comentario });
+        return error ? "erro" : String(data);
+      },
+      async avaliacaoDoPedido(id) {
+        if (!supabase || id.startsWith("demo")) return AVALIACOES_DEMO.find((a) => a.pedidoId === id)?.nota ?? null;
+        const { data } = await supabase.rpc("avaliacao_do_pedido", { p_id: id });
+        return data == null ? null : Number(data);
+      },
+      async avaliacoes() {
+        if (MODO === "demo" || !supabase || !loja.id) return AVALIACOES_DEMO;
+        const { data } = await supabase.from("order_reviews").select("order_id,nota,comentario,criado_em,orders(numero,customers(nome,telefone))").eq("store_id", loja.id).order("criado_em", { ascending: false }).limit(200);
+        return ((data as unknown as { order_id: string; nota: number; comentario: string | null; criado_em: string; orders: { numero: number; customers: { nome: string; telefone: string } | null } | null }[]) ?? []).map((r) => ({
+          pedidoId: r.order_id,
+          num: r.orders?.numero ?? 0,
+          cliente: r.orders?.customers?.nome ?? "Cliente",
+          tel: r.orders?.customers?.telefone ? fmtTel(r.orders.customers.telefone) : undefined,
+          nota: r.nota,
+          comentario: r.comentario,
+          quando: r.criado_em,
+        }));
       },
       async confirmarPixDemo(id) {
         if (supabase && !id.startsWith("demo")) await supabase.rpc("confirmar_pix_demo", { p_id: id });

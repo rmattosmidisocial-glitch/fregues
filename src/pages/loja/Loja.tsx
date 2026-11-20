@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChatLoja } from "./ChatLoja";
+import { AvaliarPedido, AvaliarPeloLink } from "./Avaliar";
 import { estiloDaMarca } from "../../lib/cor";
 import { avisar, avisosLigados, avisosSuportados, pedirAvisos } from "../../lib/avisos";
 import { ArrowLeft, Bell, Bike, Check, ChevronRight, Clock, Copy, CreditCard, Minus, Plus, ShoppingBag, Star, Store, Wallet, X } from "lucide-react";
@@ -165,7 +166,7 @@ function QrFake() {
 
 const PASSO: Record<string, number> = { novo: 1, preparo: 2, pronto: 2, rota: 3, entregue: 4 };
 // pedido guardado no celular do cliente: ao voltar à loja, ele retoma o acompanhamento
-type PedidoSalvo = { id: string; numero: number; total: number; desconto: number; taxa: number; tempo_min: number; tempo_max: number; modo: "entrega" | "retirada"; quando: number };
+type PedidoSalvo = { id: string; numero: number; total: number; desconto: number; taxa: number; tempo_min: number; tempo_max: number; modo: "entrega" | "retirada"; quando: number; entregue?: boolean };
 const chavePedido = () => `fregues-pedido:${new URLSearchParams(location.search).get("r") || location.pathname.split("/")[1] || "loja"}`;
 const lerPedidoSalvo = (): PedidoSalvo | null => {
   try {
@@ -253,11 +254,22 @@ export function Loja() {
   const [pedido, setPedido] = useState<{ id: string; numero: number; total: number; desconto: number; taxa: number; tempo_min: number; tempo_max: number } | null>(null);
   const [salvo, setSalvo] = useState<PedidoSalvo | null>(() => (d.modo === "real" ? lerPedidoSalvo() : null));
   const [avisosOk, setAvisosOk] = useState(avisosLigados());
+  // link de avaliação mandado pela loja no WhatsApp: ?avaliar=<código do pedido>
+  const [avaliarLink, setAvaliarLink] = useState(() => {
+    const v = new URLSearchParams(location.search).get("avaliar") ?? "";
+    return /^[0-9a-f-]{36}$/i.test(v) || v.startsWith("demo") ? v : "";
+  });
+  function fecharAvaliarLink() {
+    setAvaliarLink("");
+    const u = new URL(location.href);
+    u.searchParams.delete("avaliar");
+    history.replaceState(null, "", u);
+  }
   function retomar() {
     if (!salvo) return;
     setModo(salvo.modo);
     setPedido(salvo);
-    setPasso(1);
+    setPasso(salvo.entregue ? 4 : 1);
     setEtapa("acompanhar");
   }
 
@@ -369,7 +381,12 @@ export function Loja() {
         }
         return novo;
       });
-      if (s.status === "entregue" || (s.status as string) === "cancelado") salvarPedido(null);
+      // entregue: fica guardado até o cliente avaliar (some sozinho em 24 h)
+      if ((s.status as string) === "cancelado") salvarPedido(null);
+      else if (s.status === "entregue") {
+        const g = lerPedidoSalvo();
+        if (g && g.id === pedido.id && !g.entregue) salvarPedido({ ...g, entregue: true });
+      }
     }, 3000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -608,8 +625,8 @@ export function Loja() {
           {salvo && !pedido && (
             <button onClick={retomar} className="mt-4 flex w-full items-center justify-between gap-3 rounded-2xl bg-carvao px-4 py-3 text-left text-papel">
               <span>
-                <b className="block">Acompanhar seu pedido nº {salvo.numero}</b>
-                <span className="text-[13px] text-areia">Toque para ver em que etapa está ou falar com a loja</span>
+                <b className="block">{salvo.entregue ? `Avaliar seu pedido nº ${salvo.numero}` : `Acompanhar seu pedido nº ${salvo.numero}`}</b>
+                <span className="text-[13px] text-areia">{salvo.entregue ? "Leva 10 segundos e ajuda muito a loja" : "Toque para ver em que etapa está ou falar com a loja"}</span>
               </span>
               <ChevronRight className="h-5 w-5 shrink-0" />
             </button>
@@ -663,6 +680,7 @@ export function Loja() {
       )}
 
       {!etapa && !aberto && <ChatLoja subir={qtdTotal > 0} />}
+      {avaliarLink && <AvaliarPeloLink id={avaliarLink} fechar={fecharAvaliarLink} />}
       {(etapa === "acompanhar" || etapa === "pix") && pedido && <ChatLoja key={pedido.id} subir pedido={{ id: pedido.id, numero: pedido.numero }} />}
       {aberto && <SheetProduto p={aberto} fechar={() => setAberto(null)} adicionar={adicionar} />}
 
@@ -980,7 +998,16 @@ export function Loja() {
                       </li>
                     ))}
                   </ol>
-                  <p className="mt-6 rounded-2xl bg-[#e3f5e9] p-4 text-[14px] text-[#1e6b42]">{d.modo === "real" ? "Esta tela atualiza sozinha. Se fechar, é só abrir a loja de novo para voltar ao seu pedido." : "Esta tela atualiza sozinha quando a cozinha muda o status no painel."}</p>
+                  {passo >= 4 && pedido && (
+                    <AvaliarPedido
+                      key={pedido.id}
+                      id={pedido.id}
+                      aoAvaliar={() => {
+                        if (lerPedidoSalvo()?.id === pedido.id) salvarPedido(null);
+                      }}
+                    />
+                  )}
+                  {passo < 4 && <p className="mt-6 rounded-2xl bg-[#e3f5e9] p-4 text-[14px] text-[#1e6b42]">{d.modo === "real" ? "Esta tela atualiza sozinha. Se fechar, é só abrir a loja de novo para voltar ao seu pedido." : "Esta tela atualiza sozinha quando a cozinha muda o status no painel."}</p>}
                   {avisosSuportados() && passo < 4 && (
                     <button disabled={avisosOk} onClick={async () => setAvisosOk((await pedirAvisos()) === "granted")} className={`mt-3 flex w-full items-center justify-center gap-2 rounded-full border py-3 text-[14px] font-semibold ${avisosOk ? "border-[#bfe3cc] text-[#1e6b42]" : "border-carvao"}`}>
                       <Bell className="h-4 w-4" /> {avisosOk ? "Você vai receber um aviso a cada etapa" : "Me avisar no celular a cada etapa"}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, BellOff, Bike, ChevronDown, ChevronUp, MapPin, MessageCircle, Phone, Printer, Store, UserPlus, Users, UtensilsCrossed, X, FileText } from "lucide-react";
+import { Bell, BellOff, Bike, ChevronDown, ChevronUp, MapPin, MessageCircle, Phone, Printer, Star, Store, UserPlus, Users, UtensilsCrossed, X, FileText } from "lucide-react";
 import { brl, type Pedido, type StatusPedido } from "../../data/mock";
-import { SLUG, supabase, useDados } from "../../data/dados";
+import { linkDaLoja, SLUG, supabase, useDados } from "../../data/dados";
 import { useToast } from "../../components/ui";
 import { enderecoTxt, imprimirComanda, lerImpressora, NOME_FORMA } from "../../components/comanda";
 import { usePref } from "../../data/prefs";
@@ -176,6 +176,7 @@ function Cartao({ p, c, ent, abrir, aberto, show }: { p: Pedido; c: (typeof COLU
     if (prox === "entregue") show(`#${p.num} entregue`);
   };
 
+  const pedirAvaliacao = p.id ? zap(p.tel, `Oi, ${primeiro}! Aqui é da ${loja}. Seu pedido #${p.num} chegou bem? Dá uma nota pra gente, leva 10 segundos: ${linkDaLoja(SLUG)}?avaliar=${p.id}`) : null;
   const avisoSaiu = zap(p.tel, `Oi, ${primeiro}! Seu pedido #${p.num} da ${loja} saiu para entrega${p.motoboy ? ` com ${p.motoboy}` : ""}. Já já chega aí!`);
   const avisoPronto = zap(p.tel, `Oi, ${primeiro}! Seu pedido #${p.num} da ${loja} está pronto para retirar.`);
   const falar = zap(p.tel, `Oi, ${primeiro}! Aqui é da ${loja}, sobre o seu pedido #${p.num}.`);
@@ -247,6 +248,12 @@ function Cartao({ p, c, ent, abrir, aberto, show }: { p: Pedido; c: (typeof COLU
       {c.id === "pronto" && !entrega && avisoPronto && (
         <a href={avisoPronto} target="_blank" rel="noreferrer" className="mt-2 flex items-center justify-center gap-1.5 rounded-xl border border-linha py-2 text-[13px] font-semibold hover:border-areia">
           <MessageCircle className="h-4 w-4" /> Avisar que está pronto
+        </a>
+      )}
+
+      {c.id === "entregue" && pedirAvaliacao && (
+        <a href={pedirAvaliacao} target="_blank" rel="noreferrer" className="mt-2 flex items-center justify-center gap-1.5 rounded-xl border border-linha py-2 text-[13px] font-semibold hover:border-areia">
+          <Star className="h-4 w-4" /> Pedir avaliação
         </a>
       )}
 
