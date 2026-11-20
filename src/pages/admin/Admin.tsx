@@ -1,6 +1,7 @@
 import { MarcaDagua } from "../../components/MarcaDagua";
+import { SuporteAdmin } from "./SuporteAdmin";
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, Pencil, Settings, Trash2, Building2, Check, ChevronRight, CircleDollarSign, Clock, CreditCard, ExternalLink, History, LayoutDashboard, Layers, LogOut, Pause, Play, Plus, Search, ShieldCheck, TrendingUp, X } from "lucide-react";
+import { LifeBuoy, BarChart3, Pencil, Settings, Trash2, Building2, Check, ChevronRight, CircleDollarSign, Clock, CreditCard, ExternalLink, History, LayoutDashboard, Layers, LogOut, Pause, Play, Plus, Search, ShieldCheck, TrendingUp, X } from "lucide-react";
 import { Logo } from "../../components/Logo";
 import { brl } from "../../data/mock";
 import { BotaoTema } from "../../tema";
@@ -37,7 +38,7 @@ const STATUS: Record<StatusAssin, { rotulo: string; cls: string; cor: string }> 
   },
 };
 
-type Aba = "visao" | "clientes" | "financeiro" | "planos" | "relatorios" | "atividade" | "config";
+type Aba = "visao" | "clientes" | "financeiro" | "suporte" | "planos" | "relatorios" | "atividade" | "config";
 
 function Pill({ s }: { s: StatusAssin }) {
   return (
@@ -621,7 +622,7 @@ function Configuracoes({ a, inicio = "dados" }: { a: ReturnType<typeof useAdmin>
   const [sec, setSec] = useState<"dados" | "cobranca" | "mensagens" | "admins" | "integracoes" | "erros">(inicio);
   useEffect(() => setF(a.config), [a.config]);
   const inp = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
-  const campo = (k: "empresa" | "responsavel" | "email" | "whatsapp" | "assinatura", rotulo: string, tipo = "text", dica?: string) => (
+  const campo = (k: "empresa" | "responsavel" | "email" | "whatsapp" | "assinatura" | "suporte_whatsapp" | "suporte_horario", rotulo: string, tipo = "text", dica?: string) => (
     <label className="block text-[14px] font-semibold">
       {rotulo}
       {dica && <span className="font-normal text-areia"> {dica}</span>}
@@ -670,6 +671,10 @@ function Configuracoes({ a, inicio = "dados" }: { a: ReturnType<typeof useAdmin>
             {campo("email", "E-mail de contato", "email")}
             {campo("whatsapp", "WhatsApp de atendimento", "tel", "(os restaurantes falam com você por aqui)")}
             {campo("assinatura", "Assinatura das mensagens", "text", "(opcional)")}
+            <h2 className="pt-3 text-[18px] font-bold">Suporte técnico</h2>
+            <p className="text-[13px] text-areia">Aparece no botão "Ajuda e suporte" do painel dos restaurantes. Sem número de suporte, os chamados vão para o WhatsApp de atendimento acima.</p>
+            {campo("suporte_whatsapp", "WhatsApp do suporte", "tel", "(com DDD)")}
+            {campo("suporte_horario", "Horário do suporte", "text", "(ex.: Segunda a sábado, das 9h às 18h)")}
             <p className="rounded-xl bg-carvao p-3 text-[14px]">
               <span className="text-areia">Fim das mensagens que você manda: </span>
               {assinaturaDe(f) || "—"}
@@ -979,6 +984,7 @@ export function Admin() {
       rotulo: "Financeiro",
       icone: <CircleDollarSign className="h-5 w-5" />,
     },
+    { id: "suporte", rotulo: "Suporte", icone: <LifeBuoy className="h-5 w-5" /> },
     { id: "planos", rotulo: "Planos", icone: <Layers className="h-5 w-5" /> },
     {
       id: "relatorios",
@@ -1306,6 +1312,7 @@ export function Admin() {
             </div>
           )}
 
+          {aba === "suporte" && <SuporteAdmin modo={a.modo} />}
           {aba === "planos" && <PlanosAdmin a={a} />}
 
           {aba === "relatorios" && <Relatorios a={a} />}

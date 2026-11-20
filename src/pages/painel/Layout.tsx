@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Activity, Armchair, Calculator, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, Lock, LogOut, Map as MapIcon, UserRound, MessagesSquare, Settings, Sparkles, Users, Workflow, X, BarChart3 } from "lucide-react";
+import { LifeBuoy, Activity, Armchair, Calculator, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, Lock, LogOut, Map as MapIcon, UserRound, MessagesSquare, Settings, Sparkles, Users, Workflow, X, BarChart3 } from "lucide-react";
 import { useCrescer } from "../../data/crescer";
 import { useAtendimentoPainel } from "../../data/atendimento";
 import { useFormulariosPainel } from "../../data/formularios";
@@ -29,6 +29,7 @@ import { AceiteTermos, VERSAO_TERMOS } from "../publico/Legal";
 import { MarcaDagua } from "../../components/MarcaDagua";
 import { ImpressaoAutomatica } from "../../components/ImpressaoAutomatica";
 import { usePref } from "../../data/prefs";
+import { Ajuda } from "./Ajuda";
 import { BloqueadoNoPlano } from "../../components/Plano";
 import type { Modulo } from "../../data/dados";
 
@@ -60,6 +61,7 @@ const POR_PAPEL: Record<string, Rota[]> = {
 export function PainelLayout({ rota }: { rota: Rota }) {
   const [copiloto, setCopiloto] = useState(false);
   const [conta, setConta] = useState(false);
+  const [ajuda, setAjuda] = useState(false);
   const d = useDados();
   const [imprimirAuto] = usePref("pedidos-imprimir", false);
   const restrito = d.modo === "real" && d.papel ? POR_PAPEL[d.papel] : undefined;
@@ -143,6 +145,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
     <div className="tema-claro min-h-screen bg-carvao text-papel md:grid md:grid-cols-[248px_1fr]">
       <MarcaDagua />
       {imprimirAuto && <ImpressaoAutomatica />}
+      {ajuda && <Ajuda fechar={() => setAjuda(false)} tela={ITENS.find((i) => i.rota === rota)?.rotulo ?? String(rota)} />}
       <aside className="tema-escuro sticky top-0 z-[2] hidden h-screen flex-col bg-forno px-4 py-5 md:flex">
         <a href="#painel" aria-label="Freguês, início do painel" className="px-2">
           <Logo />
@@ -184,6 +187,9 @@ export function PainelLayout({ rota }: { rota: Rota }) {
               <Sparkles className="h-5 w-5" /> Copiloto Chef
             </button>
           )}
+          <button onClick={() => setAjuda(true)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] text-areia hover:text-papel">
+            <LifeBuoy className="h-4 w-4" /> Ajuda e suporte
+          </button>
           <a href="#loja" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] text-areia hover:text-papel">
             <ExternalLink className="h-4 w-4" /> Ver minha loja
           </a>
@@ -206,6 +212,9 @@ export function PainelLayout({ rota }: { rota: Rota }) {
           <Logo />
           <span className="flex items-center gap-2">
             <BotaoTema />
+            <button onClick={() => setAjuda(true)} aria-label="Ajuda e suporte" className="grid h-9 w-9 place-items-center rounded-full border border-linha text-areia">
+              <LifeBuoy className="h-4 w-4" />
+            </button>
             {d.sessao && (
               <button onClick={() => setConta(true)} aria-label="Minha conta" className="grid h-9 w-9 place-items-center rounded-full border border-linha text-areia">
                 <UserRound className="h-4 w-4" />

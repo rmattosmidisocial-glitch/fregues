@@ -114,6 +114,9 @@ export type Config = {
   email: string;
   whatsapp: string;
   assinatura: string;
+  /** WhatsApp e horário do suporte técnico (aparecem no botão Ajuda do painel dos restaurantes) */
+  suporte_whatsapp: string;
+  suporte_horario: string;
 } & Regras & { modelos: Partial<Record<ChaveModelo, string>> };
 export const CONFIG_PADRAO: Config = {
   empresa: "MMATTOS Assessoria de MKT",
@@ -121,6 +124,8 @@ export const CONFIG_PADRAO: Config = {
   email: "",
   whatsapp: "21967640607",
   assinatura: "",
+  suporte_whatsapp: "",
+  suporte_horario: "Segunda a sábado, das 9h às 18h",
   ...REGRAS_PADRAO,
   modelos: {},
 };
@@ -673,6 +678,8 @@ export function useAdmin() {
           email: c.email.trim().toLowerCase(),
           whatsapp: c.whatsapp.replace(/\D/g, ""),
           assinatura: c.assinatura.trim(),
+          suporte_whatsapp: (c.suporte_whatsapp ?? "").replace(/\D/g, ""),
+          suporte_horario: (c.suporte_horario ?? "").trim() || CONFIG_PADRAO.suporte_horario,
           atualizado_em: new Date().toISOString(),
         })
         .eq("id", 1);
