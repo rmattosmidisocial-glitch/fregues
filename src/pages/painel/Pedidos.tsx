@@ -176,7 +176,8 @@ function Cartao({ p, c, ent, abrir, aberto, show }: { p: Pedido; c: (typeof COLU
     if (prox === "entregue") show(`#${p.num} entregue`);
   };
 
-  const pedirAvaliacao = p.id ? zap(p.tel, `Oi, ${primeiro}! Aqui é da ${loja}. Seu pedido #${p.num} chegou bem? Dá uma nota pra gente, leva 10 segundos: ${linkDaLoja(SLUG)}?avaliar=${p.id}`) : null;
+  const idAval = p.id ?? (d.modo === "demo" ? `demo-${p.num}` : null); // na demonstração o link abre a avaliação de teste
+  const pedirAvaliacao = idAval ? zap(p.tel, `Oi, ${primeiro}! Aqui é da ${loja}. Seu pedido #${p.num} chegou bem? Dá uma nota pra gente, leva 10 segundos: ${linkDaLoja(SLUG)}?avaliar=${idAval}`) : null;
   const avisoSaiu = zap(p.tel, `Oi, ${primeiro}! Seu pedido #${p.num} da ${loja} saiu para entrega${p.motoboy ? ` com ${p.motoboy}` : ""}. Já já chega aí!`);
   const avisoPronto = zap(p.tel, `Oi, ${primeiro}! Seu pedido #${p.num} da ${loja} está pronto para retirar.`);
   const falar = zap(p.tel, `Oi, ${primeiro}! Aqui é da ${loja}, sobre o seu pedido #${p.num}.`);
