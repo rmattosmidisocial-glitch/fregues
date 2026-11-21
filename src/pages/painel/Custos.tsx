@@ -125,9 +125,9 @@ function Pratos({ linhas, c, vendas, avisar, irInsumos }: { linhas: Linha[]; c: 
           const abre = aberto === l.p.id;
           return (
             <li key={l.p.id}>
-              <button onClick={() => setAberto(abre ? null : l.p.id)} aria-expanded={abre} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-grafite/50">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{l.p.nome}</p>
+              <button onClick={() => setAberto(abre ? null : l.p.id)} aria-expanded={abre} className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-left hover:bg-grafite/50 sm:flex-nowrap">
+                <div className="min-w-0 flex-1 basis-full sm:basis-auto">
+                  <p className="font-semibold">{l.p.nome}</p>
                   <p className="text-[13px] text-areia">
                     {l.p.cat} · venda {brl(l.preco)}
                     {v ? ` · ${v.qtd} vendidos em 30 dias` : ""}
@@ -136,7 +136,7 @@ function Pratos({ linhas, c, vendas, avisar, irInsumos }: { linhas: Linha[]; c: 
                 {l.custo == null ? (
                   <span className="shrink-0 rounded-full border border-dashed border-linha px-3 py-1 text-[12px] font-semibold text-areia">Montar ficha</span>
                 ) : (
-                  <div className="shrink-0 text-right">
+                  <div className="mr-auto shrink-0 sm:mr-0 sm:text-right">
                     <p className="tabular text-[14px]">
                       custo <b>{brl(l.custo)}</b>
                     </p>

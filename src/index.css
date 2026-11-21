@@ -180,3 +180,9 @@ body {
 .marca-anel { animation: marca-giro 140s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .marca-anel { animation: none; } }
 @media print { .marca-dagua { display: none; } }
+
+/* No celular, a barra de baixo do painel some enquanto uma janela (modal) está aberta,
+   para não cobrir os botões da janela. */
+body:has(.fixed.inset-0.z-50) .nav-inferior {
+  display: none;
+}

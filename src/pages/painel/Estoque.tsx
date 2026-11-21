@@ -111,7 +111,7 @@ export function Estoque({ c, avisar }: { c: C; avisar: (t: string) => void }) {
                   <div className="flex flex-wrap items-center gap-3 px-4 py-3">
                     <div className="min-w-0 flex-1">
                       <p className="flex items-center gap-2 font-semibold">
-                        <span className="truncate">{i.nome}</span>
+                        <span className="min-w-0">{i.nome}</span>
                         <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${SIT[s].cls}`}>{SIT[s].txt}</span>
                       </p>
                       <p className="text-[13px] text-areia">{i.estoque == null ? "Toque em Controlar para dizer quanto tem" : `mínimo ${qtdTxt(i.minimo ?? 0, i.unidade)}${d != null ? ` · dura uns ${d} dia${d === 1 ? "" : "s"} no ritmo atual` : ""}`}</p>

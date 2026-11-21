@@ -178,7 +178,7 @@ export function ListasRapidas({ avisar }: { avisar: (t: string) => void }) {
       <p className="text-[14px] text-areia">Um toque e a lista sai pronta, com a mensagem para mandar no WhatsApp.</p>
       <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {LISTAS.map((l) => (
-          <button key={l.id} onClick={() => setAberta(aberta === l.id ? null : l.id)} aria-pressed={aberta === l.id} className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition ${aberta === l.id ? "border-brasa bg-brasa/10" : "border-linha hover:bg-grafite"}`}>
+          <button key={l.id} onClick={() => setAberta(aberta === l.id ? null : l.id)} aria-pressed={aberta === l.id} className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 text-left transition ${aberta === l.id ? "border-brasa bg-brasa/10" : "border-linha hover:bg-grafite"}`}>
             <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${aberta === l.id ? "bg-brasa text-carvao" : "bg-grafite text-brasa"}`}>{l.icone}</span>
             <span className="min-w-0 flex-1">
               <span className="block text-[14px] font-semibold leading-tight">{l.titulo}</span>

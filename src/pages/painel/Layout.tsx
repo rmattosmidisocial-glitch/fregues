@@ -260,7 +260,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
         </main>
       </div>
 
-      <nav className="scroll-thin fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-linha bg-forno md:hidden" aria-label="Painel">
+      <nav className="nav-inferior scroll-thin fixed inset-x-0 bottom-0 z-40 flex overflow-x-auto border-t border-linha bg-forno md:hidden" aria-label="Painel">
         {ITENS_VIS.map((i) => (
           <a key={i.rota} href={`#${i.rota}`} aria-current={rota === i.rota ? "page" : undefined} className={`relative flex min-w-[76px] flex-col items-center gap-1 px-1 py-2.5 text-[11px] ${rota === i.rota ? "text-brasa" : "text-areia"}`}>
             {i.icone}
