@@ -25,6 +25,7 @@ function EditarPlano({ a, p, novo, fechar }: { a: A; p: Plano; novo: boolean; fe
     ...p,
     recursosTxt: p.recursos.join("\n"),
     precoTxt: String(p.preco).replace(".", ","),
+    entradaTxt: p.preco_primeiro_mes == null ? "" : String(p.preco_primeiro_mes).replace(".", ","),
     usuariosTxt: p.usuarios == null ? "" : String(p.usuarios),
     lojasTxt: p.lojas == null ? "" : String(p.lojas),
     mods: p.modulos ?? [],
@@ -35,6 +36,8 @@ function EditarPlano({ a, p, novo, fechar }: { a: A; p: Plano; novo: boolean; fe
   const salvar = async () => {
     const preco = Number(f.precoTxt.replace(/\./g, "").replace(",", "."));
     if (!Number.isFinite(preco) || preco < 0) return setM({ ok: false, t: "Preço inválido" });
+    const entrada = f.entradaTxt.trim() ? Number(f.entradaTxt.replace(/\./g, "").replace(",", ".")) : null;
+    if (entrada != null && (!Number.isFinite(entrada) || entrada < 0)) return setM({ ok: false, t: "Preço do primeiro mês inválido" });
     const id = novo
       ? f.nome
           .toLowerCase()
@@ -51,6 +54,7 @@ function EditarPlano({ a, p, novo, fechar }: { a: A; p: Plano; novo: boolean; fe
       id,
       nome: f.nome.trim(),
       preco,
+      preco_primeiro_mes: entrada,
       descricao: f.descricao ?? "",
       recursos: f.recursosTxt
         .split("\n")
@@ -80,10 +84,16 @@ function EditarPlano({ a, p, novo, fechar }: { a: A; p: Plano; novo: boolean; fe
             Nome
             <input value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} className={inp} />
           </label>
-          <label className="block font-semibold">
-            Preço por mês (R$)
-            <input inputMode="decimal" value={f.precoTxt} onChange={(e) => setF({ ...f, precoTxt: e.target.value })} className={`${inp} tabular`} />
-          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block font-semibold">
+              Preço por mês (R$)
+              <input inputMode="decimal" value={f.precoTxt} onChange={(e) => setF({ ...f, precoTxt: e.target.value })} className={`${inp} tabular`} />
+            </label>
+            <label className="block font-semibold">
+              1º mês (R$) <span className="font-normal text-areia">(vazio = normal)</span>
+              <input inputMode="decimal" value={f.entradaTxt} onChange={(e) => setF({ ...f, entradaTxt: e.target.value })} placeholder="ex.: 60" className={`${inp} tabular`} />
+            </label>
+          </div>
           <label className="block font-semibold">
             Frase curta
             <input value={f.descricao ?? ""} onChange={(e) => setF({ ...f, descricao: e.target.value })} className={inp} />
@@ -202,6 +212,7 @@ export function PlanosAdmin({ a }: { a: A }) {
               {brl(p.preco)}
               <span className="text-[15px] font-normal text-areia">/mês</span>
             </p>
+            {p.preco_primeiro_mes != null && <p className="tabular text-[13px] font-semibold text-brasa">1º mês por {brl(p.preco_primeiro_mes)}</p>}
             <p className="mt-2 text-[12px] text-areia">
               Acessos: {p.usuarios == null ? "usuários ilimitados" : `${p.usuarios} usuário${p.usuarios > 1 ? "s" : ""}`}
               {(p.modulos ?? []).length

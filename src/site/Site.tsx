@@ -775,38 +775,73 @@ function ComoComecar() {
   );
 }
 
-// os mesmos planos e recursos cadastrados no Admin (aba Planos)
-// os mesmos planos e recursos cadastrados no Admin (aba Planos)
-const PLANOS: { nome: string; frase: string; itens: string[]; destaque?: boolean }[] = [
-  { nome: "Essencial", frase: "Loja própria e CRM para começar.", itens: ["Loja e cardápio digital", "Mapa de atuação", "Fregueses e Pulso", "3 usuários"] },
-  { nome: "Completo", frase: "Tudo para vender mais sem marketplace.", itens: ["Tudo do Essencial", "Atendimento com IA", "Automações", "Formulários e links da bio", "5 usuários"], destaque: true },
-  { nome: "Rede", frase: "Para quem tem mais de uma loja.", itens: ["Tudo do Completo", "Até 5 lojas", "Usuários ilimitados", "Suporte prioritário"] },
+// Planos: vêm do Admin (aba Planos) pela rota /api/planos do painel. Se não carregar, usa estes.
+type PlanoSite = { id: string; nome: string; preco: number; preco_primeiro_mes: number | null; descricao: string | null; recursos: string[]; usuarios?: number | null; lojas?: number | null };
+const PLANOS_PADRAO: PlanoSite[] = [
+  {
+    id: "completo",
+    nome: "Completo",
+    preco: 189,
+    preco_primeiro_mes: 60,
+    descricao: "Tudo para vender mais sem marketplace.",
+    recursos: ["Loja própria e cardápio digital", "Pix automático, cupons e cashback", "Pedidos, salão, caixa e balcão", "Ficha técnica, CMV, estoque e prejuízos", "Fregueses, Pulso e automações", "Atendimento com IA", "Até 4 usuários"],
+  },
+  { id: "rede", nome: "Rede", preco: 599, preco_primeiro_mes: null, descricao: "Para quem tem mais de uma loja.", recursos: ["Tudo do Completo", "Até 5 lojas", "Usuários ilimitados", "Suporte prioritário"] },
 ];
+function usePlanos() {
+  const [planos, setPlanos] = useState<PlanoSite[]>(PLANOS_PADRAO);
+  useEffect(() => {
+    fetch("https://app.usefregues.com.br/api/planos")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((ps: PlanoSite[] | null) => {
+        if (Array.isArray(ps) && ps.length) setPlanos(ps.map((p) => ({ ...p, recursos: Array.isArray(p.recursos) ? p.recursos : [] })));
+      })
+      .catch(() => {});
+  }, []);
+  return planos;
+}
+const reais = (n: number) => n.toLocaleString("pt-BR", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
 
 function Planos() {
+  const planos = usePlanos();
+  const destaque = planos.length > 1 ? planos[0].id : null;
   return (
     <section id="planos" className="mx-auto max-w-[1240px] px-5 py-24 md:px-8">
       <p className="text-[15px] font-semibold text-brasa">Planos</p>
       <h2 className="mt-2 max-w-[44rem] font-display text-[clamp(2rem,4.4vw,3.4rem)] font-extrabold leading-[0.98] tracking-[-0.015em]">Mensalidade fixa. Zero comissão por pedido.</h2>
-      <p className="mt-4 max-w-[40rem] text-[18px] text-areia">Em todos os planos: loja própria, Pix, tela da cozinha, salão e caixa, sem comissão. Valores e condição de casa fundadora pelo WhatsApp, com teste grátis antes de pagar.</p>
-      <div className="mt-10 grid gap-4 md:grid-cols-3">
-        {PLANOS.map((p) => (
-          <div key={p.nome} className={`flex flex-col rounded-3xl border border-linha bg-forno p-6 ${p.destaque ? "ring-2 ring-brasa shadow-[0_20px_60px_-20px_rgba(244,91,38,.5)]" : ""}`}>
-            {p.destaque && <span className="mb-2 w-fit rounded-full bg-brasa px-3 py-1 text-[12px] font-bold text-carvao">Mais escolhido</span>}
+      <p className="mt-4 max-w-[40rem] text-[18px] text-areia">Sem comissão em nenhum pedido. Loja própria, Pix, cozinha, salão, caixa, custos e estoque num lugar só. A nossa equipe configura tudo para você.</p>
+      <div className={`mt-10 grid gap-4 ${planos.length >= 3 ? "md:grid-cols-3" : "mx-auto max-w-[900px] md:grid-cols-2"}`}>
+        {planos.map((p) => (
+          <div key={p.id} className={`flex flex-col rounded-3xl border border-linha bg-forno p-6 ${p.id === destaque ? "shadow-[0_20px_60px_-20px_rgba(244,91,38,.5)] ring-2 ring-brasa" : ""}`}>
+            {p.id === destaque && <span className="mb-2 w-fit rounded-full bg-brasa px-3 py-1 text-[12px] font-bold text-carvao">Mais escolhido</span>}
             <p className="font-display text-[28px] font-extrabold">{p.nome}</p>
-            <p className="text-[15px] text-areia">{p.frase}</p>
+            {p.descricao && <p className="text-[15px] text-areia">{p.descricao}</p>}
+            <div className="mt-4">
+              {p.preco_primeiro_mes != null && p.preco_primeiro_mes < p.preco ? (
+                <>
+                  <p className="text-[14px] font-semibold text-brasa">1º mês por</p>
+                  <p className="tabular font-display text-[44px] font-extrabold leading-none">R$ {reais(p.preco_primeiro_mes)}</p>
+                  <p className="tabular mt-1 text-[15px] text-areia">depois R$ {reais(p.preco)}/mês</p>
+                </>
+              ) : (
+                <p className="tabular font-display text-[44px] font-extrabold leading-none">
+                  R$ {reais(p.preco)}
+                  <span className="text-[16px] font-normal text-areia">/mês</span>
+                </p>
+              )}
+            </div>
             <ul className="mt-5 flex-1 space-y-2 text-[15px]">
-              {p.itens.map((t) => (
+              {p.recursos.map((t) => (
                 <li key={t} className="flex gap-2">
                   <Check className="mt-0.5 h-4 w-4 shrink-0 text-manjericao" /> {t}
                 </li>
               ))}
             </ul>
             <a
-              href={wa(`Olá! Quero saber o valor do plano ${p.nome} do Freguês para a minha casa.`)}
+              href={wa(`Olá! Quero o plano ${p.nome} do Freguês para a minha casa.`)}
               target="_blank"
               rel="noreferrer"
-              className={`mt-6 flex items-center justify-center gap-2 rounded-full py-3.5 font-bold transition ${p.destaque ? "bg-brasa text-carvao hover:bg-mostarda" : "border-2 border-papel text-papel hover:bg-papel hover:text-carvao"}`}
+              className={`mt-6 flex items-center justify-center gap-2 rounded-full py-3.5 font-bold transition ${p.id === destaque ? "bg-brasa text-carvao hover:bg-mostarda" : "border-2 border-papel text-papel hover:bg-papel hover:text-carvao"}`}
             >
               Quero o {p.nome} <ArrowUpRight className="h-5 w-5" />
             </a>

@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     const [s] = await lerServidor("subscriptions", `org_id=eq.${org_id}&select=*`);
     if (!s) return res.status(404).json({ erro: "Cliente sem assinatura" });
     const [org] = await lerServidor("organizations", `id=eq.${org_id}&select=*`);
-    const [plano] = await lerServidor("plans", `id=eq.${s.plan_id}&select=nome`);
+    const [plano] = await lerServidor("plans", `id=eq.${s.plan_id}&select=nome,preco_primeiro_mes`);
 
     let aviso = null;
     try {
@@ -45,6 +45,7 @@ export default async function handler(req, res) {
     // primeira cobrança: fim do teste, ou hoje se o teste já acabou
     const primeira = s.teste_ate && s.teste_ate > hoje() ? s.teste_ate : hoje();
     let assinatura = s.asaas_subscription_id;
+    const novaAssinatura = !assinatura;
     if (!assinatura) {
       const a = await asaas("/subscriptions", {
         method: "POST",
@@ -62,7 +63,17 @@ export default async function handler(req, res) {
       assinatura = a.id;
     }
 
-    const pg = await asaas(`/subscriptions/${assinatura}/payments`);
+    let pg = await asaas(`/subscriptions/${assinatura}/payments`);
+    // preço de entrada no primeiro mês (ex.: R$ 60), só para cliente que nunca pagou uma fatura
+    const entrada = plano?.preco_primeiro_mes == null ? null : Number(plano.preco_primeiro_mes);
+    if (novaAssinatura && entrada != null && entrada < Number(s.valor)) {
+      const pagas = await lerServidor("invoices", `org_id=eq.${org_id}&status=eq.paga&select=id&limit=1`);
+      const primeiraPendente = (pg.data || []).filter((p) => p.status === "PENDING").sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+      if (!pagas.length && primeiraPendente) {
+        await asaas(`/payments/${primeiraPendente.id}`, { method: "PUT", body: JSON.stringify({ value: entrada, description: `Freguês · plano ${plano?.nome || s.plan_id} · primeiro mês` }) });
+        pg = await asaas(`/subscriptions/${assinatura}/payments`);
+      }
+    }
     const primeiraCobranca = (pg.data || []).sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
     const link = primeiraCobranca?.invoiceUrl || null;
 

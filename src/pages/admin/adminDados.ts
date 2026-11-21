@@ -155,6 +155,8 @@ export type Plano = {
   recursos: string[];
   ordem?: number;
   ativo?: boolean;
+  /** preço de entrada no primeiro mês (null = sem preço de entrada) */
+  preco_primeiro_mes?: number | null;
   /** limite de usuários (null = ilimitado) */
   usuarios?: number | null;
   lojas?: number | null;
@@ -268,6 +270,7 @@ export const PLANOS_PADRAO: Plano[] = [
     preco: 149,
     descricao: "Loja própria e CRM para começar.",
     recursos: ["Loja e cardápio digital", "Mapa de atuação", "Fregueses e Pulso", "3 usuários"],
+    ativo: false,
     usuarios: 3,
     lojas: 1,
     modulos: [],
@@ -275,17 +278,18 @@ export const PLANOS_PADRAO: Plano[] = [
   {
     id: "completo",
     nome: "Completo",
-    preco: 249,
+    preco: 189,
+    preco_primeiro_mes: 60,
     descricao: "Tudo para vender mais sem marketplace.",
-    recursos: ["Tudo do Essencial", "Atendimento com IA", "Automações", "Formulários e links da bio", "5 usuários"],
-    usuarios: 5,
+    recursos: ["Loja própria e cardápio digital", "Pix automático, cupons e cashback", "Pedidos, salão, caixa e balcão", "Ficha técnica, CMV, estoque e prejuízos", "Fregueses, Pulso e automações", "Atendimento com IA", "Até 4 usuários"],
+    usuarios: 4,
     lojas: 1,
     modulos: ["ia", "automacoes", "formularios", "links"],
   },
   {
     id: "rede",
     nome: "Rede",
-    preco: 499,
+    preco: 599,
     descricao: "Para quem tem mais de uma loja.",
     recursos: ["Tudo do Completo", "Até 5 lojas", "Usuários ilimitados", "Suporte prioritário"],
     usuarios: null,
@@ -533,6 +537,7 @@ export function useAdmin() {
         p.data.map((x) => ({
           ...x,
           preco: Number(x.preco),
+          preco_primeiro_mes: x.preco_primeiro_mes == null ? null : Number(x.preco_primeiro_mes),
           recursos: Array.isArray(x.recursos) ? x.recursos : [],
         })) as Plano[],
       );
@@ -721,6 +726,8 @@ export function useAdmin() {
       if (error) return error.message;
       const { error: e2 } = await supabase.rpc("admin_plano_limites", { p_id: p.id, p_usuarios: p.usuarios ?? null, p_lojas: p.lojas ?? null, p_modulos: p.modulos ?? [] });
       if (e2) return e2.message;
+      const { error: e3 } = await supabase.rpc("admin_plano_primeiro_mes", { p_id: p.id, p_valor: p.preco_primeiro_mes ?? null });
+      if (e3) return e3.message;
       await recarregar();
       return null;
     },
