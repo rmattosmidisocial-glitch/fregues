@@ -926,7 +926,7 @@ export function Loja() {
                     [
                       ["pix", "Pix", "Pague agora pelo app do banco", <Wallet key="w" className="h-5 w-5" />],
                       ["maquininha", modo === "entrega" ? "Cartão na entrega" : "Cartão na retirada", "Crédito ou débito na maquininha", <CreditCard key="c" className="h-5 w-5" />],
-                      ["dinheiro", modo === "entrega" ? "Dinheiro ou Pix na entrega" : "Dinheiro ou Pix na retirada", modo === "entrega" ? "Pague ao receber, do jeito que preferir" : "Pague ao retirar, do jeito que preferir", <Bike key="b" className="h-5 w-5" />],
+                      ["dinheiro", modo === "entrega" ? "Dinheiro na entrega" : "Dinheiro na retirada", modo === "entrega" ? "Pague ao receber. Se precisar, informe o troco" : "Pague ao retirar. Se precisar, informe o troco", <Bike key="b" className="h-5 w-5" />],
                     ] as const
                   )
                     .filter(([v]) => (v === "pix" ? pixPronto && LOJA.aceita_pix !== false : v === "maquininha" ? LOJA.aceita_cartao !== false : LOJA.aceita_dinheiro !== false))

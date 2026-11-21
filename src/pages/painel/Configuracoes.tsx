@@ -494,7 +494,7 @@ function Regras() {
       <div className="mt-2 grid gap-2 text-[14px] sm:grid-cols-3">
         {chave("aceita_pix", "Pix pelo site", semChave ? 'Cadastre a chave em "Pix da loja" abaixo' : "Cai direto na sua conta")}
         {chave("aceita_cartao", "Cartão na entrega", "Maquininha na entrega ou retirada")}
-        {chave("aceita_dinheiro", "Dinheiro ou Pix na entrega", "O cliente paga ao receber; se for em dinheiro, informa o troco")}
+        {chave("aceita_dinheiro", "Dinheiro na entrega", "O cliente paga ao receber; se for em dinheiro, informa o troco")}
       </div>
       <div className="mt-4 grid gap-3 text-[14px] sm:grid-cols-2">
         <label className="block font-semibold">
