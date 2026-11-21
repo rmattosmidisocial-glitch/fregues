@@ -151,6 +151,11 @@ export function useSalao(nomeCanal = "salao") {
   const err = (x: { error: { message: string } | null }) => (x.error ? x.error.message.replace(/^.*?:\s*/, "") : null);
 
   const acoes = {
+    /** Depois de virar cortesia no banco: atualiza a tela (na demonstração, muda aqui mesmo). */
+    async marcouCortesia(itemId: string, motivo: string) {
+      if (real) return carregar();
+      setDemo((st) => ({ ...st, itens: st.itens.map((i) => (i.id === itemId ? { ...i, unit: 0, obs: ["Cortesia", motivo, i.obs].filter(Boolean).join(" · ") } : i)) }));
+    },
     async abrirMesa(mesa: string, pessoas: number, garcom: string): Promise<string | null> {
       if (real) {
         const r = await supabase!.rpc("abrir_mesa", { p_mesa: mesa, p_pessoas: pessoas, p_garcom: garcom || null });

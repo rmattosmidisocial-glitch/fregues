@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LifeBuoy, Activity, Armchair, Calculator, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, Lock, LogOut, Map as MapIcon, UserRound, MessagesSquare, Settings, Sparkles, Users, Workflow, X, BarChart3 } from "lucide-react";
+import { LifeBuoy, Activity, Armchair, Calculator, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, Lock, LogOut, Map as MapIcon, UserRound, MessagesSquare, Settings, Sparkles, Users, Workflow, X, BarChart3, TrendingDown } from "lucide-react";
 import { useCrescer } from "../../data/crescer";
 import { useAtendimentoPainel } from "../../data/atendimento";
 import { useFormulariosPainel } from "../../data/formularios";
@@ -25,6 +25,7 @@ import { MinhaConta, PrimeiraSenha } from "./MinhaConta";
 import { LinkDaLoja } from "./LinkDaLoja";
 import { Configuracoes } from "./Configuracoes";
 import { Relatorios } from "./Relatorios";
+import { Prejuizos } from "./Prejuizos";
 import { AceiteTermos, VERSAO_TERMOS } from "../publico/Legal";
 import { MarcaDagua } from "../../components/MarcaDagua";
 import { ImpressaoAutomatica } from "../../components/ImpressaoAutomatica";
@@ -48,6 +49,7 @@ const ITENS: Item[] = [
   { rota: "formularios", rotulo: "Formulários", curto: "Formulários", grupo: "Crescer", icone: <ClipboardList className="h-5 w-5" /> },
   { rota: "links", rotulo: "Links da bio", curto: "Links", grupo: "Crescer", icone: <Link2 className="h-5 w-5" /> },
   { rota: "relatorios", rotulo: "Relatórios", curto: "Relatórios", grupo: "Loja", icone: <BarChart3 className="h-5 w-5" /> },
+  { rota: "prejuizos", rotulo: "Prejuízos", curto: "Prejuízos", grupo: "Loja", icone: <TrendingDown className="h-5 w-5" /> },
   { rota: "config", rotulo: "Configurações", curto: "Ajustes", grupo: "Loja", icone: <Settings className="h-5 w-5" /> },
 ];
 
@@ -257,6 +259,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
           {rota === "links" && !bloqueio && <Links />}
           {rota === "config" && <Configuracoes />}
           {rota === "relatorios" && chefe && <Relatorios />}
+          {rota === "prejuizos" && chefe && <Prejuizos />}
         </main>
       </div>
 

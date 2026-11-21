@@ -1,5 +1,5 @@
 import { linkDaLoja } from "../../data/dados";
-import { CalendarDays, ChevronRight, Frown, MessageCircle, MessagesSquare, Package, Sparkles, Star, TrendingUp } from "lucide-react";
+import { CalendarDays, ChevronRight, Frown, MessageCircle, MessagesSquare, Package, Sparkles, Star, TrendingDown, TrendingUp } from "lucide-react";
 import { crescer, quandoTxt, useCrescer } from "../../data/crescer";
 import { AnelPulso, Numero, Painelzinho, StatusPill, useToast } from "../../components/ui";
 import { brl, type Freguês } from "../../data/mock";
@@ -8,6 +8,7 @@ import { useState } from "react";
 import { PainelAvaliacoes, quandoAval, useAvaliacoes } from "./Avaliacoes";
 import type { Avaliacao } from "../../data/dados";
 import { qtdTxt, situacao, useCustos, type Insumo } from "../../data/custos";
+import { usePrejuizos } from "../../data/prejuizos";
 
 function GraficoSemana({ VENDAS_SEMANA }: { VENDAS_SEMANA: DiaSemana[] }) {
   const temMkt = VENDAS_SEMANA.some((d) => d.marketplace > 0);
@@ -39,7 +40,7 @@ function GraficoSemana({ VENDAS_SEMANA }: { VENDAS_SEMANA: DiaSemana[] }) {
   );
 }
 
-function Atencao({ avaliacoes, insumos }: { avaliacoes: Avaliacao[] | null; insumos: Insumo[] }) {
+function Atencao({ avaliacoes, insumos, prejuizo }: { avaliacoes: Avaliacao[] | null; insumos: Insumo[]; prejuizo: { total: number; limite: number } | null }) {
   const conversas = useCrescer((s) => s.conversas);
   const forms = useCrescer((s) => s.forms);
   const itens: { chave: string; icone: React.ReactNode; texto: string; sub: string; href: string; antes?: () => void; cor: string }[] = [];
@@ -52,6 +53,8 @@ function Atencao({ avaliacoes, insumos }: { avaliacoes: Avaliacao[] | null; insu
       href: "#atendimento",
       cor: c.humor === "negativo" ? "#f0524a" : "#ffc03a",
     });
+  // prejuízo da semana passou do limite que o dono definiu
+  if (prejuizo && prejuizo.total > prejuizo.limite) itens.push({ chave: "prejuizo", icone: <TrendingDown className="h-4 w-4" />, texto: `Prejuízo da semana: ${brl(prejuizo.total)}`, sub: `Passou do limite de ${brl(prejuizo.limite)} · veja os motivos`, href: "#prejuizos", cor: "#f0524a" });
   // insumo acabando (estoque)
   const faltando = insumos.filter((i) => ["baixo", "acabou"].includes(situacao(i))).sort((a, b) => (a.estoque ?? 0) - (b.estoque ?? 0));
   if (faltando.length)
@@ -163,6 +166,7 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
   const d = useDados();
   const avaliacoes = useAvaliacoes();
   const custos = useCustos();
+  const prej = usePrejuizos(7);
   const gestor = d.papel === "dono" || d.papel === "gerente";
   const VENDAS_SEMANA = d.semana;
   const pulsoResumo = d.pulso;
@@ -192,7 +196,7 @@ export function Pulso({ abrirCopiloto }: { abrirCopiloto: () => void }) {
         </a>
       </div>
 
-      <Atencao avaliacoes={avaliacoes} insumos={gestor ? custos.insumos : []} />
+      <Atencao avaliacoes={avaliacoes} insumos={gestor ? custos.insumos : []} prejuizo={gestor && d.loja.prejuizo_alerta != null && prej.lista ? { total: prej.lista.reduce((x, p) => x + p.custo, 0), limite: Number(d.loja.prejuizo_alerta) } : null} />
 
       <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
         <section className="relative overflow-hidden rounded-3xl bg-[#fde9df] p-6 md:p-8">

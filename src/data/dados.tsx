@@ -85,6 +85,8 @@ export type Loja = typeof M.LOJA & {
   couvert_padrao?: number;
   org_id?: string;
   relatorios_ativo?: boolean;
+  /** aviso no Pulso quando o prejuízo da semana passar deste valor */
+  prejuizo_alerta?: number | null;
   /** dois cardápios (ex.: dia e noite), um no ar por vez */
   cardapios_duplos?: boolean;
   cardapio_ativo?: 1 | 2;
@@ -251,6 +253,7 @@ type Dados = {
           | "cardapio_auto"
           | "cardapio_horas"
           | "relatorios_ativo"
+          | "prejuizo_alerta"
           | "pagamento_online"
           | "pagamento_online_ok"
           | "whatsapp_ativo"
@@ -485,7 +488,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     const { data: s, error } = await supabase
       .from("stores")
       .select(
-        "id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem,cashback_ativo,cashback_percentual,cashback_minimo_uso,cashback_validade_dias,servico_padrao,couvert_padrao,org_id,relatorios_ativo,cardapios_duplos,cardapio_ativo,cardapio_nomes,cardapio_auto,cardapio_horas,pagamento_online,pagamento_online_ok,whatsapp_ativo,whatsapp_ok,whatsapp_eventos,nfce_ativo,nfce_ok,nfce_automatica,nfce_cnpj,nfce_producao,nfce_ncm,cor_marca,maquininha_ativo,maquininha_provedor,maquininha_aparelhos",
+        "id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem,cashback_ativo,cashback_percentual,cashback_minimo_uso,cashback_validade_dias,servico_padrao,couvert_padrao,org_id,relatorios_ativo,prejuizo_alerta,cardapios_duplos,cardapio_ativo,cardapio_nomes,cardapio_auto,cardapio_horas,pagamento_online,pagamento_online_ok,whatsapp_ativo,whatsapp_ok,whatsapp_eventos,nfce_ativo,nfce_ok,nfce_automatica,nfce_cnpj,nfce_producao,nfce_ncm,cor_marca,maquininha_ativo,maquininha_provedor,maquininha_aparelhos",
       )
       .eq("slug", SLUG)
       .single();

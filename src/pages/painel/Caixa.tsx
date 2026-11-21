@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { ArrowDownToLine, ArrowUpFromLine, Banknote, Check, CreditCard, Lock, Minus, Plus, Printer, QrCode, Search, Star, Trash2, Unlock, X } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, Banknote, Check, CreditCard, Lock, Minus, Plus, Printer, QrCode, Search, Star, Trash2, TrendingDown, Unlock, X } from "lucide-react";
+import { LancarPrejuizo } from "./Prejuizo";
 import { brl, type Pedido, type Produto } from "../../data/mock";
 import { SLUG, supabase, useDados } from "../../data/dados";
 import { imprimirComanda } from "../../components/comanda";
@@ -764,6 +765,8 @@ export function Caixa() {
   const c = useCaixa();
   const [aba, setAba] = useState<"vender" | "resumo" | "historico">("vender");
   const [final, setFinal] = useState<{ r: Resumo; s: Sessao } | null>(null);
+  const [prejuizo, setPrejuizo] = useState(false);
+  const { show, Toast } = useToast();
   if (c.carregando) return <p className="text-areia">Abrindo o caixa…</p>;
   if (final)
     return (
@@ -787,6 +790,7 @@ export function Caixa() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Caixa e balcão</h1>
+          {prejuizo && <LancarPrejuizo fechar={() => setPrejuizo(false)} avisar={show} />}
           <p className="flex items-center gap-2 text-[15px] text-areia">
             {c.sessao ? (
               <>
@@ -799,20 +803,26 @@ export function Caixa() {
             )}
           </p>
         </div>
-        <div className="flex rounded-full border border-linha p-1 text-[14px] font-semibold" role="tablist">
-          {(
-            [
-              ["vender", "Vender"],
-              ["resumo", "Resumo do caixa"],
-              ["historico", "Fechamentos"],
-            ] as const
-          ).map(([v, r]) => (
-            <button key={v} role="tab" aria-selected={aba === v} onClick={() => setAba(v)} className={`rounded-full px-4 py-1.5 ${aba === v ? "bg-papel text-carvao" : "text-areia"}`}>
-              {r}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => setPrejuizo(true)} className="flex items-center gap-2 rounded-full border border-tomate/50 px-4 py-2 text-[14px] font-semibold text-tomate hover:bg-tomate/10">
+            <TrendingDown className="h-4 w-4" /> Lançar prejuízo
+          </button>
+          <div className="flex rounded-full border border-linha p-1 text-[14px] font-semibold" role="tablist">
+            {(
+              [
+                ["vender", "Vender"],
+                ["resumo", "Resumo do caixa"],
+                ["historico", "Fechamentos"],
+              ] as const
+            ).map(([v, r]) => (
+              <button key={v} role="tab" aria-selected={aba === v} onClick={() => setAba(v)} className={`rounded-full px-4 py-1.5 ${aba === v ? "bg-papel text-carvao" : "text-areia"}`}>
+                {r}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+      <Toast />
       {aba === "historico" ? <Historico c={c} /> : !c.sessao ? <Abrir c={c} /> : aba === "vender" ? <Vender c={c} /> : <ResumoCaixa c={c} aoFechar={(r, s) => setFinal({ r, s })} />}
     </div>
   );

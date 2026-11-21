@@ -6,6 +6,7 @@ import { useToast } from "../../components/ui";
 import { enderecoTxt, imprimirComanda, lerImpressora, NOME_FORMA } from "../../components/comanda";
 import { usePref } from "../../data/prefs";
 import { tocarSino } from "../../lib/sino";
+import { DevolverPedido } from "./Prejuizo";
 
 const COLUNAS: { id: StatusPedido; rotulo: string; acao?: string; prox?: StatusPedido }[] = [
   { id: "novo", rotulo: "Novos", acao: "Aceitar", prox: "preparo" },
@@ -163,6 +164,7 @@ function Cartao({ p, c, ent, abrir, aberto, show }: { p: Pedido; c: (typeof COLU
   const [quem, setQuem] = useState("");
   const [despachando, setDespachando] = useState(false);
   const [cancelando, setCancelando] = useState(false);
+  const [devolvendo, setDevolvendo] = useState(false);
   const [motivo, setMotivo] = useState("");
   const loja = d.loja.nome;
   const primeiro = p.cliente.split(" ")[0];
@@ -339,7 +341,23 @@ function Cartao({ p, c, ent, abrir, aberto, show }: { p: Pedido; c: (typeof COLU
                 Cancelar pedido
               </button>
             ))}
+          {(c.id === "pronto" || c.id === "rota" || c.id === "entregue") && (
+            <button onClick={() => setDevolvendo(true)} className="w-full rounded-xl border border-tomate/50 py-2 font-semibold text-tomate hover:bg-tomate/10">
+              Voltou / devolvido
+            </button>
+          )}
         </div>
+      )}
+      {devolvendo && (
+        <DevolverPedido
+          pedido={{ id: p.id, num: p.num, total: p.total }}
+          fechar={() => setDevolvendo(false)}
+          avisar={show}
+          depois={async (m) => {
+            if (d.modo === "demo") await d.acoes.cancelarPedido(p.num, `Devolvido: ${m}`);
+            else await d.acoes.recarregar();
+          }}
+        />
       )}
     </article>
   );

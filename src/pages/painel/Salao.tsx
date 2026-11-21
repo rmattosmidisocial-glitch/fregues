@@ -7,6 +7,7 @@ import { totais, useSalao, type Comanda, type ItemComanda, type Mesa, type NovoI
 import { Foto } from "../../components/Foto";
 import { useToast } from "../../components/ui";
 import { Couvert } from "../../components/Couvert";
+import { CortesiaItem } from "./Prejuizo";
 import { CobrarMaquininha, useMaquininha } from "../../components/Maquininha";
 import { imprimirComanda, imprimirCozinhaMesa } from "../../components/comanda";
 import { usePref } from "../../data/prefs";
@@ -314,7 +315,7 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
           )}
           <ul className="divide-y divide-linha">
             {itens.map((i) => (
-              <ItemLinha key={i.id} i={i} s={s} />
+              <ItemLinha key={i.id} i={i} s={s} avisar={show} />
             ))}
           </ul>
         </div>
@@ -522,7 +523,8 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
   );
 }
 
-function ItemLinha({ i, s }: { i: ItemComanda; s: ReturnType<typeof useSalao> }) {
+function ItemLinha({ i, s, avisar }: { i: ItemComanda; s: ReturnType<typeof useSalao>; avisar: (t: string) => void }) {
+  const [cortesia, setCortesia] = useState(false);
   const prox: Partial<Record<StatusItem, StatusItem>> = { novo: "preparo", preparo: "pronto", pronto: "entregue" };
   return (
     <li className={`flex items-start gap-3 py-2.5 ${i.status === "cancelado" ? "opacity-50" : ""}`}>
@@ -554,8 +556,14 @@ function ItemLinha({ i, s }: { i: ItemComanda; s: ReturnType<typeof useSalao> })
               cancelar
             </button>
           )}
+          {i.status !== "cancelado" && i.unit > 0 && (
+            <button onClick={() => setCortesia(true)} className="text-[11px] text-fumo hover:text-azulejo">
+              cortesia
+            </button>
+          )}
         </span>
       )}
+      {cortesia && <CortesiaItem item={i} fechar={() => setCortesia(false)} avisar={avisar} depois={(m) => s.acoes.marcouCortesia(i.id, m)} />}
     </li>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-export const ROTAS = ["inicio", "painel", "pedidos", "caixa", "salao", "atendimento", "mapa", "fregueses", "automacoes", "formularios", "links", "cardapio", "loja", "bio", "pesquisa", "admin", "mesa", "config", "termos", "privacidade", "redefinir", "relatorios"] as const;
+export const ROTAS = ["inicio", "painel", "pedidos", "caixa", "salao", "atendimento", "mapa", "fregueses", "automacoes", "formularios", "links", "cardapio", "loja", "bio", "pesquisa", "admin", "mesa", "config", "termos", "privacidade", "redefinir", "relatorios", "prejuizos"] as const;
 export type Rota = (typeof ROTAS)[number];
 
 // Endereço curto da loja (fregues.app/to-brocado ou to-brocado.dominio) sem # abre direto a loja do cliente
