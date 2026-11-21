@@ -228,6 +228,7 @@ export function Loja() {
   const [erroEnd, setErroEnd] = useState("");
   const [nome, setNome] = useState("");
   const [tel, setTel] = useState("");
+  const [aniv, setAniv] = useState({ dia: "", mes: "" });
   const [aceita, setAceita] = useState(false); // LGPD: o cliente escolhe, não vem marcado
   const [saldo, setSaldo] = useState(0);
   // Pix só aparece quando a loja cadastrou a chave dela (na demonstração, sempre)
@@ -468,6 +469,7 @@ export function Loja() {
     setEnviando(false);
     if (r.erro) return setErroPedido(r.erro);
     const criado = { ...r, total: d.modo === "demo" ? total : Number(r.total), desconto: Number(r.desconto), taxa: Number(r.taxa) };
+    if (aniv.dia && aniv.mes) d.acoes.salvarAniversario(r.id, Number(aniv.dia), Number(aniv.mes)).catch(() => {});
     setPedido(criado);
     if (d.modo === "real") salvarPedido({ ...criado, modo, quando: Date.now() });
     setPago(false);
@@ -839,6 +841,29 @@ export function Loja() {
                       WhatsApp com DDD
                       <input value={tel} onChange={(e) => setTel(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="(21) 9 9999-9999" className="mt-1 w-full rounded-xl border border-[#eadccb] bg-white px-3 py-3 text-[15px] font-normal" />
                     </label>
+                    <fieldset className="text-[13px] font-semibold">
+                      <legend>
+                        Aniversário <span className="font-normal text-[#6b5546]">(opcional, a casa pode te mandar um mimo)</span>
+                      </legend>
+                      <div className="mt-1 grid grid-cols-2 gap-2">
+                        <select value={aniv.dia} onChange={(e) => setAniv({ ...aniv, dia: e.target.value })} aria-label="Dia do aniversário" className="w-full rounded-xl border border-[#eadccb] bg-white px-3 py-3 text-[15px] font-normal">
+                          <option value="">Dia</option>
+                          {Array.from({ length: 31 }, (_, i) => (
+                            <option key={i + 1} value={i + 1}>
+                              {i + 1}
+                            </option>
+                          ))}
+                        </select>
+                        <select value={aniv.mes} onChange={(e) => setAniv({ ...aniv, mes: e.target.value })} aria-label="Mês do aniversário" className="w-full rounded-xl border border-[#eadccb] bg-white px-3 py-3 text-[15px] font-normal">
+                          <option value="">Mês</option>
+                          {["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"].map((m, i) => (
+                            <option key={m} value={i + 1}>
+                              {m}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </fieldset>
                     <label className="flex items-start gap-3 text-[14px] text-[#5a4c41]">
                       <input type="checkbox" checked={aceita} onChange={() => setAceita(!aceita)} className="mt-0.5 h-5 w-5 accent-[#c2410c]" />
                       Quero receber novidades e cupons da {LOJA.nome} no WhatsApp. Posso sair quando quiser.

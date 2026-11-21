@@ -345,6 +345,8 @@ type Dados = {
     confirmarPixDemo: (id: string) => Promise<void>;
     /** Loja: o cliente avalia o pedido entregue (devolve "ok" ou o motivo). */
     avaliarPedido: (id: string, nota: number, comentario: string) => Promise<string>;
+    /** Loja: o cliente informa o aniversário (dia e mês) depois do pedido. */
+    salvarAniversario: (orderId: string, dia: number, mes: number) => Promise<void>;
     /** Loja: nota que o cliente já deu a este pedido (ou null). */
     avaliacaoDoPedido: (id: string) => Promise<number | null>;
     /** Painel: avaliações recentes dos clientes. */
@@ -1241,6 +1243,10 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         }
         const { data, error } = await supabase.rpc("avaliar_pedido", { p_id: id, p_nota: nota, p_comentario: comentario });
         return error ? "erro" : String(data);
+      },
+      async salvarAniversario(orderId, dia, mes) {
+        if (!supabase || orderId.startsWith("demo") || !dia || !mes) return;
+        await supabase.rpc("cliente_aniversario", { p_order: orderId, p_dia: dia, p_mes: mes });
       },
       async avaliacaoDoPedido(id) {
         if (!supabase || id.startsWith("demo")) return AVALIACOES_DEMO.find((a) => a.pedidoId === id)?.nota ?? null;

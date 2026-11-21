@@ -6,7 +6,22 @@ import { registrarVendaDemo } from "./caixa";
 
 export type Mesa = { id: string; numero: number; area: string; lugares: number; forma: "quadrada" | "redonda" | "retangular"; ativa: boolean; reservada_para: string | null };
 export type StatusComanda = "aberta" | "conta" | "fechada" | "cancelada";
-export type Comanda = { id: string; table_id: string; status: StatusComanda; pessoas: number; garcom: string | null; cliente_nome: string | null; telefone: string | null; taxa_servico: number; desconto: number; couvert?: number; aberta_em: string; fechada_em?: string | null; total_fechado?: number };
+export type Comanda = {
+  id: string;
+  table_id: string;
+  status: StatusComanda;
+  pessoas: number;
+  garcom: string | null;
+  cliente_nome: string | null;
+  telefone: string | null;
+  aniversario?: string | null;
+  taxa_servico: number;
+  desconto: number;
+  couvert?: number;
+  aberta_em: string;
+  fechada_em?: string | null;
+  total_fechado?: number;
+};
 export type StatusItem = "aguardando" | "novo" | "preparo" | "pronto" | "entregue" | "cancelado";
 export type ItemComanda = { id: string; tab_id: string; product_id: string | null; nome: string; qtd: number; unit: number; obs: string | null; status: StatusItem; origem: "garcom" | "cliente"; criado_em: string };
 export type Chamado = { id: number; table_id: string; tipo: "garcom" | "conta"; criado_em: string };
@@ -49,7 +64,20 @@ function inicial(): Estado {
     it("c12", "Triplo Brasa", 1, "aguardando", 1, "cliente"),
     it("c12", "Suco de maracujá", 2, "novo", 2, "cliente"),
   ];
-  return { mesas, comandas, itens, chamados: [{ id: 1, table_id: "m12", tipo: "garcom", criado_em: minAtras(1) }], fechadasHoje: [{ total: 186.4, pessoas: 4 }, { total: 92.1, pessoas: 2 }, { total: 254.9, pessoas: 5 }, { total: 61.3, pessoas: 1 }, { total: 143.8, pessoas: 3 }], confirmar: true };
+  return {
+    mesas,
+    comandas,
+    itens,
+    chamados: [{ id: 1, table_id: "m12", tipo: "garcom", criado_em: minAtras(1) }],
+    fechadasHoje: [
+      { total: 186.4, pessoas: 4 },
+      { total: 92.1, pessoas: 2 },
+      { total: 254.9, pessoas: 5 },
+      { total: 61.3, pessoas: 1 },
+      { total: 143.8, pessoas: 3 },
+    ],
+    confirmar: true,
+  };
 }
 
 // estado de demonstração compartilhado entre o painel e a página da mesa
@@ -188,7 +216,7 @@ export function useSalao(nomeCanal = "salao") {
       setDemo((s) => ({ ...s, itens: s.itens.map((i) => (ids.includes(i.id) ? { ...i, status: "novo" as StatusItem } : i)) }));
       return null;
     },
-    async setComanda(id: string, p: Partial<Pick<Comanda, "pessoas" | "taxa_servico" | "desconto" | "couvert" | "cliente_nome" | "telefone" | "status" | "garcom">>) {
+    async setComanda(id: string, p: Partial<Pick<Comanda, "pessoas" | "taxa_servico" | "desconto" | "couvert" | "cliente_nome" | "telefone" | "status" | "garcom" | "aniversario">>) {
       if (real) {
         const r = await supabase!.from("tabs").update(p).eq("id", id);
         await carregar();

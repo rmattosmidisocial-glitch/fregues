@@ -270,6 +270,7 @@ function PainelComanda({ mesa, comanda, s, fechar }: { mesa: Mesa; comanda?: Com
           <input value={tel} onChange={(e) => setTel(e.target.value)} onBlur={() => s.acoes.setComanda(comanda.id, { telefone: tel || null })} inputMode="tel" placeholder="WhatsApp do cliente" aria-label="WhatsApp do cliente" className="min-w-0 flex-1 rounded-xl border border-linha bg-carvao px-3 py-2 text-[14px]" />
           <input value={nome} onChange={(e) => setNome(e.target.value)} onBlur={() => s.acoes.setComanda(comanda.id, { cliente_nome: nome || null })} placeholder="Nome" aria-label="Nome do cliente" className="w-[38%] rounded-xl border border-linha bg-carvao px-3 py-2 text-[14px]" />
         </div>
+        {!f?.aniversario && <AniversarioMesa valor={comanda.aniversario ?? null} salvar={(v) => s.acoes.setComanda(comanda.id, { aniversario: v })} />}
         {f ? (
           <div className="mt-2 rounded-xl bg-[#fde9df] p-3 text-[14px]">
             <p className="flex items-center gap-1.5 font-semibold text-brasa">
@@ -1052,6 +1053,41 @@ export function Salao() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+/** O garçom anota dia e mês do aniversário; vai para o cadastro do cliente quando a conta fecha. */
+function AniversarioMesa({ valor, salvar }: { valor: string | null; salvar: (v: string | null) => void }) {
+  const [dia, setDia] = useState(valor ? String(Number(valor.slice(8, 10))) : "");
+  const [mes, setMes] = useState(valor ? String(Number(valor.slice(5, 7))) : "");
+  const mudar = (d: string, m: string) => {
+    setDia(d);
+    setMes(m);
+    if (d && m) salvar(`2000-${m.padStart(2, "0")}-${d.padStart(2, "0")}`);
+    else if (!d && !m) salvar(null);
+  };
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      <Cake className="h-4 w-4 shrink-0 text-mostarda" />
+      <span className="shrink-0 text-[13px] text-areia">Aniversário</span>
+      <select value={dia} onChange={(e) => mudar(e.target.value, mes)} aria-label="Dia do aniversário" className="min-w-0 flex-1 rounded-xl border border-linha bg-carvao px-2 py-2 text-[14px]">
+        <option value="">Dia</option>
+        {Array.from({ length: 31 }, (_, i) => (
+          <option key={i + 1} value={i + 1}>
+            {i + 1}
+          </option>
+        ))}
+      </select>
+      <select value={mes} onChange={(e) => mudar(dia, e.target.value)} aria-label="Mês do aniversário" className="min-w-0 flex-1 rounded-xl border border-linha bg-carvao px-2 py-2 text-[14px]">
+        <option value="">Mês</option>
+        {MESES.map((m, i) => (
+          <option key={m} value={i + 1}>
+            {m}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { brl } from "../../data/mock";
 import { useDados } from "../../data/dados";
 import { INFO, TIPOS, montarTexto, useAutomacoes, type ItemFila, type Regra, type TipoAuto } from "../../data/automacoes";
 import { useToast } from "../../components/ui";
+import { ListasRapidas } from "./ListasRapidas";
 
 const ICONE: Record<TipoAuto, React.ReactNode> = {
   sumindo: <UserRoundSearch className="h-5 w-5" />,
@@ -50,6 +51,8 @@ export function Automacoes() {
         ))}
       </div>
 
+      <ListasRapidas avisar={show} />
+
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_1fr]">
         <section className="rounded-3xl border border-linha bg-forno p-5">
           <div className="flex items-center justify-between gap-3">
@@ -93,7 +96,11 @@ export function Automacoes() {
           <div className="flex gap-3 rounded-3xl border border-linha bg-forno p-5 text-[14px]">
             <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-brasa" />
             <p className="text-areia">
-              <b className="text-papel">Avisar quem estava fora da área:</b> quando você libera um bairro no <a href="#mapa" className="font-semibold text-papel underline">Território</a>, a lista de quem pediu aparece lá, com o botão Avisar.
+              <b className="text-papel">Avisar quem estava fora da área:</b> quando você libera um bairro no{" "}
+              <a href="#mapa" className="font-semibold text-papel underline">
+                Território
+              </a>
+              , a lista de quem pediu aparece lá, com o botão Avisar.
             </p>
           </div>
           <div className="flex gap-3 rounded-3xl border border-dashed border-linha p-5 text-[14px]">
@@ -122,13 +129,7 @@ function LinhaFila({ i, regra, loja, marcar }: { i: ItemFila; regra: Regra; loja
         <button onClick={() => marcar(i, true)} title="Pular (não mandar)" aria-label={`Pular ${i.nome}`} className="rounded-full p-2 text-areia hover:bg-carvao hover:text-papel">
           <SkipForward className="h-4 w-4" />
         </button>
-        <a
-          href={`https://wa.me/55${tel}?text=${encodeURIComponent(texto)}`}
-          target="_blank"
-          rel="noreferrer"
-          onClick={() => marcar(i, false)}
-          className="flex items-center gap-1.5 rounded-full bg-[#25d366] px-3 py-1.5 text-[13px] font-semibold text-[#08301a]"
-        >
+        <a href={`https://wa.me/55${tel}?text=${encodeURIComponent(texto)}`} target="_blank" rel="noreferrer" onClick={() => marcar(i, false)} className="flex items-center gap-1.5 rounded-full bg-[#25d366] px-3 py-1.5 text-[13px] font-semibold text-[#08301a]">
           <MessageCircle className="h-4 w-4" /> Enviar
         </a>
       </div>
@@ -136,19 +137,7 @@ function LinhaFila({ i, regra, loja, marcar }: { i: ItemFila; regra: Regra; loja
   );
 }
 
-function CartaoRegra({
-  r,
-  res,
-  salvar,
-  avisar,
-  loja,
-}: {
-  r: Regra;
-  res: { enviadas: number; voltaram: number; receita: number };
-  salvar: (t: TipoAuto, c: Partial<Regra>) => Promise<string | null>;
-  avisar: (t: string) => void;
-  loja: string;
-}) {
+function CartaoRegra({ r, res, salvar, avisar, loja }: { r: Regra; res: { enviadas: number; voltaram: number; receita: number }; salvar: (t: TipoAuto, c: Partial<Regra>) => Promise<string | null>; avisar: (t: string) => void; loja: string }) {
   const info = INFO[r.tipo];
   const [texto, setTexto] = useState(r.texto);
   const [aberto, setAberto] = useState(false);
