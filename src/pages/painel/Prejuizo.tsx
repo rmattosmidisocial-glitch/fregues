@@ -55,6 +55,8 @@ export function LancarPrejuizo({ fechar, avisar, depois }: { fechar: () => void;
   const [busca, setBusca] = useState("");
   const [item, setItem] = useState<Item | null>(null);
   const [qtd, setQtd] = useState("1");
+  // insumo: a pessoa escolhe a medida (g ou kg, ml ou litro); o sistema converte para a unidade de compra
+  const [medida, setMedida] = useState<"g" | "kg" | "ml" | "l" | "un">("un");
   const [motivo, setMotivo] = useState("");
   const [quem, setQuem] = useState("");
   const [indo, setIndo] = useState(false);
@@ -68,7 +70,9 @@ export function LancarPrejuizo({ fechar, avisar, depois }: { fechar: () => void;
   );
   const q = busca.trim().toLowerCase();
   const achados = q ? itens.filter((i) => i.nome.toLowerCase().includes(q)).slice(0, 8) : [];
-  const n = num(qtd);
+  const digitado = num(qtd);
+  const n = medida === "g" || medida === "ml" ? digitado / 1000 : digitado; // sempre na unidade de compra (kg, litro, unidade)
+  const medidas: ("g" | "kg" | "ml" | "l" | "un")[] = item?.tipo === "insumo" ? (item.unidade === "kg" ? ["g", "kg"] : item.unidade === "l" ? ["ml", "l"] : ["un"]) : ["un"];
   const custo = item?.custo != null && n > 0 ? item.custo * n : null;
 
   async function salvar() {
@@ -117,7 +121,7 @@ export function LancarPrejuizo({ fechar, avisar, depois }: { fechar: () => void;
               <ul className="mt-1 divide-y divide-linha rounded-xl border border-linha">
                 {achados.map((i) => (
                   <li key={i.chave}>
-                    <button onClick={() => (setItem(i), setQtd(i.tipo === "insumo" ? "" : "1"))} className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-grafite">
+                    <button onClick={() => (setItem(i), setQtd(i.tipo === "insumo" ? "" : "1"), setMedida(i.tipo === "insumo" && i.unidade === "kg" ? "g" : i.tipo === "insumo" && i.unidade === "l" ? "ml" : "un"))} className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-grafite">
                       <span>{i.nome}</span>
                       <span className="text-[12px] text-areia">{i.tipo === "insumo" ? "insumo" : brl(i.preco)}</span>
                     </button>
@@ -134,8 +138,28 @@ export function LancarPrejuizo({ fechar, avisar, depois }: { fechar: () => void;
           Quantidade
           <span className="mt-1 flex items-center gap-1 rounded-xl border border-linha px-3 focus-within:border-brasa">
             <input value={qtd} onChange={(e) => setQtd(e.target.value)} inputMode="decimal" aria-label="Quantidade" className="w-full bg-transparent py-2.5 text-[15px] font-normal text-papel outline-none" />
-            <span className="text-[13px] font-normal">{item?.tipo === "insumo" ? (item.unidade === "l" ? "L" : item.unidade) : "un"}</span>
+            {medidas.length > 1 ? (
+              <span className="flex shrink-0 rounded-lg bg-grafite p-0.5" role="group" aria-label="Medida">
+                {medidas.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setMedida(m);
+                    }}
+                    aria-pressed={medida === m}
+                    className={`rounded-md px-2 py-1 text-[13px] font-semibold ${medida === m ? "bg-papel text-carvao" : "text-areia"}`}
+                  >
+                    {m === "l" ? "L" : m}
+                  </button>
+                ))}
+              </span>
+            ) : (
+              <span className="text-[13px] font-normal">un</span>
+            )}
           </span>
+          {item?.tipo === "insumo" && (medida === "g" || medida === "ml") && digitado > 0 && <span className="mt-1 block text-[12px] font-normal text-fumo">= {qtdTxt(n, item.unidade!)}</span>}
         </label>
         <div className="rounded-xl bg-grafite p-3 text-[13px]">
           <p className="text-areia">Custo para a casa</p>
