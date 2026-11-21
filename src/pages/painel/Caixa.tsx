@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, Banknote, Check, CreditCard, Lock, Minus, Plus, Printer, QrCode, Search, Star, Trash2, TrendingDown, Unlock, X } from "lucide-react";
 import { LancarPrejuizo } from "./Prejuizo";
+import { useResumoPrejuizo } from "../../data/prejuizos";
 import { brl, type Pedido, type Produto } from "../../data/mock";
 import { SLUG, supabase, useDados } from "../../data/dados";
 import { imprimirComanda } from "../../components/comanda";
@@ -554,6 +555,46 @@ function EntregasAReceber() {
   );
 }
 
+// Prejuízos desde a abertura do caixa, pelo custo (CMV) — não pelo preço de venda
+function PrejuizoNoCaixa({ desde }: { desde: string }) {
+  const { resumo: r } = useResumoPrejuizo(desde);
+  const d = useDados();
+  if (!r) return null;
+  const chefe = d.papel === "dono" || d.papel === "gerente";
+  return (
+    <section className="rounded-3xl border border-tomate/40 bg-tomate/10 p-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-2 text-[14px] text-tomate">
+            <TrendingDown className="h-4 w-4" /> Prejuízo desde a abertura (pelo CMV)
+          </p>
+          <p className="tabular mt-1 font-display text-[32px] font-extrabold leading-none text-tomate">{brl(r.total)}</p>
+          <p className="mt-1 text-[13px] text-areia">{r.n ? `${r.n} lançamentos · custo do que saiu sem entrar no caixa` : "Nada lançado neste caixa."}</p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-[13px]">
+          {(
+            [
+              ["Voltou", r.devolucao],
+              ["Desperdício", r.desperdicio],
+              ["Cortesia", r.cortesia],
+            ] as const
+          ).map(([k, v]) => (
+            <div key={k} className="rounded-xl bg-forno px-3 py-2">
+              <p className="text-areia">{k}</p>
+              <p className="tabular font-bold">{brl(v)}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      {chefe && (
+        <a href="#prejuizos" className="mt-3 inline-block text-[13px] font-semibold text-tomate underline-offset-4 hover:underline">
+          Ver motivos e detalhes
+        </a>
+      )}
+    </section>
+  );
+}
+
 function ResumoCaixa({ c, aoFechar }: { c: ReturnType<typeof useCaixa>; aoFechar: (r: Resumo, s: Sessao) => void }) {
   const { show, Toast } = useToast();
   const [mov, setMov] = useState<"retirada" | "reforco" | null>(null);
@@ -589,6 +630,7 @@ function ResumoCaixa({ c, aoFechar }: { c: ReturnType<typeof useCaixa>; aoFechar
           </div>
         ))}
       </div>
+      <PrejuizoNoCaixa desde={s.aberto_em} />
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="rounded-3xl border border-linha bg-forno p-5">
           <h3 className="mb-3 font-semibold">Por forma de pagamento</h3>
@@ -767,6 +809,7 @@ export function Caixa() {
   const [final, setFinal] = useState<{ r: Resumo; s: Sessao } | null>(null);
   const [prejuizo, setPrejuizo] = useState(false);
   const { show, Toast } = useToast();
+  const prej = useResumoPrejuizo(c.sessao?.aberto_em);
   if (c.carregando) return <p className="text-areia">Abrindo o caixa…</p>;
   if (final)
     return (
@@ -804,6 +847,11 @@ export function Caixa() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {c.sessao && prej.resumo && prej.resumo.n > 0 && (
+            <button onClick={() => setAba("resumo")} title="Prejuízo desde a abertura do caixa, pelo custo (CMV)" className="tabular rounded-full bg-tomate/15 px-3 py-2 text-[13px] font-semibold text-tomate">
+              Prejuízo hoje: {brl(prej.resumo.total)}
+            </button>
+          )}
           <button onClick={() => setPrejuizo(true)} className="flex items-center gap-2 rounded-full border border-tomate/50 px-4 py-2 text-[14px] font-semibold text-tomate hover:bg-tomate/10">
             <TrendingDown className="h-4 w-4" /> Lançar prejuízo
           </button>

@@ -40,6 +40,9 @@ let demo: Prejuizo[] = [
 ];
 let seq = 100;
 
+const EVENTO = "fregues-prejuizo";
+const avisarTelas = () => window.dispatchEvent(new Event(EVENTO));
+
 function quemLanca(email?: string | null) {
   return email ? email.split("@")[0] : null;
 }
@@ -49,13 +52,18 @@ export function useLancarPrejuizo() {
   const d = useDados();
   const real = MODO === "real" && !!supabase && !!d.loja.id;
   const nome = quemLanca(d.sessao?.user.email) ?? (real ? null : "Você (demonstração)");
-  const resp = (data: unknown, error: unknown) => (error ? "Não consegui lançar agora" : data === "ok" ? null : (ERROS[String(data)] ?? "Não consegui lançar"));
+  const resp = (data: unknown, error: unknown) => {
+    const r = error ? "Não consegui lançar agora" : data === "ok" ? null : (ERROS[String(data)] ?? "Não consegui lançar");
+    if (!r) avisarTelas();
+    return r;
+  };
 
   return {
     /** Desperdício ou cortesia avulsa: produto do cardápio (unidades) ou insumo (kg, litro, unidade). */
     async lancar(tipo: "desperdicio" | "cortesia", item: { product_id?: string; insumo_id?: string; nome: string; preco?: number; custo?: number }, qtd: number, motivo: string, quem?: string): Promise<string | null> {
       if (!(qtd > 0)) return "Quantidade inválida";
       if (!real) {
+        setTimeout(avisarTelas, 0);
         demo = [{ id: ++seq, tipo, descricao: item.nome, qtd, valor_venda: (item.preco ?? 0) * qtd, custo: (item.custo ?? 0) * qtd, motivo: motivo || null, quem: quem || null, lancado_por: nome, quando: new Date().toISOString() }, ...demo];
         return null;
       }
@@ -65,6 +73,7 @@ export function useLancarPrejuizo() {
     /** Item da mesa vira cortesia (sai da conta). */
     async cortesia(itemId: string, info: { nome: string; valor: number; qtd: number }, motivo: string, quem?: string): Promise<string | null> {
       if (!real) {
+        setTimeout(avisarTelas, 0);
         demo = [{ id: ++seq, tipo: "cortesia", descricao: info.nome, qtd: info.qtd, valor_venda: info.valor, custo: Math.round(info.valor * 0.35 * 100) / 100, motivo: motivo || null, quem: quem || null, lancado_por: nome, quando: new Date().toISOString() }, ...demo];
         return null;
       }
@@ -74,6 +83,7 @@ export function useLancarPrejuizo() {
     /** Pedido que voltou: sai do caixa e entra nos prejuízos. */
     async devolver(orderId: string | undefined, info: { num: number; total: number }, motivo: string): Promise<string | null> {
       if (!real || !orderId) {
+        setTimeout(avisarTelas, 0);
         demo = [{ id: ++seq, tipo: "devolucao", descricao: `Pedido #${info.num}`, qtd: 1, valor_venda: info.total, custo: Math.round(info.total * 0.35 * 100) / 100, motivo: motivo || null, quem: null, lancado_por: nome, quando: new Date().toISOString() }, ...demo];
         return null;
       }
@@ -96,6 +106,40 @@ export function usePrejuizos(dias: number) {
   }, [real, d.loja.id, dias]);
   useEffect(() => {
     carregar();
+    window.addEventListener(EVENTO, carregar);
+    return () => window.removeEventListener(EVENTO, carregar);
   }, [carregar]);
   return { lista, recarregar: carregar };
+}
+
+export type ResumoPrejuizo = { total: number; devolucao: number; desperdicio: number; cortesia: number; n: number };
+
+/** Totais pelo custo (CMV) desde um momento (ex.: abertura do caixa). A equipe toda vê. */
+export function useResumoPrejuizo(desde: string | null | undefined) {
+  const d = useDados();
+  const real = MODO === "real" && !!supabase && !!d.loja.id;
+  const [r, setR] = useState<ResumoPrejuizo | null>(null);
+  const carregar = useCallback(async () => {
+    if (!desde) return setR(null);
+    if (!real) {
+      const l = demo.filter((p) => p.quando >= desde);
+      const s = (t?: TipoPrejuizo) => l.filter((p) => !t || p.tipo === t).reduce((x, p) => x + p.custo, 0);
+      return setR({ total: s(), devolucao: s("devolucao"), desperdicio: s("desperdicio"), cortesia: s("cortesia"), n: l.length });
+    }
+    const { data } = await supabase!.rpc("prejuizo_resumo", { p_store: d.loja.id, p_desde: desde });
+    if (data) {
+      const x = data as Record<string, number>;
+      setR({ total: Number(x.total), devolucao: Number(x.devolucao), desperdicio: Number(x.desperdicio), cortesia: Number(x.cortesia), n: Number(x.n) });
+    }
+  }, [desde, real, d.loja.id]);
+  useEffect(() => {
+    carregar();
+    const t = setInterval(carregar, 60_000);
+    window.addEventListener(EVENTO, carregar);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener(EVENTO, carregar);
+    };
+  }, [carregar]);
+  return { resumo: r, recarregar: carregar };
 }

@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 import { brl } from "../../data/mock";
 import { useDados } from "../../data/dados";
-import { compraDe, custoFicha, qtdTxt, useCustos } from "../../data/custos";
+import { compraDe, custoFicha, useCustos } from "../../data/custos";
 import { MOTIVOS, TIPOS_PREJUIZO, useLancarPrejuizo, type TipoPrejuizo } from "../../data/prejuizos";
 
 const num = (s: string) => {
@@ -45,19 +45,20 @@ export function Motivos({ tipo, motivo, setMotivo }: { tipo: TipoPrejuizo; motiv
 }
 
 type Item = { chave: string; tipo: "produto" | "insumo"; id: string; nome: string; preco: number; custo: number | null; unidade?: "kg" | "l" | "un" };
+type Linha = { item: Item; qtd: string };
+const un = (i: Item) => (i.tipo === "insumo" ? (i.unidade === "l" ? "L" : i.unidade!) : "un");
 
-/** Desperdício ou cortesia avulsa (sem mesa): do Caixa ou da tela de Prejuízos. */
+/** Desperdício ou cortesia avulsa (sem mesa), com quantos produtos e insumos quiser. */
 export function LancarPrejuizo({ fechar, avisar, depois }: { fechar: () => void; avisar: (t: string) => void; depois?: () => void }) {
   const d = useDados();
   const c = useCustos();
   const l = useLancarPrejuizo();
   const [tipo, setTipo] = useState<"desperdicio" | "cortesia">("desperdicio");
   const [busca, setBusca] = useState("");
-  const [item, setItem] = useState<Item | null>(null);
-  const [qtd, setQtd] = useState("1");
+  const [linhas, setLinhas] = useState<Linha[]>([]);
   const [motivo, setMotivo] = useState("");
   const [quem, setQuem] = useState("");
-  const [indo, setIndo] = useState(false);
+  const [indo, setIndo] = useState<number | null>(null);
 
   const itens: Item[] = useMemo(
     () => [
@@ -68,18 +69,32 @@ export function LancarPrejuizo({ fechar, avisar, depois }: { fechar: () => void;
   );
   const q = busca.trim().toLowerCase();
   const achados = q ? itens.filter((i) => i.nome.toLowerCase().includes(q)).slice(0, 8) : [];
-  const n = num(qtd);
-  const custo = item?.custo != null && n > 0 ? item.custo * n : null;
+  const custoLinha = (x: Linha) => (x.item.custo != null && num(x.qtd) > 0 ? x.item.custo * num(x.qtd) : 0);
+  const total = linhas.reduce((s, x) => s + custoLinha(x), 0);
+  const semFicha = linhas.filter((x) => x.item.tipo === "produto" && x.item.custo == null);
+
+  function adicionar(i: Item) {
+    setBusca("");
+    const j = linhas.findIndex((x) => x.item.chave === i.chave);
+    if (j >= 0) return setLinhas(linhas.map((x, k) => (k === j && i.tipo === "produto" ? { ...x, qtd: String((num(x.qtd) || 0) + 1) } : x)));
+    setLinhas([...linhas, { item: i, qtd: i.tipo === "produto" ? "1" : "" }]);
+  }
+  const mudar = (k: number, qtd: string) => setLinhas(linhas.map((x, j) => (j === k ? { ...x, qtd } : x)));
 
   async function salvar() {
-    if (!item) return avisar("Escolha o produto ou insumo");
-    if (!(n > 0)) return avisar("Diga a quantidade");
+    if (!linhas.length) return avisar("Adicione pelo menos um produto ou insumo");
+    const ruim = linhas.find((x) => !(num(x.qtd) > 0));
+    if (ruim) return avisar(`Diga a quantidade de ${ruim.item.nome}`);
     if (tipo === "cortesia" && !quem.trim()) return avisar("Diga para quem foi a cortesia");
-    setIndo(true);
-    const r = await l.lancar(tipo, { [item.tipo === "produto" ? "product_id" : "insumo_id"]: item.id, nome: item.nome, preco: item.preco, custo: item.custo ?? 0 }, n, motivo, quem);
-    setIndo(false);
-    if (r) return avisar(r);
-    avisar(`${TIPOS_PREJUIZO[tipo].nome} lançado: ${item.nome}${custo != null ? ` · custo ${brl(custo)}` : ""}. O estoque já baixou.`);
+    const falhas: string[] = [];
+    for (const [k, x] of linhas.entries()) {
+      setIndo(k + 1);
+      const r = await l.lancar(tipo, { [x.item.tipo === "produto" ? "product_id" : "insumo_id"]: x.item.id, nome: x.item.nome, preco: x.item.preco, custo: x.item.custo ?? 0 }, num(x.qtd), motivo, quem);
+      if (r) falhas.push(`${x.item.nome} (${r})`);
+    }
+    setIndo(null);
+    if (falhas.length) return avisar(`Não deu: ${falhas.join(", ")}`);
+    avisar(`${TIPOS_PREJUIZO[tipo].nome}: ${linhas.length} ${linhas.length === 1 ? "item lançado" : "itens lançados"} · custo ${brl(total)}. O estoque já baixou.`);
     depois?.();
     fechar();
   }
@@ -90,59 +105,67 @@ export function LancarPrejuizo({ fechar, avisar, depois }: { fechar: () => void;
         {(["desperdicio", "cortesia"] as const).map((t) => (
           <button key={t} onClick={() => (setTipo(t), setMotivo(""))} aria-pressed={tipo === t} className={`rounded-2xl border p-3 text-left ${tipo === t ? "border-brasa bg-brasa/10" : "border-linha hover:bg-grafite"}`}>
             <span className="block font-semibold">{TIPOS_PREJUIZO[t].nome}</span>
-            <span className="text-[12px] text-areia">{t === "desperdicio" ? "Queimou, caiu, venceu, sobrou" : "Dado sem passar pelo caixa"}</span>
+            <span className="text-[12px] text-areia">{t === "desperdicio" ? "Perdido na cozinha ou no estoque" : "Dado sem passar pelo caixa"}</span>
           </button>
         ))}
       </div>
-      <p className="mt-3 text-[12px] text-fumo">Pedido que voltou se lança no próprio pedido, em Pedidos. Cortesia de mesa, no item da comanda.</p>
 
       <div className="mt-4">
-        <p className="mb-1.5 text-[13px] font-semibold text-areia">O que foi</p>
-        {item ? (
-          <div className="flex items-center justify-between rounded-xl border border-brasa/50 bg-brasa/10 px-3 py-2.5">
-            <span>
-              <b>{item.nome}</b> <span className="text-[13px] text-areia">{item.tipo === "insumo" ? `insumo · ${brl(item.custo ?? 0)}/${compraDe(item.unidade!)}` : `produto · ${brl(item.preco)}`}</span>
-            </span>
-            <button onClick={() => setItem(null)} className="text-[13px] text-areia hover:text-papel">
-              trocar
-            </button>
-          </div>
-        ) : (
-          <>
-            <label className="flex items-center gap-2 rounded-xl border border-linha px-3 focus-within:border-brasa">
-              <Search className="h-4 w-4 text-areia" />
-              <input autoFocus value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar prato ou insumo" aria-label="Buscar prato ou insumo" className="w-full bg-transparent py-2.5 text-[15px] outline-none" />
-            </label>
-            {!!achados.length && (
-              <ul className="mt-1 divide-y divide-linha rounded-xl border border-linha">
-                {achados.map((i) => (
-                  <li key={i.chave}>
-                    <button onClick={() => (setItem(i), setQtd(i.tipo === "insumo" ? "" : "1"))} className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-grafite">
-                      <span>{i.nome}</span>
-                      <span className="text-[12px] text-areia">{i.tipo === "insumo" ? "insumo" : brl(i.preco)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
+        <p className="mb-1.5 text-[13px] font-semibold text-areia">Produtos e insumos</p>
+        <label className="flex items-center gap-2 rounded-xl border border-linha px-3 focus-within:border-brasa">
+          <Search className="h-4 w-4 text-areia" />
+          <input autoFocus value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar e adicionar prato ou insumo" aria-label="Buscar prato ou insumo" className="w-full bg-transparent py-2.5 text-[15px] outline-none" />
+        </label>
+        {!!achados.length && (
+          <ul className="mt-1 divide-y divide-linha rounded-xl border border-linha">
+            {achados.map((i) => (
+              <li key={i.chave}>
+                <button onClick={() => adicionar(i)} className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-grafite">
+                  <span>{i.nome}</span>
+                  <span className="text-[12px] text-areia">{i.tipo === "insumo" ? `insumo · ${brl(i.custo ?? 0)}/${compraDe(i.unidade!)}` : i.custo != null ? `custo ${brl(i.custo)}` : "sem ficha técnica"}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
+
+        {linhas.length > 0 && (
+          <ul className="mt-3 space-y-2">
+            {linhas.map((x, k) => (
+              <li key={x.item.chave} className="flex items-center gap-2 rounded-xl bg-grafite p-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{x.item.nome}</p>
+                  <p className="text-[12px] text-areia">{x.item.custo == null ? "sem ficha técnica · custo zero" : `custo ${brl(custoLinha(x))}`}</p>
+                </div>
+                {x.item.tipo === "produto" && (
+                  <button onClick={() => mudar(k, String(Math.max(1, (num(x.qtd) || 1) - 1)))} aria-label="Menos" className="grid h-8 w-8 place-items-center rounded-full border border-linha text-[18px]">
+                    −
+                  </button>
+                )}
+                <label className="flex w-[86px] items-center gap-1 rounded-lg border border-linha bg-carvao/0 px-2 focus-within:border-brasa">
+                  <input value={x.qtd} onChange={(e) => mudar(k, e.target.value)} inputMode="decimal" placeholder="0" aria-label={`Quantidade de ${x.item.nome}`} className="w-full bg-transparent py-1.5 text-right text-[15px] outline-none" />
+                  <span className="text-[12px] text-areia">{un(x.item)}</span>
+                </label>
+                {x.item.tipo === "produto" && (
+                  <button onClick={() => mudar(k, String((num(x.qtd) || 0) + 1))} aria-label="Mais" className="grid h-8 w-8 place-items-center rounded-full border border-linha text-[18px]">
+                    +
+                  </button>
+                )}
+                <button onClick={() => setLinhas(linhas.filter((_, j) => j !== k))} aria-label={`Tirar ${x.item.nome}`} className="rounded-full p-1.5 text-areia hover:text-tomate">
+                  <X className="h-4 w-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {!linhas.length && <p className="mt-2 text-[12px] text-fumo">Adicione quantos itens quiser. Pedido que voltou se lança no próprio pedido; cortesia de mesa, no item da comanda.</p>}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <label className="text-[13px] font-semibold text-areia">
-          Quantidade
-          <span className="mt-1 flex items-center gap-1 rounded-xl border border-linha px-3 focus-within:border-brasa">
-            <input value={qtd} onChange={(e) => setQtd(e.target.value)} inputMode="decimal" aria-label="Quantidade" className="w-full bg-transparent py-2.5 text-[15px] font-normal text-papel outline-none" />
-            <span className="text-[13px] font-normal">{item?.tipo === "insumo" ? (item.unidade === "l" ? "L" : item.unidade) : "un"}</span>
-          </span>
-        </label>
-        <div className="rounded-xl bg-grafite p-3 text-[13px]">
-          <p className="text-areia">Custo para a casa</p>
-          <p className="tabular font-display text-[20px] font-extrabold">{custo != null ? brl(custo) : "—"}</p>
-          {item?.tipo === "produto" && item.custo == null && <p className="text-[11px] text-fumo">sem ficha técnica</p>}
-        </div>
+      <div className="mt-4 flex items-center justify-between rounded-xl border border-tomate/40 bg-tomate/10 px-4 py-3">
+        <span className="text-[14px] text-areia">Prejuízo pelo custo (CMV)</span>
+        <span className="tabular font-display text-[22px] font-extrabold text-tomate">{brl(total)}</span>
       </div>
+      {!!semFicha.length && <p className="mt-1 text-[12px] text-fumo">Sem ficha técnica: {semFicha.map((x) => x.item.nome).join(", ")}. Monte a ficha em Cardápio → Custos para o custo entrar.</p>}
 
       <div className="mt-4">
         <Motivos tipo={tipo} motivo={motivo} setMotivo={setMotivo} />
@@ -153,14 +176,9 @@ export function LancarPrejuizo({ fechar, avisar, depois }: { fechar: () => void;
           <input value={quem} onChange={(e) => setQuem(e.target.value)} placeholder="Ex.: cliente Juliana, equipe, entregador, parceiro" className="mt-1 w-full rounded-xl border border-linha bg-carvao/0 px-3 py-2.5 text-[15px] font-normal text-papel outline-none focus:border-brasa" />
         </label>
       )}
-      <button disabled={indo} onClick={salvar} className="mt-5 w-full rounded-full bg-brasa py-3.5 text-[15px] font-bold text-carvao hover:bg-mostarda disabled:opacity-50">
-        {indo ? "Lançando…" : `Lançar ${TIPOS_PREJUIZO[tipo].nome.toLowerCase()}`}
+      <button disabled={indo != null || !linhas.length} onClick={salvar} className="mt-5 w-full rounded-full bg-brasa py-3.5 text-[15px] font-bold text-carvao hover:bg-mostarda disabled:opacity-50">
+        {indo != null ? `Lançando ${indo} de ${linhas.length}…` : linhas.length ? `Lançar ${linhas.length} ${linhas.length === 1 ? "item" : "itens"}` : "Adicione os itens"}
       </button>
-      {item?.tipo === "insumo" && item.unidade && n > 0 && (
-        <p className="mt-2 text-center text-[12px] text-fumo">
-          Sai {qtdTxt(n, item.unidade)} do estoque de {item.nome}.
-        </p>
-      )}
     </Janela>
   );
 }
@@ -177,7 +195,7 @@ export function CortesiaItem({ item, fechar, avisar, depois }: { item: { id: str
         <b>
           {item.qtd}x {item.nome}
         </b>{" "}
-        sai da conta ({brl(item.unit * item.qtd)}) e entra nos prejuízos como cortesia.
+        sai da conta e entra nos prejuízos como cortesia, pelo custo (CMV) do prato.
       </p>
       <div className="mt-4">
         <Motivos tipo="cortesia" motivo={motivo} setMotivo={setMotivo} />
@@ -213,7 +231,7 @@ export function DevolverPedido({ pedido, fechar, avisar, depois }: { pedido: { i
   return (
     <Janela titulo={`Pedido #${pedido.num} voltou`} fechar={fechar}>
       <p className="text-[15px]">
-        O pedido sai do caixa ({brl(pedido.total)}) e entra nos prejuízos como <b>venda que voltou</b>. O que foi usado na cozinha baixa do estoque como perda.
+        O pedido sai do caixa e entra nos prejuízos como <b>venda que voltou</b>, pelo custo (CMV) do que foi feito. O que foi usado na cozinha baixa do estoque como perda.
       </p>
       <p className="mt-2 text-[13px] text-areia">Se o cliente pagou, combine com ele a devolução do dinheiro pelo mesmo meio.</p>
       <div className="mt-4">
