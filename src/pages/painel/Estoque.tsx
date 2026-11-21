@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, ClipboardCheck, PackageX } from "lucide-react";
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Camera, ClipboardCheck, PackageX } from "lucide-react";
+import { NotaCompra } from "./NotaCompra";
 import { brl } from "../../data/mock";
 import { compraDe, qtdTxt, situacao, type Insumo, type Movimento, type useCustos } from "../../data/custos";
 
@@ -21,6 +22,7 @@ const NOME_MOV: Record<Movimento["tipo"], string> = { entrada: "Entrada", venda:
 export function Estoque({ c, avisar }: { c: C; avisar: (t: string) => void }) {
   const [filtro, setFiltro] = useState<"todos" | "atencao" | "fora">("todos");
   const [aberto, setAberto] = useState<string | null>(null);
+  const [nota, setNota] = useState(false);
   const [hist, setHist] = useState<{ mov: Movimento[]; consumo7: Record<string, number> } | null>(null);
   const ver = c.insumos;
 
@@ -50,6 +52,16 @@ export function Estoque({ c, avisar }: { c: C; avisar: (t: string) => void }) {
 
   return (
     <div className="mt-6">
+      <button onClick={() => setNota(true)} className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-brasa/50 bg-brasa/10 p-4 text-left hover:bg-brasa/15">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brasa text-carvao">
+          <Camera className="h-5 w-5" />
+        </span>
+        <span>
+          <b className="block">Lançar nota de compra pela foto</b>
+          <span className="text-[13px] text-areia">A IA lê os produtos, quantidades e valores. Você confere e lança tudo de uma vez.</span>
+        </span>
+      </button>
+      {nota && <NotaCompra c={c} avisar={avisar} fechar={() => setNota(false)} />}
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-linha bg-forno p-4">
           <p className="text-[13px] text-areia">Acabando ou zerados</p>

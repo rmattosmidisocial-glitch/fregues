@@ -167,7 +167,7 @@ export function useCustos() {
   }
 
   /** Entrada (compra), perda ou contagem. Na contagem, qtd é o total que tem agora. */
-  async function lancarEstoque(insumoId: string, tipo: "entrada" | "perda" | "contagem", qtd: number, opc: { custo?: number; obs?: string; minimo?: number } = {}): Promise<string | null> {
+  async function lancarEstoque(insumoId: string, tipo: "entrada" | "perda" | "contagem", qtd: number, opc: { custo?: number; obs?: string; minimo?: number; silencioso?: boolean } = {}): Promise<string | null> {
     if (!(qtd >= 0)) return "Quantidade inválida";
     if (!real) {
       const i = demo.insumos.find((x) => x.id === insumoId);
@@ -176,15 +176,38 @@ export function useCustos() {
       const delta = tipo === "entrada" ? qtd : tipo === "perda" ? -qtd : qtd - (i.estoque ?? 0);
       const saldo = Math.round(((i.estoque ?? 0) + delta) * 1000) / 1000;
       demo.insumos = demo.insumos.map((x) => (x.id === insumoId ? { ...x, estoque: saldo, minimo: opc.minimo ?? x.minimo, custo: tipo === "entrada" && opc.custo != null && opc.custo >= 0 ? opc.custo : x.custo } : x));
-      demo.mov = [{ id: Date.now(), insumo_id: insumoId, tipo, qtd: delta, saldo, obs: opc.obs?.trim() || null, quando: new Date().toISOString() }, ...demo.mov];
-      await carregar();
+      demo.mov = [{ id: Date.now() + Math.random(), insumo_id: insumoId, tipo, qtd: delta, saldo, obs: opc.obs?.trim() || null, quando: new Date().toISOString() }, ...demo.mov];
+      if (!opc.silencioso) await carregar();
       return null;
     }
     const { data, error } = await supabase!.rpc("estoque_lancar", { p_insumo: insumoId, p_tipo: tipo, p_qtd: qtd, p_custo: opc.custo ?? null, p_obs: opc.obs ?? null, p_minimo: opc.minimo ?? null });
     if (error) return "Não consegui lançar agora";
     if (data !== "ok") return ({ faca_a_contagem: "Faça a primeira contagem antes", sem_permissao: "Só o dono ou o gerente lançam estoque", quantidade_invalida: "Quantidade inválida" } as Record<string, string>)[String(data)] ?? "Não consegui lançar";
-    await carregar();
+    if (!opc.silencioso) await carregar();
     return null;
+  }
+
+  /** Cria um insumo e devolve o id (para lançar em seguida, sem recarregar a tela). */
+  async function criarInsumo(i: Omit<Insumo, "id">): Promise<{ id?: string; erro?: string }> {
+    const nome = i.nome.trim();
+    if (!nome) return { erro: "Insumo sem nome" };
+    if (!real) {
+      const id = "i" + ++seq;
+      demo.insumos = [...demo.insumos, { ...i, nome, id, estoque: null, minimo: 0 }].sort((a, b) => a.nome.localeCompare(b.nome));
+      return { id };
+    }
+    const { data, error } = await supabase!.from("insumos").insert({ nome, unidade: i.unidade, custo: i.custo, store_id: lojaId }).select("id").single();
+    return error ? { erro: `Não consegui criar ${nome}` } : { id: (data as { id: string }).id };
+  }
+
+  /** Só troca o preço de compra (insumo sem controle de estoque). */
+  async function atualizarCusto(id: string, custo: number): Promise<string | null> {
+    if (!real) {
+      demo.insumos = demo.insumos.map((x) => (x.id === id ? { ...x, custo } : x));
+      return null;
+    }
+    const { error } = await supabase!.from("insumos").update({ custo }).eq("id", id);
+    return error ? "Não consegui atualizar o preço" : null;
   }
 
   async function desligarEstoque(insumoId: string): Promise<string | null> {
@@ -215,7 +238,7 @@ export function useCustos() {
     };
   }
 
-  return { insumos, fichas, carregando, salvarInsumo, removerInsumo, salvarFicha, lancarEstoque, desligarEstoque, historico, recarregar: carregar };
+  return { insumos, fichas, carregando, salvarInsumo, removerInsumo, salvarFicha, lancarEstoque, desligarEstoque, historico, criarInsumo, atualizarCusto, recarregar: carregar };
 }
 
 /** Quanto cada produto vendeu nos últimos 30 dias (para o CMV das vendas). */
