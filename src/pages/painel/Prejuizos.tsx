@@ -84,7 +84,7 @@ export function Prejuizos() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-[clamp(2rem,4vw,2.8rem)] font-extrabold tracking-[-0.015em]">Prejuízos</h1>
-          <p className="max-w-[720px] text-[15px] text-areia">Vendas que voltaram, desperdício e cortesias: tudo o que saiu da casa sem entrar no caixa, pelo custo (CMV) de cada produto. O custo vem da ficha técnica, e o estoque baixa sozinho.</p>
+          <p className="max-w-[720px] text-[15px] text-areia">Vendas que voltaram, desperdício e cortesias: tudo o que saiu da casa sem entrar no caixa. O custo vem da ficha técnica, e o estoque baixa sozinho.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-full bg-grafite p-1 text-[14px] font-semibold" role="group" aria-label="Período">
@@ -107,19 +107,22 @@ export function Prejuizos() {
           <div className="mt-6 grid gap-3 lg:grid-cols-[1.2fr_1fr_1fr_1fr]">
             <div className="rounded-3xl border border-tomate/40 bg-tomate/10 p-5">
               <p className="flex items-center gap-2 text-[14px] text-tomate">
-                <TrendingDown className="h-4 w-4" /> Prejuízo no período (CMV)
+                <TrendingDown className="h-4 w-4" /> Prejuízo no período
               </p>
               <p className="tabular mt-1 font-display text-[40px] font-extrabold leading-none text-tomate">{brl(soma(todos, "custo"))}</p>
-              <p className="mt-2 text-[13px] text-areia">pelo custo dos produtos · {todos.length} lançamentos</p>
+              <p className="mt-2 text-[13px] text-areia">
+                de custo para a casa · {brl(soma(todos, "valor_venda"))} deixaram de entrar no caixa · {todos.length} lançamentos
+              </p>
             </div>
-            {porTipo.map(({ t, n, custo }) => (
+            {porTipo.map(({ t, n, custo, venda }) => (
               <button key={t} onClick={() => setFiltro(filtro === t ? "todos" : t)} aria-pressed={filtro === t} className={`rounded-3xl border p-5 text-left transition ${filtro === t ? "border-brasa bg-brasa/10" : "border-linha bg-forno hover:bg-grafite"}`}>
                 <p className="flex items-center gap-2 text-[14px] text-areia">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: TIPOS_PREJUIZO[t].cor }} /> {TIPOS_PREJUIZO[t].nome}
                 </p>
                 <p className="tabular mt-1 font-display text-[28px] font-extrabold leading-none">{brl(custo)}</p>
                 <p className="mt-2 text-[13px] text-areia">
-                  {n} {n === 1 ? "vez" : "vezes"} · pelo CMV
+                  {n} {n === 1 ? "vez" : "vezes"}
+                  {venda > 0 ? ` · ${brl(venda)} em vendas` : ""}
                 </p>
               </button>
             ))}
@@ -163,6 +166,7 @@ export function Prejuizos() {
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="tabular font-semibold text-tomate">{brl(p.custo)}</p>
+                      {p.valor_venda > 0 && <p className="tabular text-[12px] text-areia">venda {brl(p.valor_venda)}</p>}
                     </div>
                   </li>
                 ))}
