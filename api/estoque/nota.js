@@ -73,7 +73,7 @@ export default async function handler(req, res) {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": CHAVE, "anthropic-version": "2023-06-01", "content-type": "application/json", ...(WORKSPACE ? { "anthropic-workspace-id": WORKSPACE } : {}) },
-      body: JSON.stringify({ model: MODELO, max_tokens: 8000, system: INSTRUCOES, tools: [FERRAMENTA], tool_choice: { type: "tool", name: "registrar_nota" }, messages: [{ role: "user", content: conteudo }] }),
+      body: JSON.stringify({ model: MODELO, max_tokens: 8000, system: INSTRUCOES, tools: [FERRAMENTA], tool_choice: { type: "auto" }, messages: [{ role: "user", content: conteudo }] }),
     });
     const corpo = await r.json().catch(() => ({}));
     if (!r.ok) {
@@ -82,7 +82,17 @@ export default async function handler(req, res) {
       if (/credit|balance/i.test(msg)) return res.status(502).json({ erro: "A conta da IA está sem crédito. Adicione crédito no console da Anthropic." });
       return res.status(502).json({ erro: "A IA não conseguiu ler agora: " + msg });
     }
-    const dados = (corpo.content || []).find((c) => c.type === "tool_use")?.input;
+    let dados = (corpo.content || []).find((c) => c.type === "tool_use")?.input;
+    if (!dados) {
+      // às vezes o modelo responde em texto com o JSON; tenta aproveitar
+      const txt = (corpo.content || []).filter((c) => c.type === "text").map((c) => c.text).join("\n");
+      const m = txt.match(/\{[\s\S]*\}/);
+      try {
+        dados = m ? JSON.parse(m[0]) : null;
+      } catch {
+        dados = null;
+      }
+    }
     if (!dados?.itens?.length) return res.status(502).json({ erro: "Não encontrei itens. Tente uma foto mais nítida, de frente e com a nota inteira." });
     dados.itens = dados.itens.filter((i) => i && Number(i.quantidade) > 0).map((i) => ({ ...i, quantidade: Math.round(Number(i.quantidade) * 1000) / 1000, valor_total: Math.round(Number(i.valor_total || 0) * 100) / 100 }));
     return res.status(200).json(dados);
