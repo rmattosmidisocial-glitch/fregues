@@ -48,7 +48,7 @@ export function Mesa() {
 
   if (m.erro || (!m.dados && !d.carregando))
     return (
-      <div className="grid min-h-screen place-items-center bg-[#fffaf2] p-6 text-center text-carvao">
+      <div className="loja-vidro grid min-h-screen place-items-center bg-[#f6ecdf] p-6 text-center text-carvao">
         <div>
           <p className="font-display text-[24px] font-extrabold">Não achamos esta mesa</p>
           <p className="mt-2 text-[#6b5a4c]">Chame o garçom, por favor.</p>
@@ -57,8 +57,8 @@ export function Mesa() {
     );
 
   return (
-    <div className="min-h-screen bg-[#f6ecdf] text-carvao">
-      <div className="mx-auto min-h-screen max-w-[480px] bg-[#fffaf2] pb-32">
+    <div className="loja-vidro min-h-screen bg-[#f6ecdf] text-carvao">
+      <div className="loja-coluna mx-auto min-h-screen max-w-[480px] bg-[#fffaf2] pb-32">
         <div className="flex items-center justify-between bg-carvao px-4 py-2 text-[12px] text-areia">
           {d.modo === "demo" ? (
             <a href="#salao" className="flex items-center gap-1 hover:text-papel">

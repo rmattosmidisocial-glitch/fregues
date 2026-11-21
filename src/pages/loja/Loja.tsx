@@ -511,7 +511,7 @@ export function Loja() {
 
   if (d.modo === "real" && d.erro === "FORA_DO_AR")
     return (
-      <div className="grid min-h-screen place-items-center bg-[#fffaf2] p-6 text-center text-carvao">
+      <div className="loja-vidro grid min-h-screen place-items-center bg-[#f6ecdf] p-6 text-center text-carvao">
         <div className="max-w-[360px]">
           <Store className="mx-auto h-10 w-10 text-[#c2410c]" />
           <h1 className="mt-3 font-display text-[26px] font-extrabold">Loja fora do ar</h1>
@@ -524,11 +524,11 @@ export function Loja() {
         </div>
       </div>
     );
-  if (d.modo === "real" && d.carregando) return <div className="grid min-h-screen place-items-center bg-[#fffaf2] text-[#5a4c41]">Abrindo o cardápio…</div>;
+  if (d.modo === "real" && d.carregando) return <div className="loja-vidro grid min-h-screen place-items-center bg-[#f6ecdf] text-[#5a4c41]">Abrindo o cardápio…</div>;
 
   return (
-    <div className="min-h-screen bg-[#f6ecdf] text-carvao" style={estiloDaMarca(LOJA.cor_marca)}>
-      <div className="mx-auto min-h-screen max-w-[480px] bg-[#fffaf2] pb-28 shadow-[0_0_80px_rgba(0,0,0,.08)]">
+    <div className="loja-vidro min-h-screen bg-[#f6ecdf] text-carvao" style={estiloDaMarca(LOJA.cor_marca)}>
+      <div className="loja-coluna mx-auto min-h-screen max-w-[480px] bg-[#fffaf2] pb-28 shadow-[0_0_80px_rgba(0,0,0,.08)]">
         <div className="flex items-center justify-between bg-carvao px-4 py-2 text-[12px] text-areia">
           {d.modo === "demo" || (d.sessao && d.papel && !d.semAcesso) ? (
             <a href="#painel" className="flex items-center gap-1.5 rounded-full bg-brasa px-3 py-1 font-semibold text-carvao hover:bg-mostarda">

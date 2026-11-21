@@ -1,4 +1,4 @@
-// Modo claro ou noturno. A escolha fica salva neste aparelho; sem escolha, segue o celular ou computador.
+// Visual escuro de vidro (padrão) ou modo claro. A escolha fica salva neste aparelho.
 import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 
@@ -14,12 +14,12 @@ function lerSalvo(): Modo | null {
     return null;
   }
 }
-const doSistema = (): Modo => (typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "noturno" : "claro");
+const doSistema = (): Modo => "noturno"; // padrão: vidro escuro
 
 let atual: Modo = lerSalvo() ?? doSistema();
 function aplicar() {
   document.documentElement.classList.toggle("noturno", atual === "noturno");
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", atual === "noturno" ? "#1D1613" : "#2B211D");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", atual === "noturno" ? "#120D0B" : "#2B211D");
 }
 aplicar();
 window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener?.("change", () => {
