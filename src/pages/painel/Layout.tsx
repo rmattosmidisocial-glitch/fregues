@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { LifeBuoy, Activity, Armchair, Calculator, BookOpen, ChefHat, ClipboardList, ExternalLink, Link2, Lock, LogOut, Map as MapIcon, UserRound, MessagesSquare, Settings, Sparkles, Users, Workflow, X, BarChart3, TrendingDown } from "lucide-react";
 import { useCrescer } from "../../data/crescer";
+import { useSalao } from "../../data/salao";
 import { useAtendimentoPainel } from "../../data/atendimento";
 import { useFormulariosPainel } from "../../data/formularios";
 import { useLinksPainel } from "../../data/links";
@@ -112,7 +113,12 @@ export function PainelLayout({ rota }: { rota: Rota }) {
   );
   const naoLidas = useCrescer((s) => s.conversas.filter((c) => c.naoLida).length);
   const paraConfirmar = useCrescer((s) => s.forms.reduce((n, f) => n + (f.confirmar ? f.respostas.filter((r) => r.situacao === "nova").length : 0), 0));
-  const contador = (r: Rota) => (r === "pedidos" ? d.pedidos.filter((p) => p.status === "novo").length : r === "atendimento" ? naoLidas : r === "formularios" ? paraConfirmar : 0);
+  // Salão: mesa chamando o garçom ou pedindo a conta, e pedido do QR esperando confirmação. Caixa: mesas com a conta pedida.
+  const salao = useSalao("menu");
+  const mesasAvisando = new Set([...salao.chamados.map((c) => c.table_id), ...salao.itens.filter((i) => i.status === "aguardando").map((i) => salao.comandas.find((c) => c.id === i.tab_id)?.table_id ?? i.tab_id)]).size;
+  const contasPedidas = salao.comandas.filter((c) => c.status === "conta").length;
+  const contador = (r: Rota) => (r === "pedidos" ? d.pedidos.filter((p) => p.status === "novo").length : r === "atendimento" ? naoLidas : r === "formularios" ? paraConfirmar : r === "salao" ? mesasAvisando : r === "caixa" ? contasPedidas : 0);
+  const dicaContador = (r: Rota, n: number) => (r === "salao" ? `${n} mesa${n > 1 ? "s" : ""} pedindo atenção` : r === "caixa" ? `${n} conta${n > 1 ? "s" : ""} pedida${n > 1 ? "s" : ""}` : `${n} para ver`);
   // botão = liga/desliga manual; o texto mostra se está aberta de verdade (horário e pausa)
   const aberta = d.loja.ligada ?? d.loja.aberto;
   const setAberta = (v: boolean) => d.acoes.setAberta(v);
@@ -179,7 +185,11 @@ export function PainelLayout({ rota }: { rota: Rota }) {
                   {i.icone}
                   {i.rotulo}
                   {!liberado(MODULO_DA_ROTA[i.rota]) && <Lock className="ml-auto h-3.5 w-3.5 text-fumo" aria-label="Não incluso no seu plano" />}
-                  {n > 0 && <span className="tabular ml-auto rounded-full bg-brasa px-2 text-[12px] font-bold text-carvao">{n}</span>}
+                  {n > 0 && (
+                    <span title={dicaContador(i.rota, n)} aria-label={dicaContador(i.rota, n)} className="tabular ml-auto rounded-full bg-brasa px-2 text-[12px] font-bold text-carvao">
+                      {n}
+                    </span>
+                  )}
                 </a>
               </div>
             );
@@ -268,7 +278,7 @@ export function PainelLayout({ rota }: { rota: Rota }) {
           <a key={i.rota} href={`#${i.rota}`} aria-current={rota === i.rota ? "page" : undefined} className={`relative flex min-w-[76px] flex-col items-center gap-1 px-1 py-2.5 text-[11px] ${rota === i.rota ? "text-brasa" : "text-areia"}`}>
             {i.icone}
             {i.curto}
-            {contador(i.rota) > 0 && <span className="absolute right-4 top-1.5 h-2 w-2 rounded-full bg-brasa" />}
+            {contador(i.rota) > 0 && <span aria-label={dicaContador(i.rota, contador(i.rota))} className="absolute right-4 top-1.5 h-2 w-2 rounded-full bg-brasa" />}
           </a>
         ))}
       </nav>
