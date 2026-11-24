@@ -28,7 +28,13 @@ function Moldura({ titulo, children }: { titulo: string; children: React.ReactNo
         <p className="mt-1 text-[13px] text-[#6b5546]">Versão de {new Date(VERSAO_TERMOS + "T12:00").toLocaleDateString("pt-BR")}</p>
         {children}
         <p className="mt-10 border-t border-[#eadccb] pt-4 text-[13px] text-[#6b5546]">
-          <a href="#termos" className="underline">Termos de uso</a> · <a href="#privacidade" className="underline">Política de privacidade</a>
+          <a href="#termos" className="underline">
+            Termos de uso
+          </a>{" "}
+          ·{" "}
+          <a href="#privacidade" className="underline">
+            Política de privacidade
+          </a>
         </p>
       </article>
     </div>
@@ -53,7 +59,13 @@ export function Termos() {
       <H>6. Disponibilidade</H>
       <P>O Freguês trabalha para o sistema ficar no ar o tempo todo, mas pode haver paradas para manutenção ou por falhas de terceiros (internet, servidores, bancos). Nesses casos não há multa, e o Freguês atua para resolver o quanto antes.</P>
       <H>7. Dados e privacidade</H>
-      <P>Os dados dos fregueses pertencem ao Cliente. O Freguês trata esses dados só para fazer o sistema funcionar, como descrito na <a href="#privacidade" className="underline">Política de privacidade</a>. Ao encerrar a conta, o Cliente pode exportar seus dados antes da exclusão.</P>
+      <P>
+        Os dados dos fregueses pertencem ao Cliente. O Freguês trata esses dados só para fazer o sistema funcionar, como descrito na{" "}
+        <a href="#privacidade" className="underline">
+          Política de privacidade
+        </a>
+        . Ao encerrar a conta, o Cliente pode exportar seus dados antes da exclusão.
+      </P>
       <H>8. Mudanças nestes termos</H>
       <P>Quando os termos mudarem, o Cliente verá a nova versão no painel e precisará aceitar para continuar.</P>
       <H>9. Contato</H>
@@ -74,13 +86,19 @@ export function Privacidade() {
     <Moldura titulo="Política de privacidade">
       <P>Esta política explica como os dados são tratados no Freguês, sistema de {e.empresa} usado pelos restaurantes para vender online. Ela segue a Lei Geral de Proteção de Dados (Lei 13.709/2018).</P>
       <H>Quem é quem</H>
-      <P>Quando você pede em um restaurante, ele é o <b>controlador</b> dos seus dados: decide como usá-los para atender você. O Freguês é o <b>operador</b>: guarda e processa esses dados em nome do restaurante, só para o sistema funcionar.</P>
+      <P>
+        Quando você pede em um restaurante, ele é o <b>controlador</b> dos seus dados: decide como usá-los para atender você. O Freguês é o <b>operador</b>: guarda e processa esses dados em nome do restaurante, só para o sistema funcionar.
+      </P>
       <H>Que dados são coletados</H>
       <P>Nome, WhatsApp, endereço de entrega e o ponto no mapa, itens pedidos, forma de pagamento, valores, data e hora dos pedidos e respostas de pesquisas. Não guardamos dados de cartão nem senhas de banco.</P>
       <H>Para que são usados</H>
       <P>Para receber, preparar e entregar o pedido; calcular a taxa de entrega; manter o histórico e o cashback; e, só se você marcar que aceita, receber novidades e cupons do restaurante pelo WhatsApp.</P>
       <H>Com quem são compartilhados</H>
       <P>Com o restaurante em que você pediu e com serviços que mantêm o sistema no ar (hospedagem e banco de dados). Não vendemos dados.</P>
+      <P>
+        Se o restaurante anuncia no Facebook ou no Instagram e ligou o Pixel da Meta, a loja avisa a Meta das visitas e das compras para medir os anúncios dele. Seu telefone e seu nome vão embaralhados (em código que não dá para ler), junto com o valor da compra. A Meta trata esses dados pela política de privacidade
+        dela.
+      </P>
       <H>Por quanto tempo</H>
       <P>Enquanto o restaurante usar o Freguês, ou até você pedir a exclusão, salvo o que a lei obrigar a guardar.</P>
       <H>Seus direitos</H>

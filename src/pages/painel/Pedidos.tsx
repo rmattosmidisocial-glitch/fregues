@@ -200,6 +200,7 @@ function Cartao({ p, c, ent, abrir, aberto, show }: { p: Pedido; c: (typeof COLU
         {p.motoboy && ` · ${p.motoboy}`}
       </p>
       {p.primeira && <p className="mt-2 inline-block rounded-full bg-mostarda/15 px-2 py-0.5 text-[12px] font-semibold text-mostarda">Primeira compra</p>}
+      {p.anuncio && <p className="ml-1 mt-2 inline-block rounded-full bg-[#1565d8] px-2 py-0.5 text-[12px] font-semibold text-white">Veio da Meta</p>}
       <ul className="mt-3 space-y-0.5 text-[14px]">
         {p.itens.map((i) => (
           <li key={i}>{i}</li>

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { guardarOrigem, rastreioDoPedido, temOrigem } from "../lib/meta";
 import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
 import * as M from "./mock";
 import type { Freguês, Pedido, Produto, StatusPedido, Zona } from "./mock";
@@ -43,6 +44,8 @@ try {
 } catch {
   /* sem sessionStorage */
 }
+// Quem chegou por anúncio da Meta (clique com fbclid ou utm_source) leva essa origem até o pedido.
+guardarOrigem();
 export const supabase: SupabaseClient | null = URL && KEY ? createClient(URL, KEY) : null;
 /** Cliente só do Admin, com a sessão guardada à parte: entrar no Admin não troca o login do painel do dono (e vice-versa). */
 export const supabaseAdmin: SupabaseClient | null = URL && KEY ? createClient(URL, KEY, { auth: { storageKey: "fregues-admin-auth" } }) : null;
@@ -96,6 +99,10 @@ export type Loja = typeof M.LOJA & {
   cardapio_horas?: string[];
   pagamento_online?: boolean;
   pagamento_online_ok?: boolean;
+  /** Pixel da Meta (anúncios no Facebook e Instagram) */
+  meta_pixel_id?: string | null;
+  /** API de Conversões ligada (token conferido no servidor) */
+  meta_capi?: boolean;
   whatsapp_ativo?: boolean;
   whatsapp_ok?: boolean;
   whatsapp_eventos?: Record<string, boolean>;
@@ -111,7 +118,7 @@ export type Loja = typeof M.LOJA & {
   maquininha_aparelhos?: Aparelho[];
 };
 export type Aparelho = { id: string; nome: string };
-export type Integracoes = { mp: boolean; mp_final: string | null; wa: boolean; wa_phone_id: string | null; wa_modelos: Record<string, string>; focus: boolean; focus_final: string | null; stone?: boolean };
+export type Integracoes = { mp: boolean; mp_final: string | null; wa: boolean; wa_phone_id: string | null; wa_modelos: Record<string, string>; focus: boolean; focus_final: string | null; stone?: boolean; meta?: boolean; meta_final?: string | null; meta_teste?: string | null };
 export type Relatorio = {
   pedidos: number;
   cancelados: number;
@@ -256,6 +263,8 @@ type Dados = {
           | "prejuizo_alerta"
           | "pagamento_online"
           | "pagamento_online_ok"
+          | "meta_pixel_id"
+          | "meta_capi"
           | "whatsapp_ativo"
           | "whatsapp_ok"
           | "whatsapp_eventos"
@@ -365,6 +374,8 @@ type Dados = {
     /** Chama as integrações do servidor (/api/loja/...) com a sessão de quem está no painel. */
     servidorLoja: <T = Record<string, unknown>>(acao: string, corpo: Record<string, unknown>) => Promise<T & { erro?: string }>;
     integracoes: () => Promise<Integracoes | null>;
+    /** Pedidos e vendas que vieram de anúncio da Meta (30 dias) */
+    metaVendas: () => Promise<{ pedidos: number; receita: number; avisadas: number } | null>;
     relatorio: (de: string, ate: string) => Promise<{ dados?: Relatorio; erro?: string }>;
     relatorioPedidos: (de: string, ate: string) => Promise<Record<string, unknown>[]>;
     notas: (orderIds: string[]) => Promise<NotaFiscal[]>;
@@ -488,7 +499,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     const { data: s, error } = await supabase
       .from("stores")
       .select(
-        "id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem,cashback_ativo,cashback_percentual,cashback_minimo_uso,cashback_validade_dias,servico_padrao,couvert_padrao,org_id,relatorios_ativo,prejuizo_alerta,cardapios_duplos,cardapio_ativo,cardapio_nomes,cardapio_auto,cardapio_horas,pagamento_online,pagamento_online_ok,whatsapp_ativo,whatsapp_ok,whatsapp_eventos,nfce_ativo,nfce_ok,nfce_automatica,nfce_cnpj,nfce_producao,nfce_ncm,cor_marca,maquininha_ativo,maquininha_provedor,maquininha_aparelhos",
+        "id,nome,slug,bairro,cidade,lon,lat,nota,avaliacoes,horario,aberta,publicada,demonstracao,pix_chave,pix_nome,pix_cidade,descricao,whatsapp,instagram,logo_url,capa_url,rua,numero,cep,horarios,pausa_ate,extra_min,extra_ate,aceita_pix,aceita_cartao,aceita_dinheiro,entrega_ativa,retirada_ativa,pedido_minimo_geral,taxa_embalagem,cashback_ativo,cashback_percentual,cashback_minimo_uso,cashback_validade_dias,servico_padrao,couvert_padrao,org_id,relatorios_ativo,prejuizo_alerta,cardapios_duplos,cardapio_ativo,cardapio_nomes,cardapio_auto,cardapio_horas,pagamento_online,pagamento_online_ok,meta_pixel_id,meta_capi,whatsapp_ativo,whatsapp_ok,whatsapp_eventos,nfce_ativo,nfce_ok,nfce_automatica,nfce_cnpj,nfce_producao,nfce_ncm,cor_marca,maquininha_ativo,maquininha_provedor,maquininha_aparelhos",
       )
       .eq("slug", SLUG)
       .single();
@@ -566,7 +577,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       supabase.rpc("pulse_summary", { p_store: storeId }),
       supabase
         .from("orders")
-        .select("id,numero,status,modo,mesa,total,subtotal,taxa_entrega,taxa_embalagem,desconto,servico,couvert,zone_id,pagamento,pago,motoboy,observacao,created_at,endereco,troco_para,customers(nome,telefone),order_items(nome,qtd,unit,escolhas,obs)")
+        .select("id,numero,status,modo,mesa,total,subtotal,taxa_entrega,taxa_embalagem,desconto,servico,couvert,zone_id,pagamento,pago,motoboy,observacao,created_at,endereco,troco_para,canal,customers(nome,telefone),order_items(nome,qtd,unit,escolhas,obs)")
         .eq("store_id", storeId)
         .gte("created_at", desde)
         .order("created_at", { ascending: false })
@@ -634,6 +645,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
           pago: o.pago,
           forma: o.pagamento,
           criadoEm: o.created_at,
+          anuncio: o.canal === "Anúncio da Meta",
           linhas: ((o.order_items as unknown as { nome: string; qtd: number; unit: number; escolhas: unknown[]; obs: string | null }[]) ?? []).map((i) => ({
             qtd: i.qtd,
             nome: i.nome,
@@ -1143,6 +1155,8 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
           if (evento && loja.whatsapp_ativo) chamarServidor("whatsapp", { order_id: p.id, evento }).catch(() => {});
           // nota fiscal automática ao entregar (opcional)
           if (status === "entregue" && loja.nfce_ativo && loja.nfce_automatica) chamarServidor("nfce", { order_id: p.id }).catch(() => {});
+          // Pixel da Meta: pedido aceito conta como compra (o servidor manda uma vez só)
+          if (status === "preparo" && loja.meta_pixel_id) chamarServidor("meta", { op: "compra", order_id: p.id }).catch(() => {});
         }
       },
       async pagarPedido(num, forma) {
@@ -1150,6 +1164,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         if (supabase && p?.id) {
           const { error } = await supabase.rpc("pedido_pagar", { p_pedido: p.id, p_forma: forma });
           if (error) return error.message.replace(/^.*?:\s*/, "");
+          if (loja.meta_pixel_id) chamarServidor("meta", { op: "compra", order_id: p.id }).catch(() => {});
         }
         const rot: Record<string, Pedido["pag"]> = { pix: "Pix pago", cartao: "Cartão online", dinheiro: "Dinheiro (troco p/ 100)", maquininha: "Maquininha" };
         setPedidos((l) => l.map((x) => (x.num === num ? { ...x, pago: true, forma, pag: rot[forma] } : x)));
@@ -1181,6 +1196,11 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
         return z ? { atende: true, bairro, zona: z.nome, taxa: (bairroLocalId ? z.taxasBairro?.[bairroLocalId] : undefined) ?? z.taxa, tempo_min: z.tempo[0], tempo_max: z.tempo[1], pedido_minimo: z.minimo, gratis_acima: z.gratisAcima ?? null } : { atende: false, bairro };
       },
       servidorLoja: chamarServidor,
+      async metaVendas() {
+        if (!supabase || !loja.id) return { pedidos: 23, receita: 1486.3, avisadas: 21 };
+        const { data } = await supabase.rpc("meta_vendas", { p_store: loja.id });
+        return data ? { pedidos: Number(data.pedidos), receita: Number(data.receita), avisadas: Number(data.avisadas) } : null;
+      },
       async integracoes() {
         if (!supabase || !loja.id) return null;
         const { data } = await supabase.rpc("loja_integracoes", { p_store: loja.id });
@@ -1216,6 +1236,8 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
           const criado = data as PedidoCriado;
           // WhatsApp oficial: confirma o pedido para o cliente (se a loja ligou)
           if (criado?.id && !criado.erro && loja.whatsapp_ativo) chamarServidor("whatsapp", { order_id: criado.id, evento: "recebido" }).catch(() => {});
+          // de onde o cliente veio (anúncio da Meta) e os dados para a API de Conversões
+          if (criado?.id && !criado.erro && (loja.meta_pixel_id || temOrigem())) chamarServidor("meta", { op: "origem", order_id: criado.id, ...rastreioDoPedido() }).catch(() => {});
           try {
             if (criado?.id && !criado.erro && sessionStorage.getItem("fregues-origem") === "bio") supabase.rpc("pedido_origem", { p_id: criado.id, p_origem: "Link da bio" }).then(() => {});
           } catch {

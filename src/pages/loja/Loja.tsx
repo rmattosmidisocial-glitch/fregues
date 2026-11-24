@@ -3,6 +3,7 @@ import { ChatLoja } from "./ChatLoja";
 import { AvaliarPedido, AvaliarPeloLink } from "./Avaliar";
 import { estiloDaMarca } from "../../lib/cor";
 import { avisar, avisosLigados, avisosSuportados, pedirAvisos } from "../../lib/avisos";
+import { eventoMeta, iniciarPixel } from "../../lib/meta";
 import { ArrowLeft, Bell, Bike, Check, ChevronRight, Clock, Copy, CreditCard, Minus, Plus, ShoppingBag, Star, Store, Wallet, X } from "lucide-react";
 import { brl, type Grupo, type Produto } from "../../data/mock";
 import QRCode from "qrcode";
@@ -366,6 +367,34 @@ export function Loja() {
   const ofertaUpsell = CARDAPIO.find((p) => p.nome === "Batata cheddar e bacon" && !p.esgotado);
   const oDeSempreProd = CARDAPIO.find((p) => p.nome === "X-Bacon Duplo");
 
+  // Pixel da Meta (só se a loja colou o ID do Pixel em Configurações)
+  const pixelId = d.modo === "real" ? LOJA.meta_pixel_id : null;
+  useEffect(() => iniciarPixel(pixelId), [pixelId]);
+  useEffect(() => {
+    if (aberto) eventoMeta("ViewContent", { content_ids: [aberto.id], content_name: aberto.nome, content_type: "product", value: aberto.promo ?? aberto.preco });
+  }, [aberto]);
+  const [checkoutContado, setCheckoutContado] = useState(false);
+  useEffect(() => {
+    if (checkoutContado || (etapa !== "entrega" && etapa !== "pagamento") || !itens.length) return;
+    setCheckoutContado(true);
+    eventoMeta("InitiateCheckout", { value: subAtual, num_items: itens.reduce((n, i) => n + i.qtd, 0), content_ids: itens.map((i) => i.p.id), content_type: "product" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etapa]);
+  // compra confirmada (pago ou aceito pela loja): conta uma vez, com o mesmo ID que o servidor manda à Meta
+  useEffect(() => {
+    if (!pedido || !(pago || passo >= 2)) return;
+    const chave = "fregues-meta-compra-" + pedido.id;
+    try {
+      if (localStorage.getItem(chave)) return;
+      localStorage.setItem(chave, "1");
+    } catch {
+      /* sem armazenamento: segue */
+    }
+    eventoMeta("Purchase", { value: pedido.total, num_items: itens.reduce((n, i) => n + i.qtd, 0), content_ids: itens.map((i) => i.p.id), content_type: "product" }, pedido.id);
+    if (pixelId) d.acoes.servidorLoja("meta", { op: "compra", order_id: pedido.id }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pedido, pago, passo]);
+
   // acompanha o pagamento e o status do pedido no banco
   useEffect(() => {
     if (!pedido || d.modo === "demo") return;
@@ -394,6 +423,7 @@ export function Loja() {
   }, [pedido]);
 
   function adicionar(i: Omit<Item, "uid">) {
+    eventoMeta("AddToCart", { content_ids: [i.p.id], content_name: i.p.nome, content_type: "product", value: i.unit * i.qtd, contents: [{ id: i.p.id, quantity: i.qtd, item_price: i.unit }] });
     setItens((l) => [...l, { ...i, uid: Date.now() + Math.random() }]);
     setAberto(null);
   }

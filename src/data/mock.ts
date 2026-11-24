@@ -335,11 +335,13 @@ export type Pedido = {
   zonaId?: string | null;
   /** hora prevista de entrega ou retirada (ISO) */
   previsao?: string;
+  /** chegou por anúncio da Meta (Facebook ou Instagram) */
+  anuncio?: boolean;
 };
 
 export const PEDIDOS: Pedido[] = [
   { num: 1047, cliente: "Larissa Gomes", bairro: "Vista Alegre", itens: ["2x Smash da Penha", "1x Batata rústica", "2x Refrigerante lata"], total: 92.1, pag: "Pix pago", modo: "Entrega", min: 1, status: "novo", primeira: true },
-  { num: 1046, cliente: "Rodrigo Martins", bairro: "Penha", itens: ["1x Combo Smash", "Bebida: Guaraná lata"], total: 45.8, pag: "Cartão online", modo: "Entrega", min: 3, status: "novo" },
+  { num: 1046, cliente: "Rodrigo Martins", bairro: "Penha", itens: ["1x Combo Smash", "Bebida: Guaraná lata"], total: 45.8, pag: "Cartão online", modo: "Entrega", min: 3, status: "novo", anuncio: true },
   { num: 1045, cliente: "Mesa 4", bairro: "Salão", itens: ["1x Brasa Clássico", "1x Milk-shake de Ovomaltine"], total: 52.8, pag: "Maquininha", modo: "Mesa 4", min: 6, status: "preparo" },
   { num: 1044, cliente: "Ana Paula Ribeiro", bairro: "Vista Alegre", itens: ["1x Combo Casal", "+ Bacon crocante"], total: 104.8, pag: "Pix pago", modo: "Entrega", min: 9, status: "preparo", nota: "Sem cebola em um dos burgers" },
   { num: 1043, cliente: "Felipe Araújo", bairro: "Irajá", itens: ["1x Triplo Brasa", "1x Batata cheddar e bacon"], total: 68.7, pag: "Dinheiro (troco p/ 100)", modo: "Entrega", min: 14, status: "pronto" },

@@ -11,7 +11,7 @@ import { codigoPix, normalizarChave, tipoChave } from "../../lib/pix";
 import { brl } from "../../data/mock";
 import { ImpressoraConfig } from "./Impressora";
 import { usePref } from "../../data/prefs";
-import { Aparencia, MaquininhaIntegrada, NotaFiscal, OpcaoRelatorios, PagamentoOnline, WhatsAppOficial } from "./ConfigIntegracoes";
+import { AnunciosMeta, Aparencia, MaquininhaIntegrada, NotaFiscal, OpcaoRelatorios, PagamentoOnline, WhatsAppOficial } from "./ConfigIntegracoes";
 
 const campo = "mt-1 w-full rounded-xl border border-linha bg-carvao px-3 py-2.5 text-[15px] text-papel";
 
@@ -107,6 +107,7 @@ function ConfigPorSecao({ secoes, lojaId }: { secoes: typeof SECOES; lojaId: str
           <>
             <p className="text-[14px] text-areia">Tudo aqui vem desligado. Ligue só o que fizer sentido para a sua loja.</p>
             <OpcaoRelatorios />
+            <AnunciosMeta key={k("meta")} />
             <NotaFiscal key={k("nf")} />
           </>
         )}

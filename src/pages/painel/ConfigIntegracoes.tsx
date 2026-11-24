@@ -1,7 +1,7 @@
-// Recursos opcionais da loja: relatórios, pagamento online (Mercado Pago), maquininha integrada, WhatsApp oficial e nota fiscal (NFC-e).
+// Recursos opcionais da loja: relatórios, pagamento online (Mercado Pago), maquininha integrada, WhatsApp oficial, nota fiscal (NFC-e) e anúncios da Meta.
 // Tudo vem desligado. As chaves ficam guardadas só no servidor: depois de salvas, ninguém vê de novo (nem o dono).
 import { useEffect, useState } from "react";
-import { BarChart3, CheckCircle2, CreditCard, FileText, MessageCircle, Palette, Smartphone } from "lucide-react";
+import { BarChart3, CheckCircle2, CreditCard, FileText, Megaphone, MessageCircle, Palette, Smartphone } from "lucide-react";
 import { CORES_SUGERIDAS, coresDaMarca } from "../../lib/cor";
 import { useDados, type Aparelho, type Integracoes } from "../../data/dados";
 
@@ -508,5 +508,128 @@ export function Aparencia() {
         </button>
       </div>
     </section>
+  );
+}
+
+/* ---------------- Anúncios da Meta (Pixel + API de Conversões) ---------------- */
+export function AnunciosMeta() {
+  const d = useDados();
+  const { i, carregar } = useIntegracoes();
+  const real = d.modo === "real";
+  const ligado = !!d.loja.meta_pixel_id || !real;
+  const [pixel, setPixel] = useState("");
+  const [token, setToken] = useState("");
+  const [teste, setTeste] = useState("");
+  const [m, setM] = useState<Msg>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const [vendas, setVendas] = useState<{ pedidos: number; receita: number; avisadas: number } | null>(null);
+  useEffect(() => {
+    if (ligado) d.acoes.metaVendas().then(setVendas);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ligado, d.loja.id]);
+  useEffect(() => {
+    if (i?.meta_teste) setTeste(i.meta_teste);
+  }, [i]);
+
+  async function conectar(px = pixel, tk = token) {
+    setOcupado(true);
+    setM(null);
+    const r = await d.acoes.servidorLoja<{ pixel?: string; nome?: string; capi?: boolean }>("chave", { store_id: d.loja.id, tipo: "meta", pixel: px.trim(), token: tk.trim(), teste: teste.trim() });
+    setOcupado(false);
+    if (r.erro) return setM({ ok: false, t: r.erro });
+    setToken("");
+    await carregar();
+    await d.acoes.salvarLoja({ meta_pixel_id: r.pixel, meta_capi: !!r.capi });
+    setM({ ok: true, t: r.capi ? `Pixel ${r.pixel}${r.nome ? ` (${r.nome})` : ""} conectado com a API de Conversões.${teste.trim() ? " Confira o evento de teste em Gerenciador de Eventos › Testar eventos." : ""}` : `Pixel ${r.pixel} conectado. Cole o token para ligar a API de Conversões.` });
+  }
+  const brlCurto = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  return (
+    <Secao icone={<Megaphone className="h-5 w-5 text-brasa" />} titulo="Anúncios da Meta" sub="Para quem anuncia no Facebook e no Instagram: a loja avisa a Meta das visitas e das vendas. A campanha passa a saber quais vendas vieram dela e aprende a achar quem compra.">
+      {!real && <p className="mb-3 rounded-xl border border-dashed border-linha p-3 text-[13px] text-areia">Na demonstração, os números abaixo são de exemplo.</p>}
+      {ligado ? (
+        <div className="space-y-2 text-[14px]">
+          <p className="flex items-center gap-2 rounded-xl bg-grafite p-3">
+            <CheckCircle2 className="h-5 w-5 text-manjericao" /> Pixel {d.loja.meta_pixel_id ?? "1234567890"} conectado
+          </p>
+          <p className="flex items-center gap-2 rounded-xl bg-grafite p-3">
+            {i?.meta || !real ? (
+              <>
+                <CheckCircle2 className="h-5 w-5 text-manjericao" /> API de Conversões ligada{i?.meta_final ? ` (token terminado em ${i.meta_final})` : ""}
+              </>
+            ) : (
+              <span className="text-mostarda">API de Conversões desligada: sem ela, parte das vendas do iPhone e de quem usa bloqueador não chega à Meta.</span>
+            )}
+          </p>
+          {vendas && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl bg-grafite p-3">
+                <p className="text-[12px] text-areia">Pedidos que vieram da Meta (30 dias)</p>
+                <p className="tabular font-display text-[22px] font-bold">{vendas.pedidos}</p>
+              </div>
+              <div className="rounded-xl bg-grafite p-3">
+                <p className="text-[12px] text-areia">Vendido por eles</p>
+                <p className="tabular font-display text-[22px] font-bold">{brlCurto(vendas.receita)}</p>
+              </div>
+            </div>
+          )}
+          {real && !i?.meta && (
+            <div className="space-y-2 rounded-xl border border-linha p-3">
+              <p className="font-semibold">Ligar a API de Conversões</p>
+              <input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Token de acesso da API de Conversões" className={campo} aria-label="Token da API de Conversões" />
+              <button disabled={ocupado || !token.trim()} onClick={() => conectar(d.loja.meta_pixel_id ?? "", token)} className="w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda disabled:opacity-60">
+                {ocupado ? "Testando o token…" : "Ligar a API de Conversões"}
+              </button>
+            </div>
+          )}
+          {real && (
+            <details className="rounded-xl border border-linha p-3">
+              <summary className="cursor-pointer font-semibold">Código de teste (para conferir na Meta)</summary>
+              <p className="mt-2 text-[13px] text-areia">No Gerenciador de Eventos, abra "Testar eventos", copie o código (ex.: TEST12345) e cole aqui. As compras passam a aparecer lá na hora. Apague o código quando terminar de testar: com ele, as vendas não contam nas campanhas.</p>
+              <input value={teste} onChange={(e) => setTeste(e.target.value)} placeholder="TEST12345" className={campo} aria-label="Código de teste da Meta" />
+              <button disabled={ocupado} onClick={() => conectar(d.loja.meta_pixel_id ?? "", "")} className="mt-2 rounded-xl border border-linha px-4 py-2 font-semibold hover:bg-grafite disabled:opacity-60">
+                {teste.trim() ? "Salvar código de teste" : "Tirar o código de teste"}
+              </button>
+            </details>
+          )}
+          <p className="text-[13px] text-areia">Nos anúncios, use o link da sua loja. A Meta marca o clique sozinha e o pedido aparece com a etiqueta "Veio da Meta" em Pedidos.</p>
+          {real && (
+            <button
+              onClick={async () => {
+                if (!confirm("Desconectar o Pixel da Meta? A loja para de avisar visitas e vendas.")) return;
+                await d.acoes.servidorLoja("chave", { store_id: d.loja.id, tipo: "meta", remover: true });
+                await d.acoes.salvarLoja({ meta_pixel_id: null, meta_capi: false });
+                setVendas(null);
+                carregar();
+              }}
+              className="text-[13px] text-areia underline-offset-4 hover:underline"
+            >
+              Desconectar
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-2 text-[14px]">
+          <ol className="list-decimal space-y-1 pl-5 text-areia">
+            <li>
+              Entre no <b className="text-papel">Gerenciador de Eventos</b> da Meta (business.facebook.com/events_manager) com a conta que roda os anúncios.
+            </li>
+            <li>
+              Escolha o Pixel (ou crie um em "Conectar fontes de dados" › Web) e copie o <b className="text-papel">ID do Pixel</b>, só números.
+            </li>
+            <li>
+              Em Configurações do Pixel, na parte "API de Conversões", clique em <b className="text-papel">Gerar token de acesso</b> e copie.
+            </li>
+            <li>Cole os dois aqui. O token é testado e fica guardado só no servidor.</li>
+          </ol>
+          <input inputMode="numeric" value={pixel} onChange={(e) => setPixel(e.target.value.replace(/\D/g, ""))} placeholder="ID do Pixel (ex.: 1234567890123456)" className={campo} aria-label="ID do Pixel da Meta" />
+          <input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Token da API de Conversões (recomendado)" className={campo} aria-label="Token da API de Conversões" />
+          <button disabled={ocupado || pixel.length < 6} onClick={() => conectar()} className="w-full rounded-xl bg-brasa py-3 font-semibold text-carvao hover:bg-mostarda disabled:opacity-60">
+            {ocupado ? "Conferindo com a Meta…" : "Conectar à Meta"}
+          </button>
+        </div>
+      )}
+      <Aviso m={m} />
+    </Secao>
   );
 }
